@@ -353,7 +353,143 @@ class VSG(SocketInstrument):
             return np.array(self.binMult * wfm, dtype=np.int16)
 
 
+class UXG(SocketInstrument):
+    def __init__(self, host, port=5025, timeout=5, reset=False):
+        super().__init__(host, port, timeout)
+        print(self.instId)
+        if reset:
+            self.write('*rst')
+        self.rfState = self.query('output?').strip()
+        self.modState = self.query('output:modulation?').strip()
+        self.cf = float(self.query('frequency?').strip())
+        self.amp = float(self.query('power?').strip())
+        self.mode = self.query('instrument:select?').strip()
+        self.fs = float(self.query('radio:arb:sclock:rate?').strip())
+        self.gran = int(self.query('radio:arb:information:quantum?').strip())
+        self.minLen = int(self.query('radio:arb:information:slength:minimum?').strip())
+        self.binMult = 32767
+
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int',
+                  refFreq=10e6, fs=200e6):
+        self.write(f'output {rfState}')
+        self.rfState = self.query('output?').strip()
+        self.write(f'output:modulation {modState}')
+        self.modState = self.query('output:modulation?').strip()
+        self.write(f'frequency {cf}')
+        self.cf = float(self.query('frequency?').strip())
+        self.write(f'power {amp}')
+        self.amp = float(self.query('power?').strip())
+        self.write(f'roscillator:source {refSrc}')
+        self.refSrc = self.query('roscillator:source?').strip()
+        if 'int' in self.refSrc.lower():
+            self.refFreq = 10e6
+        elif 'ext' in self.refSrc.lower():
+            self.refFreq = float(self.query('roscillator:frequency:external?').strip())
+        elif 'bbg' in self.refSrc.lower():
+            self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
+        else:
+            raise VsgError('Unknown refSrc selected.')
+        self.write(f'radio:arb:sclock:rate {fs}')
+        self.fs = float(self.query('radio:arb:sclock:rate?').strip())
+        self.write(f'radio:arb:rscaling {iqScale}')
+        self.iqScale = float(self.query('radio:arb:rscaling?').strip())
+
+        self.err_check()
+
+    def csv_pdw_file_download(self, fileName, fields=['Operation', 'Time'], data=[[1, 0], [2, 100e-6]]):
+        """Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file."""
+        # Write header fields separated by commas and terminated with \n
+        pdwCsv = ','.join(fields) + '\n'
+        for row in data:
+            # Write subsequent rows with data values separated by commas and terminated with \n
+            # The .join() function requires a list of strings, so convert numbers in row to strings
+            rowString = ','.join([f'{r}' for r in row]) + '\n'
+            pdwCsv += rowString
+
+        # with open(f'{getcwd()}\\{fileName}.csv', 'w') as f:
+        #     f.write(pdwCsv)
+
+        self.write(f'memory:delete "{fileName}.csv"')
+        self.binblockwrite(f'memory:data "{fileName}.csv", ', pdwCsv.encode('utf-8'))
+
+        """Note: memory:import:stream imports/converts csv to pdw AND
+        assigns the resulting pdw and waveform index files as the stream
+        source. There is no need to send the stream:source:file or 
+        stream:source:file:name commands because they are sent
+        implicitly by memory:import:stream."""
+        self.write(f'memory:import:stream "{fileName}.csv", "{fileName}"')
+        self.query('*opc?')
+
+    def download_matlab_wfm(self, fileName, zeroLast=False):
+        """Imports a .mat file built in iqtools and formats it
+        appropriately for transfer to UXG."""
+
+        # Extract the file name from the full path and remove .mat extension
+        name = fileName.split('\\')[-1].replace('.mat', '')
+
+        # Load the iqdata member of the .mat structure
+        iq = io.loadmat(fileName)['iqdata']
+
+        # Zero the last sample to ensure 'Hold' pdw field behaves well
+        if zeroLast:
+            iq[-1] = 0
+
+        # Split I and Q and download waveform
+        i = np.real(iq).reshape(iq.shape[0])
+        q = np.imag(iq).reshape(iq.shape[0])
+        self.download_iq_wfm(name, i, q)
+
+    def sanity_check(self):
+        """Prints out initialized values."""
+        self.err_check()
+        print('RF State:', self.rfState)
+        print('Modulation State:', self.modState)
+        print('Center Frequency:', self.cf)
+        print('Output Amplitude:', self.amp)
+        print('Reference source:', self.refSrc)
+        print('Internal Arb Sample Rate:', self.fs)
+        print('IQ Scaling:', self.iqScale)
+
+    def download_iq_wfm(self, name, i, q, assign=True):
+        """Formats, downloads, and assigns an iq waveform into arb memory."""
+        i = self.check_wfm(i)
+        q = self.check_wfm(q)
+        iq = self.iq_wfm_combiner(i, q)
+        self.binblockwrite(f'memory:data "WFM1:{name}", ', iq)
+        if assign:
+            self.write(f'radio:arb:waveform "WFM1:{name}"')
+
+    def iq_wfm_combiner(self, i, q):
+        """Combines i and q wfms into a single wfm for download to AWG."""
+        iq = np.empty(2 * len(i), dtype=np.uint16)
+        iq[0::2] = i
+        iq[1::2] = q
+        return iq
+
+    def check_wfm(self, wfm, bigEndian=True):
+        """Checks minimum size and granularity and returns waveform with
+        appropriate binary formatting. Note that sig gens expect big endian
+        byte order.
+
+        See pages 205-256 in Keysight X-Series Signal Generators Programming
+        Guide (November 2014 Edition) for more info."""
+
+        rl = len(wfm)
+        if rl < self.minLen:
+            raise VsgError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+        if rl % self.gran != 0:
+            raise VsgError(f'Waveform must have a granularity of {self.gran}.')
+
+        if bigEndian:
+            return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()
+        else:
+            return np.array(self.binMult * wfm, dtype=np.uint16)
+
+
 def vsg_example(ipAddress):
+    """Simple example script that creates either a chirp or barker pulse,
+    and downloads, assigns, and plays out the waveform."""
+
     vsg = VSG(ipAddress, port=5025, reset=True)
     vsg.configure(rfState=1, modState=1, amp=-20, fs=50e6, iqScale=70)
     vsg.sanity_check()
@@ -378,6 +514,10 @@ def vsg_example(ipAddress):
 
 
 def m8190a_example(ipAddress):
+    """Simple example script that sets up the digital upconverter on the
+    M8190A and creates, downloads, assigns, and plays back a simple IQ
+    waveform from the AC port."""
+
     awg = M8190A(ipAddress, port=5025, reset=True)
     awg.configure(res='intx3', cf1=1e9)
     awg.sanity_check()
@@ -392,6 +532,39 @@ def m8190a_example(ipAddress):
     awg.query('*opc?')
     awg.err_check()
     awg.disconnect()
+
+
+def uxg_example(ipAddress):
+    """Simple example script that creates and downloads a chirp waveform,
+    defines a very simple pdw csv file, and loads that pdw file into the
+    UXG and plays it out."""
+
+    """NOTE: trigger settings may need to be adjusted for continuous
+    output. This will be fixed in a future release."""
+
+    uxg = UXG(ipAddress, port=5025, timeout=10, reset=False)
+    uxg.err_check()
+
+    # Create IQ waveform
+    length = 1e-6
+    fs = 250e6
+    chirpBw = 100e6
+    i, q = chirp_generator(length, fs, chirpBw)
+    wfmName = '1US_100MHz_CHIRP'
+    uxg.download_iq_wfm(wfmName, i, q)
+
+    # Define and generate csv pdw file
+    uxg.write('stream:state off')
+    pdwName = 'basic_chirp'
+    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name']
+    data = [[1, 0, 1e9, 'Hold', '0x1', wfmName],
+            [2, 10e-6, 1e9, 'Hold', '0x0', wfmName]]
+
+    uxg.csv_pdw_file_download(pdwName, fields, data)
+    uxg.write('stream:state on')
+
+    uxg.err_check()
+    uxg.disconnect()
 
 
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6):
