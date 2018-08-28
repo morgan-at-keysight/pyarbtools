@@ -359,6 +359,7 @@ class UXG(SocketInstrument):
         print(self.instId)
         if reset:
             self.write('*rst')
+            self.query('*opc?')
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.cf = float(self.query('frequency?').strip())
@@ -542,19 +543,21 @@ def uxg_example(ipAddress):
     """NOTE: trigger settings may need to be adjusted for continuous
     output. This will be fixed in a future release."""
 
-    uxg = UXG(ipAddress, port=5025, timeout=10, reset=False)
+    uxg = UXG(ipAddress, port=5025, timeout=10, reset=True)
     uxg.err_check()
+
+    uxg.write('stream:state off')
+    uxg.write('radio:arb:state off')
 
     # Create IQ waveform
     length = 1e-6
     fs = 250e6
     chirpBw = 100e6
-    i, q = chirp_generator(length, fs, chirpBw)
+    i, q = chirp_generator(length, fs, chirpBw, zeroLast=True)
     wfmName = '1US_100MHz_CHIRP'
     uxg.download_iq_wfm(wfmName, i, q)
 
     # Define and generate csv pdw file
-    uxg.write('stream:state off')
     pdwName = 'basic_chirp'
     fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name']
     data = [[1, 0, 1e9, 'Hold', '0x1', wfmName],
@@ -562,12 +565,13 @@ def uxg_example(ipAddress):
 
     uxg.csv_pdw_file_download(pdwName, fields, data)
     uxg.write('stream:state on')
+    uxg.write('stream:trigger:play:immediate')
 
     uxg.err_check()
     uxg.disconnect()
 
 
-def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6):
+def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
     is determined by the sign of chirpBw (pos = up chirp, neg = down chirp)."""
 
@@ -589,13 +593,15 @@ def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6):
 
     mod = np.pi * chirpRate * t**2
     iq = np.exp(1j * mod)
+    if zeroLast:
+        iq[-1] = 0 + 1j*0
     i = np.real(iq)
     q = np.imag(iq)
 
     return i, q
 
 
-def barker_generator(length=100e-6, fs=100e6, code='b2'):
+def barker_generator(length=100e-6, fs=100e6, code='b2', zeroLast=False):
     """Generates a baseband Barker phase coded signal."""
 
     # Codes taken from https://en.wikipedia.org/wiki/Barker_code
@@ -614,6 +620,9 @@ def barker_generator(length=100e-6, fs=100e6, code='b2'):
 
     mod = np.pi / 2 * barker
     iq = np.exp(1j * mod)
+
+    if zeroLast:
+        iq[-1] = 0 + 1j*0
     i = np.real(iq)
     q = np.imag(iq)
 
@@ -622,7 +631,8 @@ def barker_generator(length=100e-6, fs=100e6, code='b2'):
 
 def main():
     # m8190a_example('141.121.210.171')
-    vsg_example('10.112.180.242')
+    # vsg_example('10.112.180.242')
+    uxg_example('141.121.210.167')
 
 
 if __name__ == '__main__':

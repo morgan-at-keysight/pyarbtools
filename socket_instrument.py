@@ -68,12 +68,15 @@ class SocketInstrument:
 
         Certain instruments format the syst:err? response differently, so remove whitespace and
         extra characters before checking."""
-
-        err = self.query('syst:err?').strip().replace('+', '').replace('-', '')
-        while err != '0,"No error"':
-            print(err)
-            err = self.query('syst:err?').strip().replace('+', '').replace('-', '')
-        print(self.query('syst:err?'))
+        err = []
+        temp = self.query('syst:err?').strip().replace('+', '').replace('-', '')
+        while temp != '0,"No error"':
+            # print(temp)
+            err.append(temp)
+            temp = self.query('syst:err?').strip().replace('+', '').replace('-', '')
+        # print(self.query('syst:err?'))
+        if err:
+            raise SockInstError(err)
 
     def binblockread(self, dtype=np.int8, debug=False):
         """Read data with IEEE 488.2 binary block format
