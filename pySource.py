@@ -360,6 +360,7 @@ class UXG(SocketInstrument):
         if reset:
             self.write('*rst')
             self.query('*opc?')
+        self.host = host
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.cf = float(self.query('frequency?').strip())
@@ -369,6 +370,13 @@ class UXG(SocketInstrument):
         self.gran = int(self.query('radio:arb:information:quantum?').strip())
         self.minLen = int(self.query('radio:arb:information:slength:minimum?').strip())
         self.binMult = 32767
+
+        # Set up separate socket for LAN PDW streaming
+        self.lanStream = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.lanStream.setblocking(False)
+        self.lanStream.settimeout(timeout)
+        # Can't connect until LAN streaming is turned on
+        # self.lanStream.connect((host, 5033))
 
     def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int',
                   refFreq=10e6, fs=200e6):
@@ -397,8 +405,97 @@ class UXG(SocketInstrument):
 
         self.err_check()
 
+    def open_lan_stream(self):
+        """Open connection to port 5033 for LAN streaming to the UXG."""
+        self.lanStream.connect((self.host, 5033))
+
+    def close_lan_stream(self):
+        """Close LAN streaming port."""
+        self.lanStream.shutdown(socket.SHUT_RDWR)
+        self.lanStream.close()
+
+    def bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0, phaseControl=0, rfOff=0, wIndex=0, wfmMkrMask=0):
+        """This function builds a single format-1 PDW from a list of parameters.
+
+        See User's Guide>Streaming Use>PDW Definitions section of
+        Keysight UXG X-Series Agile Vector Adapter Online Documentation
+        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm"""
+
+        pdwFormat = 1
+        _freq = int(freq * 1024 + 0.5)
+        _phase = int(phase * 4096 / 360 + 0.5)
+        _startTimePs = int(startTimeSec * 1e12)
+        _power = int((power + 140) / 0.005 + 0.5)
+
+        # Build PDW
+        pdw = np.zeros(6, dtype=np.uint32)
+        # Word 0: Mask pdw format (3 bits), operation (2 bits), and the lower 27 bits (32 - 5) of freq
+        pdw[0] = (pdwFormat | operation << 3 | _freq << 5) & 0xFFFFFFFF
+        # Word 1: Mask the upper 20 bits (47 - 27) of freq and phase (12 bits)
+        pdw[1] = (_freq >> 27 | _phase << 20) & 0xFFFFFFFF
+        # Word 2: Lower 32 bits of startTimePs
+        pdw[2] = _startTimePs & 0xFFFFFFFF
+        # Word 3: Upper 32 bits of startTimePS
+        pdw[3] = (_startTimePs & 0xFFFFFFFF00000000) >> 32
+        # Word 4: Mask power (15 bits), markers (12 bits), phaseControl (1 bit), and rfOff (1 bit)
+        pdw[4] = _power | markers << 15 | phaseControl << 27 | rfOff << 28
+        # Word 5: Mask wIndex (16 bits), 12 reserved bits, and wfmMkrMask (4 bits)
+        pdw[5] = wIndex | 0b000000000000 << 16 | wfmMkrMask << 28
+
+        return pdw
+
+    def bin_pdw_file_builder(self, pdwList):
+        """Builds a binary PDW file with a padding block to ensure the
+        PDW section begins at an offset of 4096 bytes (required by UXG).
+
+        pdwList is a list of lists. Each inner list contains a single
+        pulse descriptor word.
+
+        See User's Guide>Streaming Use>PDW File Format section of
+        Keysight UXG X-Series Agile Vector Adapter Online Documentation
+        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm"""
+
+        # Header section, all fixed values
+        fileId = b'STRM'
+        version = (1).to_bytes(4, byteorder='little')
+        # No reason to have > one 4096 byte offset to PDW data.
+        offset = ((1 << 1) & 0x3fffff).to_bytes(4, byteorder='little')
+        magic = b'KEYS'
+        res0 = (0).to_bytes(16, byteorder='little')
+        flags = (0).to_bytes(4, byteorder='little')
+        uniqueId = (0).to_bytes(4, byteorder='little')
+        dataId = (64).to_bytes(4, byteorder='little')
+        res1 = (0).to_bytes(4, byteorder='little')
+        header = [fileId, version, offset, magic, res0, flags, uniqueId, dataId, res1]
+
+        # Padding block, all fixed values
+        padBlockId = (1).to_bytes(4, byteorder='little')
+        res3 = (0).to_bytes(4, byteorder='little')
+        size = (4016).to_bytes(8, byteorder='little')
+        # 4016 bytes of padding ensures that the first PDw begins @ byte 4097
+        padData = (0).to_bytes(4016, byteorder='little')
+        padding = [padBlockId, res3, size, padData]
+
+        # PDW block
+        pdwBlockId = (16).to_bytes(4, byteorder='little')
+        res4 = (0).to_bytes(4, byteorder='little')
+        pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
+        pdwBlock = [pdwBlockId, res4, pdwSize]
+
+        # Build PDW file from header, padBlock, pdwBlock, and PDWs
+        pdwFile = header + padding + pdwBlock
+        pdwFile += [self.bin_pdw_builder(*p) for p in pdwList]
+        # Convert arrays of data to a single byte-type variable
+        pdwFile = b''.join(pdwFile)
+
+        with open('C:\\Users\\moalliso\\Desktop\\pdwtest', 'wb') as f:
+            f.write(pdwFile)
+
+        return pdwFile
+
     def csv_pdw_file_download(self, fileName, fields=['Operation', 'Time'], data=[[1, 0], [2, 100e-6]]):
         """Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file."""
+
         # Write header fields separated by commas and terminated with \n
         pdwCsv = ','.join(fields) + '\n'
         for row in data:
@@ -419,6 +516,26 @@ class UXG(SocketInstrument):
         stream:source:file:name commands because they are sent
         implicitly by memory:import:stream."""
         self.write(f'memory:import:stream "{fileName}.csv", "{fileName}"')
+        self.query('*opc?')
+
+    def csv_windex_file_download(self, windex):
+        """Write header fields separated by commas and terminated with \n
+
+        windex is a dictionary:
+        {'fileName': '<fileName>', 'wfmNames': ['name0', 'name1',... 'nameN']}"""
+
+        windexCsv = 'Id,Filename\n'
+        for i in range(len(windex['wfmNames'])):
+            windexCsv += f'{i},{windex["wfmNames"][i]}\n'
+
+        self.write(f'memory:delete "{windex["fileName"]}.csv"')
+        self.binblockwrite(f'memory:data "{windex["fileName"]}.csv", ', windexCsv.encode('utf-8'))
+
+        """Note: memory:import:windex imports/converts csv to waveform
+        index file AND assigns the resulting file as the waveform index
+        manager. There is no need to send the stream:windex:select 
+        command because it is sent implicitly by memory:import:windex."""
+        self.write(f'memory:import:windex "{windex["fileName"]}.csv", "{windex["fileName"]}"')
         self.query('*opc?')
 
     def download_matlab_wfm(self, fileName, zeroLast=False):
@@ -571,6 +688,75 @@ def uxg_example(ipAddress):
     uxg.disconnect()
 
 
+def uxg_lan_streaming_example(ipAddress):
+    """This function creates and downloads iq waveforms & a waveform
+    index file, and then builds a PDW file, configures LAN streaming on the
+    and streams the PDWs to the UXG."""
+
+    uxg = UXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg.err_check()
+
+    # Waveform creation, three chirps of the same bandwidth and different lengths
+    lengths = [10e-6, 50e-6, 100e-6]
+    wfmNames = []
+    for l in lengths:
+        i, q = chirp_generator(l, fs=250e6, chirpBw=100e6, zeroLast=True)
+        uxg.download_iq_wfm(f'{l}_100MHz_CHIRP', i, q)
+        wfmNames.append(f'{l}_100MHz_CHIRP')
+
+    # Create/download waveform index file
+    windex = {'fileName': 'chirps', 'wfmNames':wfmNames}
+    uxg.csv_windex_file_download(windex)
+
+    # Create PDWs
+    # operation, freq, phase, startTimeSec, power, markers,
+    # phaseControl, rfOff, wIndex, wfmMkrMask
+    rawPdw = [[1, 1e9, 0, 0,      0, 1, 0, 0, 0, 0xF],
+              [0, 1e9, 0, 20e-6, 0, 0, 0, 0, 1, 0xF],
+              [0, 1e9, 0, 120e-6, 0, 0, 0, 0, 2, 0xF],
+              [2, 1e9, 0, 300e-6, 0, 0, 0, 0, 2, 0xF]]
+
+    pdwFile = uxg.bin_pdw_file_builder(rawPdw)
+    # Separate pdwFile into header and data portions
+    header = pdwFile[:4096]
+    data = pdwFile[4096:]
+
+    uxg.write('stream:markers:pdw1:mode stime')
+    uxg.write('rout:trigger2:output pmarker1')
+    uxg.write('stream:source lan')
+    uxg.write('stream:trigger:play:file:type continuous')
+    uxg.write('stream:trigger:play:file:type:continuous:type trigger')
+    uxg.write('stream:trigger:play:source bus')
+    uxg.write(f'memory:import:windex "{windex["fileName"]}.csv","{windex["fileName"]}"')
+    uxg.write(f'stream:windex:select "{windex["fileName"]}"')
+
+    uxg.write('stream:external:header:clear')
+    # The esr=False argument allows you to send your own read/query after binblockwrite
+    uxg.binblockwrite(f'stream:external:header? ', header, esr=False)
+    if uxg.query('') != '+0':
+        raise VsgError('stream:external:header? response invalid. This should never happen if file was built correctly.')
+
+    # Configure LAN streaming and send PDWs
+    uxg.write('stream:state on')
+    uxg.open_lan_stream()
+    uxg.lanStream.send(data)
+
+    # Ensure everything is synchronized
+    uxg.query('*opc?')
+
+    # Begin streaming
+    uxg.write('stream:trigger:play:immediate')
+
+    # Waiting for stream to finish, turn off stream, close stream port
+    uxg.query('*opc?')
+    uxg.write('stream:state off')
+    uxg.close_lan_stream()
+
+    # Check for errors and gracefully disconnect.
+    uxg.err_check()
+    uxg.disconnect()
+
+
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
     is determined by the sign of chirpBw (pos = up chirp, neg = down chirp)."""
@@ -632,8 +818,8 @@ def barker_generator(length=100e-6, fs=100e6, code='b2', zeroLast=False):
 def main():
     # m8190a_example('141.121.210.171')
     # vsg_example('10.112.180.242')
-    uxg_example('141.121.210.167')
-
+    # uxg_example('141.121.210.167')
+    uxg_lan_streaming_example('141.121.210.167')
 
 if __name__ == '__main__':
     main()

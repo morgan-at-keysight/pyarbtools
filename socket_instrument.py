@@ -143,7 +143,7 @@ class SocketInstrument:
         numBytes = memoryview(data).nbytes
         return f'#{len(str(numBytes))}{numBytes}'
 
-    def binblockwrite(self, msg, data, debug=False):
+    def binblockwrite(self, msg, data, debug=False, esr=True):
         """Send data with IEEE 488.2 binary block format
 
         The data is formatted as:
@@ -172,12 +172,12 @@ class SocketInstrument:
             print(f'header: {header}')
 
         # Check error status register and notify of problems
-        r = self.query('*esr?')
-        if int(r) is not 0:
-            print(r)
-            self.err_check()
-            # raise BinblockError(f'Non-zero ESR: {r}')
-        pass
+        if esr:
+            r = self.query('*esr?')
+            if int(r) is not 0:
+                print(r)
+                self.err_check()
+                # raise BinblockError(f'Non-zero ESR: {r}')
 
 
 def awg_example(ipAddress, port=5025):
