@@ -683,7 +683,6 @@ def uxg_example(ipAddress):
     uxg.csv_pdw_file_download(pdwName, fields, data)
     uxg.write('stream:state on')
     uxg.write('stream:trigger:play:immediate')
-
     uxg.err_check()
     uxg.disconnect()
 
@@ -757,6 +756,23 @@ def uxg_lan_streaming_example(ipAddress):
     uxg.disconnect()
 
 
+def dig_mod_example(ipAddress):
+    """Generates a 1 MHz 16 QAM signal @ 1 GHz CF with a generic VSG."""
+    vsg = VSG(ipAddress, port=5025, timeout=15, reset=True)
+    vsg.configure(rfState=1, modState=1, amp=-5, fs=50e6, iqScale=70)
+    vsg.sanity_check()
+
+    name = '1MHZ_16QAM'
+    symRate = 1e6
+    i, q = digmod_prbs_generator('qam16', vsg.fs, symRate)
+
+    vsg.write('mmemory:delete:wfm')
+    vsg.download_iq_wfm(name, i, q)
+    print(vsg.query('mmemory:catalog? "WFM1:"'))
+    vsg.write('radio:arb:state on')
+    vsg.err_check()
+
+
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
     is determined by the sign of chirpBw (pos = up chirp, neg = down chirp)."""
@@ -815,11 +831,189 @@ def barker_generator(length=100e-6, fs=100e6, code='b2', zeroLast=False):
     return i, q
 
 
+def rrcFilter(taps, a, symRate, fs):
+    """Generates the impulse response of a root raised cosine filter
+    from user-defined number of taps, rolloff factor, symbol rate,
+    and sample rate.
+    RRC equation taken from https://en.wikipedia.org/wiki/Root-raised-cosine_filter"""
+
+    dt = 1 / fs
+    tau = 1 / symRate
+    time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
+    h = np.zeros(taps, dtype=float)
+
+    for t, x in zip(time, range(len(h))):
+        if t == 0.0:
+            h[x] = 1.0 + a * (4 / np.pi - 1)
+        elif a != 0 and (t == tau/(4*a) or t == -tau/(4*a)):
+            h[x] = a / np.sqrt(2) * (((1 + 2 / np.pi) * (np.sin(np.pi / (4 * a))))
+            + ((1 - 2 / np.pi) * (np.cos(np.pi / (4 * a)))))
+        else:
+            h[x] = (np.sin(np.pi * t / tau * (1 - a)) + 4 * a * t / tau * np.cos(np.pi * t / tau * (1 + a)))\
+            / (np.pi * t / tau * (1 - (4 * a * t / tau) ** 2))
+
+    return time, h
+
+
+def bpsk_symbol_map(symbol, map=1):
+    """Maps a symbol value to a given phase shift for BPSK.
+    Phase shift for BPSK is (2*k-1) * pi/2, where k denotes the symbol
+    hemisphere (1 or 2)."""
+
+    if map < 1 or map > 2:
+        raise ValueError('Invalid map value. Must be 1 or  2.')
+    if symbol == 0:
+        if map == 1:
+            val = 0
+        else:
+            val = 1
+    elif symbol == 1:
+        if map == 1:
+            val = 1
+        else:
+            val = 0
+    else:
+        raise ValueError('Invalid symbol value.')
+    return (2 * val - 1) * np.pi / 2
+
+
+def bpsk_modulator(data):
+    """Maps an array of bits to multiples of pi/2 phase shifts for BPSK modulation."""
+    symbols = np.array([bpsk_symbol_map(d) for d in data])
+    return np.exp(1j * symbols)
+
+
+def qpsk_symbol_map(symbol, map=1):
+    """Maps a symbol value to a given phase shift for QPSK.
+    I could have just written a boring switch case for each
+    symbol and mapping individually, but I wanted to write
+    fewer lines so I got clever and used Python's negative indexing
+    of arrays to pinpoint the required phase shift based on map value.
+    Phase shift for QPSK is (2*k-1) * pi/4, where k denotes the symbol
+    quadrant (1, 2, 3, or 4)."""
+
+    if map < 1 or map > 4:
+        raise ValueError('Invalid map value. Must be 1 - 4.')
+    quadrant = [1, 2, 3, 4]
+    if symbol == '00':
+        val = quadrant[1 - map]
+    elif symbol == '01':
+        val = quadrant[2 - map]
+    elif symbol == '10':
+        val = quadrant[3 - map]
+    elif symbol == '11':
+        val = quadrant[4 - map - 4]
+    else:
+        raise ValueError('Invalid symbol value.')
+    return (2 * val - 1) * np.pi / 4
+
+
+def qpsk_modulator(data):
+    """Converts an array of bits into the binary values of two-bit
+    symbols as strings, maps symbols to multiples of pi/4 phase shifts
+    for QPSK modulation, and returns the complex values for each symbol."""
+
+    pattern = [str(p0) + str(p1) for p0, p1 in zip(data[0::2], data[1::2])]
+    symbols = np.array([qpsk_symbol_map(p) for p in pattern])
+    return np.exp(1j * symbols)
+
+
+def qam16_symbol_map(symbol):
+    """Maps a symbol value to a given position on the complex plane
+    for 16 QAM.
+    Due to the complexity of the constellation, a 4-variable Karnaugh
+    map is used to hard-code symbol locations to prevent adjacent symbol
+    errors from differing more than 1 bit from the intended symbol.
+    https://www.gaussianwaves.com/2012/10/constructing-a-rectangular-constellation-for-16-qam/"""
+
+    qamMap = {('0000'): -3-3j, ('0001'): -3-1j, ('0010'): -3+3j,
+           ('0011'): -3+1j, ('0100'): -1-3j, ('0101'): -1-1j,
+           ('0110'): -1+3j, ('0111'): -1+1j, ('1000'):  3-3j,
+           ('1001'):  3-1j, ('1010'):  3+3j, ('1011'):  3+1j,
+           ('1100'):  1-3j, ('1101'):  1-1j, ('1110'):  1+3j,
+           ('1111'):  1+1j}
+    if symbol not in list(qamMap.keys()):
+        raise ValueError('Invalid 16 QAM symbol.')
+
+    return qamMap[symbol]
+
+
+def qam16_modulator(data):
+    """Converts an array of bits into the binary values of four-bit
+    symbols as strings, and then maps symbols to locations in the
+    complex plane for 16 QAM modulation."""
+
+    pattern = [str(p0) + str(p1) + str(p2) + str(p3) for p0, p1, p2, p3 in
+               zip(data[0::4], data[1::4], data[2::4], data[3::4])]
+    return np.array([qam16_symbol_map(p) for p in pattern])
+
+
+def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, alpha=0.35):
+    """Generates a baseband modulated signal with a given modulation
+    type and root raised cosine filter using PRBS data."""
+
+    saPerSym = int(fs / symRate)
+    filterSymbolLength = 10
+
+    # Define bits per symbol and modulator function based on modType
+    if modType.lower() == 'bpsk':
+        bitsPerSym = 1
+        modulator = bpsk_modulator
+    elif modType.lower() == 'qpsk':
+        bitsPerSym = 2
+        modulator = qpsk_modulator
+    elif modType.lower() == 'qam16':
+        bitsPerSym = 4
+        modulator = qam16_modulator
+    else:
+        raise ValueError('Invalid modType chosen.')
+
+    # Create pattern and repeat to ensure integer number of symbols.
+    temp, state = max_len_seq(prbsOrder)
+    bits = temp
+    repeats = 1
+    while len(bits) % bitsPerSym:
+        bits = np.tile(temp, repeats)
+        repeats += 1
+
+    """Convert the pseudorandom bit sequence, which is a list of bits,
+    into the binary values of symbols as strings, and then map symbols
+    to locations in the complex plane."""
+    symbols = modulator(bits)
+
+    """Perform a pseudo circular convolution on the symbols to mitigate
+    zeroing of samples due to filter delay (i.e. PREpend the
+    last few symbols and APpend the first few symbols)."""
+    symbols = np.concatenate((symbols[-int(filterSymbolLength/2):], symbols, symbols[:int(filterSymbolLength/2)]))
+
+    """Zero-fill each symbol rather than repeating the symbol value to
+    fill. This is to ensure the filter operates on an impulse response
+    rather than a zero-order hold response."""
+    iq = np.zeros(len(symbols) * saPerSym, dtype=np.complex)
+    iq[::saPerSym] = symbols
+
+    """Create pulse shaping filter. Taps should be an odd number to 
+    ensure there is a tap in the center of the filter."""
+    taps = filterSymbolLength * saPerSym + 1
+    time, filter = rrcFilter(int(taps), alpha, symRate, fs)
+
+    # Apply filter and trim off zeroed samples to ensure EXACT wraparound.
+    iq = np.convolve(iq, filter)
+    iq = iq[taps-1:-taps+1]
+    # Scale waveform data
+    sFactor = abs(np.amax(iq))
+    iq = iq / sFactor * 0.707
+
+    return np.real(iq), np.imag(iq)
+
+
 def main():
     # m8190a_example('141.121.210.171')
     # vsg_example('10.112.180.242')
     # uxg_example('141.121.210.167')
-    uxg_lan_streaming_example('141.121.210.167')
+    # uxg_lan_streaming_example('141.121.210.167')
+    dig_mod_example('192.168.1.11')
+
 
 if __name__ == '__main__':
     main()
