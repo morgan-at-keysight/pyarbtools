@@ -1,16 +1,18 @@
 """
-Instrument Control Class for Keysight AWGs
+Instrument Control Class for Keysight Signal Generators
 Author: Morgan Allison
-Updated: 06/18
+Updated: 10/18
 Builds instrument specific classes for each AWG. The classes include minimum
 waveform length/granularity checks, binary waveform formatting, sequencer
 length/granularity checks, sample rate checks, etc. per AWG.
 Uses socket_instrument.py for instrument communication.
 Python 3.6.4
-Tested on M8190A
+Tested on M8190A, M8195A, N5194A, N5182B, E8257D
 """
 
 from socket_instrument import *
+from scipy.signal import max_len_seq
+from scipy.io import loadmat
 
 
 class AwgError(Exception):
@@ -118,14 +120,14 @@ class M8190A(SocketInstrument):
         self.check_resolution()
 
     def iq_wfm_combiner(self, i, q):
-        """Combines i and q wfms into a single wfm for download to AWG."""
+        """Combines i and q wfms into a single interleaved wfm for download to AWG."""
         iq = np.empty(2 * len(i), dtype=np.int16)
         iq[0::2] = i
         iq[1::2] = q
         return iq
 
     def check_resolution(self):
-        """Populates gran, minLen, binMult, & binShift, plus intFactor &
+        """Populates gran, minLen, binMult, binShift, plus intFactor &
         idleGran if using DUC."""
 
         if self.res == 'wpr':
@@ -255,7 +257,7 @@ class VSG(SocketInstrument):
         print(self.instId)
         if reset:
             self.write('*rst')
-            # self.query('*opc?')
+            self.query('*opc?')
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.cf = float(self.query('frequency?').strip())
@@ -311,7 +313,7 @@ class VSG(SocketInstrument):
         print('Modulation State:', self.modState)
         print('Center Frequency:', self.cf)
         print('Output Amplitude:', self.amp)
-        print('Reference source:', self.refSrc)
+        print('Reference Source:', self.refSrc)
         print('Internal Arb State:', self.arbState)
         print('Internal Arb Sample Rate:', self.fs)
         print('IQ Scaling:', self.iqScale)
@@ -354,6 +356,9 @@ class VSG(SocketInstrument):
 
 
 class UXG(SocketInstrument):
+    """Generic class for controlling the N5194A + N5193A (Vector + Analog)
+    UXG agile signal generators."""
+
     def __init__(self, host, port=5025, timeout=5, reset=False):
         super().__init__(host, port, timeout)
         print(self.instId)
@@ -378,8 +383,7 @@ class UXG(SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int',
-                  refFreq=10e6, fs=200e6):
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', fs=200e6):
         self.write(f'output {rfState}')
         self.rfState = self.query('output?').strip()
         self.write(f'output:modulation {modState}')
@@ -414,7 +418,8 @@ class UXG(SocketInstrument):
         self.lanStream.shutdown(socket.SHUT_RDWR)
         self.lanStream.close()
 
-    def bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0, phaseControl=0, rfOff=0, wIndex=0, wfmMkrMask=0):
+    def bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0,
+                        phaseControl=0, rfOff=0, wIndex=0, wfmMkrMask=0):
         """This function builds a single format-1 PDW from a list of parameters.
 
         See User's Guide>Streaming Use>PDW Definitions section of
@@ -493,7 +498,7 @@ class UXG(SocketInstrument):
 
         return pdwFile
 
-    def csv_pdw_file_download(self, fileName, fields=['Operation', 'Time'], data=[[1, 0], [2, 100e-6]]):
+    def csv_pdw_file_download(self, fileName, fields=('Operation', 'Time'), data=((1, 0), (2, 100e-6))):
         """Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file."""
 
         # Write header fields separated by commas and terminated with \n
@@ -504,9 +509,6 @@ class UXG(SocketInstrument):
             rowString = ','.join([f'{r}' for r in row]) + '\n'
             pdwCsv += rowString
 
-        # with open(f'{getcwd()}\\{fileName}.csv', 'w') as f:
-        #     f.write(pdwCsv)
-
         self.write(f'memory:delete "{fileName}.csv"')
         self.binblockwrite(f'memory:data "{fileName}.csv", ', pdwCsv.encode('utf-8'))
 
@@ -515,6 +517,7 @@ class UXG(SocketInstrument):
         source. There is no need to send the stream:source:file or 
         stream:source:file:name commands because they are sent
         implicitly by memory:import:stream."""
+
         self.write(f'memory:import:stream "{fileName}.csv", "{fileName}"')
         self.query('*opc?')
 
@@ -546,7 +549,7 @@ class UXG(SocketInstrument):
         name = fileName.split('\\')[-1].replace('.mat', '')
 
         # Load the iqdata member of the .mat structure
-        iq = io.loadmat(fileName)['iqdata']
+        iq = loadmat(fileName)['iqdata']
 
         # Zero the last sample to ensure 'Hold' pdw field behaves well
         if zeroLast:
@@ -604,178 +607,12 @@ class UXG(SocketInstrument):
             return np.array(self.binMult * wfm, dtype=np.uint16)
 
 
-def vsg_example(ipAddress):
-    """Simple example script that creates either a chirp or barker pulse,
-    and downloads, assigns, and plays out the waveform."""
-
-    vsg = VSG(ipAddress, port=5025, reset=True)
-    vsg.configure(rfState=1, modState=1, amp=-20, fs=50e6, iqScale=70)
-    vsg.sanity_check()
-
-    # name = 'barker'
-    # length = 100e-6
-    # code = 'b13'
-    # i, q = barker_generator(length, vsg.fs, code)
-
-    name = 'chirp'
-    length = 100e-6
-    bw = 40e6
-    i, q = chirp_generator(length, vsg.fs, bw)
-
-    i = np.append(i, np.zeros(5000))
-    q = np.append(q, np.zeros(5000))
-    vsg.write('mmemory:delete:wfm')
-    vsg.download_iq_wfm(name, i, q)
-    print(vsg.query('mmemory:catalog? "WFM1:"'))
-    vsg.write('radio:arb:state on')
-    vsg.err_check()
-
-
-def m8190a_example(ipAddress):
-    """Simple example script that sets up the digital upconverter on the
-    M8190A and creates, downloads, assigns, and plays back a simple IQ
-    waveform from the AC port."""
-
-    awg = M8190A(ipAddress, port=5025, reset=True)
-    awg.configure(res='intx3', cf1=1e9)
-    awg.sanity_check()
-    # wfm = np.sin(np.linspace(0, 2 * np.pi, 2400))
-    i = np.ones(awg.minLen, dtype=np.int16)
-    q = np.zeros(awg.minLen, dtype=np.int16)
-    awg.download_iq_wfm(i, q)
-    awg.write('trace:select 1')
-    awg.write('output1:route ac')
-    awg.write('output1:norm on')
-    awg.write('init:imm')
-    awg.query('*opc?')
-    awg.err_check()
-    awg.disconnect()
-
-
-def uxg_example(ipAddress):
-    """Simple example script that creates and downloads a chirp waveform,
-    defines a very simple pdw csv file, and loads that pdw file into the
-    UXG and plays it out."""
-
-    """NOTE: trigger settings may need to be adjusted for continuous
-    output. This will be fixed in a future release."""
-
-    uxg = UXG(ipAddress, port=5025, timeout=10, reset=True)
-    uxg.err_check()
-
-    uxg.write('stream:state off')
-    uxg.write('radio:arb:state off')
-
-    # Create IQ waveform
-    length = 1e-6
-    fs = 250e6
-    chirpBw = 100e6
-    i, q = chirp_generator(length, fs, chirpBw, zeroLast=True)
-    wfmName = '1US_100MHz_CHIRP'
-    uxg.download_iq_wfm(wfmName, i, q)
-
-    # Define and generate csv pdw file
-    pdwName = 'basic_chirp'
-    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name']
-    data = [[1, 0, 1e9, 'Hold', '0x1', wfmName],
-            [2, 10e-6, 1e9, 'Hold', '0x0', wfmName]]
-
-    uxg.csv_pdw_file_download(pdwName, fields, data)
-    uxg.write('stream:state on')
-    uxg.write('stream:trigger:play:immediate')
-    uxg.err_check()
-    uxg.disconnect()
-
-
-def uxg_lan_streaming_example(ipAddress):
-    """This function creates and downloads iq waveforms & a waveform
-    index file, and then builds a PDW file, configures LAN streaming on the
-    and streams the PDWs to the UXG."""
-
-    uxg = UXG(ipAddress, port=5025, timeout=10, reset=True)
-    uxg.err_check()
-
-    # Waveform creation, three chirps of the same bandwidth and different lengths
-    lengths = [10e-6, 50e-6, 100e-6]
-    wfmNames = []
-    for l in lengths:
-        i, q = chirp_generator(l, fs=250e6, chirpBw=100e6, zeroLast=True)
-        uxg.download_iq_wfm(f'{l}_100MHz_CHIRP', i, q)
-        wfmNames.append(f'{l}_100MHz_CHIRP')
-
-    # Create/download waveform index file
-    windex = {'fileName': 'chirps', 'wfmNames':wfmNames}
-    uxg.csv_windex_file_download(windex)
-
-    # Create PDWs
-    # operation, freq, phase, startTimeSec, power, markers,
-    # phaseControl, rfOff, wIndex, wfmMkrMask
-    rawPdw = [[1, 1e9, 0, 0,      0, 1, 0, 0, 0, 0xF],
-              [0, 1e9, 0, 20e-6, 0, 0, 0, 0, 1, 0xF],
-              [0, 1e9, 0, 120e-6, 0, 0, 0, 0, 2, 0xF],
-              [2, 1e9, 0, 300e-6, 0, 0, 0, 0, 2, 0xF]]
-
-    pdwFile = uxg.bin_pdw_file_builder(rawPdw)
-    # Separate pdwFile into header and data portions
-    header = pdwFile[:4096]
-    data = pdwFile[4096:]
-
-    uxg.write('stream:markers:pdw1:mode stime')
-    uxg.write('rout:trigger2:output pmarker1')
-    uxg.write('stream:source lan')
-    uxg.write('stream:trigger:play:file:type continuous')
-    uxg.write('stream:trigger:play:file:type:continuous:type trigger')
-    uxg.write('stream:trigger:play:source bus')
-    uxg.write(f'memory:import:windex "{windex["fileName"]}.csv","{windex["fileName"]}"')
-    uxg.write(f'stream:windex:select "{windex["fileName"]}"')
-
-    uxg.write('stream:external:header:clear')
-    # The esr=False argument allows you to send your own read/query after binblockwrite
-    uxg.binblockwrite(f'stream:external:header? ', header, esr=False)
-    if uxg.query('') != '+0':
-        raise VsgError('stream:external:header? response invalid. This should never happen if file was built correctly.')
-
-    # Configure LAN streaming and send PDWs
-    uxg.write('stream:state on')
-    uxg.open_lan_stream()
-    uxg.lanStream.send(data)
-
-    # Ensure everything is synchronized
-    uxg.query('*opc?')
-
-    # Begin streaming
-    uxg.write('stream:trigger:play:immediate')
-
-    # Waiting for stream to finish, turn off stream, close stream port
-    uxg.query('*opc?')
-    uxg.write('stream:state off')
-    uxg.close_lan_stream()
-
-    # Check for errors and gracefully disconnect.
-    uxg.err_check()
-    uxg.disconnect()
-
-
-def dig_mod_example(ipAddress):
-    """Generates a 1 MHz 16 QAM signal @ 1 GHz CF with a generic VSG."""
-    vsg = VSG(ipAddress, port=5025, timeout=15, reset=True)
-    vsg.configure(rfState=1, modState=1, amp=-5, fs=50e6, iqScale=70)
-    vsg.sanity_check()
-
-    name = '1MHZ_16QAM'
-    symRate = 1e6
-    i, q = digmod_prbs_generator('qam16', vsg.fs, symRate)
-
-    vsg.write('mmemory:delete:wfm')
-    vsg.download_iq_wfm(name, i, q)
-    print(vsg.query('mmemory:catalog? "WFM1:"'))
-    vsg.write('radio:arb:state on')
-    vsg.err_check()
+# Waveform Creation Methods
 
 
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
-    is determined by the sign of chirpBw (pos = up chirp, neg = down chirp)."""
+    is determined by the sign of chirpBw (pos=up chirp, neg=down chirp)."""
 
     """Define baseband iq waveform. Create a time vector that goes from
     -1/2 to 1/2 instead of 0 to 1. This ensures that the chirp will be
@@ -808,7 +645,7 @@ def barker_generator(length=100e-6, fs=100e6, code='b2', zeroLast=False):
 
     # Codes taken from https://en.wikipedia.org/wiki/Barker_code
     barkerCodes = {'b2': [1, -1], 'b3': [1, 1, -1],
-                   'b4': [1, 1, -1, 1], 'b4alt': [1, 1, 1, -1],
+                   'b41': [1, 1, -1, 1], 'b42': [1, 1, 1, -1],
                    'b5': [1, 1, 1, -1, 1], 'b7': [1, 1, 1, -1, -1, 1, -1],
                    'b11': [1, 1, 1, -1, -1, -1, 1, -1, -1, 1, -1],
                    'b13': [1, 1, 1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1]}
@@ -824,14 +661,14 @@ def barker_generator(length=100e-6, fs=100e6, code='b2', zeroLast=False):
     iq = np.exp(1j * mod)
 
     if zeroLast:
-        iq[-1] = 0 + 1j*0
+        iq[-1] = 0 + 0j
     i = np.real(iq)
     q = np.imag(iq)
 
     return i, q
 
 
-def rrcFilter(taps, a, symRate, fs):
+def rrc_filter(taps, a, symRate, fs):
     """Generates the impulse response of a root raised cosine filter
     from user-defined number of taps, rolloff factor, symbol rate,
     and sample rate.
@@ -855,100 +692,164 @@ def rrcFilter(taps, a, symRate, fs):
     return time, h
 
 
-def bpsk_symbol_map(symbol, map=1):
-    """Maps a symbol value to a given phase shift for BPSK.
-    Phase shift for BPSK is (2*k-1) * pi/2, where k denotes the symbol
-    hemisphere (1 or 2)."""
+def rc_filter(taps, a, symRate, fs):
+    """Generates the impulse response of a raised cosine filter
+    from user-defined number of taps, rolloff factor, symbol rate,
+    and sample rate.
+    RC equation taken from https://en.wikipedia.org/wiki/Raised-cosine_filter"""
 
-    if map < 1 or map > 2:
-        raise ValueError('Invalid map value. Must be 1 or  2.')
-    if symbol == 0:
-        if map == 1:
-            val = 0
+    dt = 1 / fs
+    tau = 1 / symRate
+    time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
+    h = np.zeros(taps, dtype=float)
+
+    for t, x in zip(time, range(len(h))):
+        if t == 0.0:
+            h[x] = 1.0
+        elif a != 0 and (t == tau / (2 * a) or t == -tau / (2 * a)):
+            h[x] = np.pi / (4 * tau) * np.sinc(1 / (2 * a))
         else:
-            val = 1
-    elif symbol == 1:
-        if map == 1:
-            val = 1
-        else:
-            val = 0
+            h[x] = 1 / tau * np.sinc(t / tau) * np.cos(np.pi * a * t / tau) / (1 - (2 * a * t / tau) ** 2)
+
+    return time, h
+
+
+def bpsk_modulator(data, customMap=None):
+    """Converts list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for BPSK.
+
+    customMap is a dict whos keys are strings containing the symbol's
+    binary value and whos values are the symbol's location in the
+    complex plane.
+    e.g. customMap = {'0101': 0.707 + 0.707j, ...} """
+
+    pattern = [str(d) for d in data]
+    if customMap:
+        bpskMap = customMap
     else:
-        raise ValueError('Invalid symbol value.')
-    return (2 * val - 1) * np.pi / 2
+        bpskMap = {'0': 1 + 0j, '1': -1 + 0j}
+
+    try:
+        return np.array([bpskMap[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid BPSK symbol value.')
 
 
-def bpsk_modulator(data):
-    """Maps an array of bits to multiples of pi/2 phase shifts for BPSK modulation."""
-    symbols = np.array([bpsk_symbol_map(d) for d in data])
-    return np.exp(1j * symbols)
+def qpsk_modulator(data, customMap=None):
+    """Converts list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for QPSK.
 
+    customMap is a dict whos keys are strings containing the symbol's
+    binary value and whos values are the symbol's location in the
+    complex plane.
+    e.g. customMap = {'0101': 0.707 + 0.707j, ...}
+    """
 
-def qpsk_symbol_map(symbol, map=1):
-    """Maps a symbol value to a given phase shift for QPSK.
-    I could have just written a boring switch case for each
-    symbol and mapping individually, but I wanted to write
-    fewer lines so I got clever and used Python's negative indexing
-    of arrays to pinpoint the required phase shift based on map value.
-    Phase shift for QPSK is (2*k-1) * pi/4, where k denotes the symbol
-    quadrant (1, 2, 3, or 4)."""
-
-    if map < 1 or map > 4:
-        raise ValueError('Invalid map value. Must be 1 - 4.')
-    quadrant = [1, 2, 3, 4]
-    if symbol == '00':
-        val = quadrant[1 - map]
-    elif symbol == '01':
-        val = quadrant[2 - map]
-    elif symbol == '10':
-        val = quadrant[3 - map]
-    elif symbol == '11':
-        val = quadrant[4 - map - 4]
+    pattern = [str(d0) + str(d1) for d0, d1 in zip(data[0::2], data[1::2])]
+    if customMap:
+        qpskMap = customMap
     else:
-        raise ValueError('Invalid symbol value.')
-    return (2 * val - 1) * np.pi / 4
+        qpskMap = {'00': 1 + 1j, '01': -1 + 1j, '10': -1 - 1j, '11': 1 - 1j}
+
+    try:
+        return np.array([qpskMap[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid QPSK symbol.')
 
 
-def qpsk_modulator(data):
-    """Converts an array of bits into the binary values of two-bit
-    symbols as strings, maps symbols to multiples of pi/4 phase shifts
-    for QPSK modulation, and returns the complex values for each symbol."""
+def psk8_modulator(data, customMap=None):
+    """Converts list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for 8-PSK.
 
-    pattern = [str(p0) + str(p1) for p0, p1 in zip(data[0::2], data[1::2])]
-    symbols = np.array([qpsk_symbol_map(p) for p in pattern])
-    return np.exp(1j * symbols)
+    customMap is a dict whos keys are strings containing the symbol's
+    binary value and whos values are the symbol's location in the
+    complex plane.
+    e.g. customMap = {'0101': 0.707 + 0.707j, ...}
+    """
+
+    pattern = [str(d0) + str(d1) + str(d2) for d0, d1, d2 in
+               zip(data[0::3], data[1::3], data[2::3])]
+    if customMap:
+        psk8Map = customMap
+    else:
+        psk8Map = {'000': 1 + 0j, '001': 0.707 + 0.707j, '010': 0 + 1j,
+                   '011': -0.707 + 0.707j, '100': -1 + 0j,
+                   '101': -0.707 - 0.707j, '110': 0 - 1j,
+                   '111': 0.707 - 0.707j}
+
+    try:
+        return np.array([psk8Map[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid 8PSK symbol.')
 
 
-def qam16_symbol_map(symbol):
-    """Maps a symbol value to a given position on the complex plane
-    for 16 QAM.
-    Due to the complexity of the constellation, a 4-variable Karnaugh
-    map is used to hard-code symbol locations to prevent adjacent symbol
-    errors from differing more than 1 bit from the intended symbol.
-    https://www.gaussianwaves.com/2012/10/constructing-a-rectangular-constellation-for-16-qam/"""
+def qam16_modulator(data, customMap=None):
+    """Converts list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for 16 QAM.
 
-    qamMap = {('0000'): -3-3j, ('0001'): -3-1j, ('0010'): -3+3j,
-           ('0011'): -3+1j, ('0100'): -1-3j, ('0101'): -1-1j,
-           ('0110'): -1+3j, ('0111'): -1+1j, ('1000'):  3-3j,
-           ('1001'):  3-1j, ('1010'):  3+3j, ('1011'):  3+1j,
-           ('1100'):  1-3j, ('1101'):  1-1j, ('1110'):  1+3j,
-           ('1111'):  1+1j}
-    if symbol not in list(qamMap.keys()):
+    A 4-variable Karnaugh map is used to determine the default symbol
+    locations to prevent adjacent symbol errors from differing more
+    than 1 bit from the intended symbol.
+    https://www.gaussianwaves.com/2012/10/constructing-a-rectangular-constellation-for-16-qam/
+
+    customMap is a dict whos keys are strings containing the symbol's
+    binary value and whos values are the symbol's location in the
+    complex plane.
+    e.g. customMap = {'0101': 0.707 + 0.707j, ...} """
+
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) for d0, d1, d2, d3 in
+               zip(data[0::4], data[1::4], data[2::4], data[3::4])]
+    if customMap:
+        qamMap = customMap
+    else:
+        qamMap = {'0000': -3 - 3j, '0001': -3 - 1j, '0010': -3 + 3j,
+                  '0011': -3 + 1j, '0100': -1 - 3j, '0101': -1 - 1j,
+                  '0110': -1 + 3j, '0111': -1 + 1j, '1000': 3 - 3j,
+                  '1001': 3 - 1j, '1010': 3 + 3j, '1011': 3 + 1j,
+                  '1100': 1 - 3j, '1101': 1 - 1j, '1110': 1 + 3j,
+                  '1111': 1 + 1j}
+    try:
+        return np.array([qamMap[p] for p in pattern])
+    except KeyError:
         raise ValueError('Invalid 16 QAM symbol.')
 
-    return qamMap[symbol]
+
+def qam32_modulator(data, customMap=None):
+    """Converts list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for 32 QAM.
+
+    A 5-variable Karnaugh map is used to determine the default symbol
+    locations to prevent adjacent symbol errors from differing more
+    than 1 bit from the intended symbol.
+
+    customMap is a dict whos keys are strings containing the symbol's
+    binary value and whos values are the symbol's location in the
+    complex plane.
+    e.g. customMap = {'0101': 0.707 + 0.707j, ...} """
+
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) + str(d4) for d0, d1, d2, d3, d4 in
+               zip(data[0::5], data[1::5], data[2::5], data[3::5], data[4::5])]
+    if customMap:
+        qamMap = customMap
+    else:
+        qamMap = {'0000': -3 - 3j, '0001': -3 - 1j, '0010': -3 + 3j,
+                  '0011': -3 + 1j, '0100': -1 - 3j, '0101': -1 - 1j,
+                  '0110': -1 + 3j, '0111': -1 + 1j, '1000': 3 - 3j,
+                  '1001': 3 - 1j, '1010': 3 + 3j, '1011': 3 + 1j,
+                  '1100': 1 - 3j, '1101': 1 - 1j, '1110': 1 + 3j,
+                  '1111': 1 + 1j}
+    try:
+        return np.array([qamMap[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid 16 QAM symbol.')
 
 
-def qam16_modulator(data):
-    """Converts an array of bits into the binary values of four-bit
-    symbols as strings, and then maps symbols to locations in the
-    complex plane for 16 QAM modulation."""
-
-    pattern = [str(p0) + str(p1) + str(p2) + str(p3) for p0, p1, p2, p3 in
-               zip(data[0::4], data[1::4], data[2::4], data[3::4])]
-    return np.array([qam16_symbol_map(p) for p in pattern])
-
-
-def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, alpha=0.35):
+def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35):
     """Generates a baseband modulated signal with a given modulation
     type and root raised cosine filter using PRBS data."""
 
@@ -962,6 +863,9 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, alpha=0.35):
     elif modType.lower() == 'qpsk':
         bitsPerSym = 2
         modulator = qpsk_modulator
+    elif modType.lower() == '8psk':
+        bitsPerSym = 3
+        modulator = psk8_modulator
     elif modType.lower() == 'qam16':
         bitsPerSym = 4
         modulator = qam16_modulator
@@ -995,7 +899,7 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, alpha=0.35):
     """Create pulse shaping filter. Taps should be an odd number to 
     ensure there is a tap in the center of the filter."""
     taps = filterSymbolLength * saPerSym + 1
-    time, filter = rrcFilter(int(taps), alpha, symRate, fs)
+    time, filter = filt(int(taps), alpha, symRate, fs)
 
     # Apply filter and trim off zeroed samples to ensure EXACT wraparound.
     iq = np.convolve(iq, filter)
@@ -1005,15 +909,3 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, alpha=0.35):
     iq = iq / sFactor * 0.707
 
     return np.real(iq), np.imag(iq)
-
-
-def main():
-    # m8190a_example('141.121.210.171')
-    # vsg_example('10.112.180.242')
-    # uxg_example('141.121.210.167')
-    # uxg_lan_streaming_example('141.121.210.167')
-    dig_mod_example('192.168.1.11')
-
-
-if __name__ == '__main__':
-    main()
