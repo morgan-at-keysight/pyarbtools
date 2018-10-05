@@ -1,10 +1,10 @@
 """
-Example Code for PySource
+Example Functions for PySource
 Author: Morgan Allison
 Updated: 10/18
-Tests generic VSGs, UXG, and AWGs using instrument classes from PySource.
+Tests generic VSGs, UXG, and AWGs using instrument classes from pySource.
 Python 3.6.4
-Tested on N5182B
+Tested on N5182B, M8190A
 """
 
 from pySource import *
@@ -51,6 +51,42 @@ def vsg_dig_mod_example(ipAddress):
     vsg.disconnect()
 
 
+def m8190a_simple_wfm_example(ipAddress):
+    """Sets up the M8190A and creates, downloads, assigns, and plays
+    out a simple sine waveform from the AC output port."""
+
+    # User-defined sample rate and sine frequency.
+    ############################################################################
+    fs = 10e9
+    cf = 1e9
+    res = 'wsp'
+    out1 = 'dac'
+    ############################################################################
+
+    awg = M8190A(ipAddress, reset=True)
+    awg.configure(res=res, fs=fs, out1=out1)
+
+    # Define a waveform, ensuring min length and granularity requirements are met
+    rl = fs / cf * awg.gran
+    t = np.linspace(0, rl / fs, rl, endpoint=False)
+    wfm = awg.check_wfm(np.sin(2 * np.pi * cf * t))
+
+    # Define segment 1 and populate it with waveform data.
+    awg.download_wfm(wfm)
+
+    # Assign segment 1 to trace (channel) 1 and start continuous playback.
+    awg.write('trace:select 1')
+    awg.write('output1:route ac')
+    awg.write('output1:norm on')
+    awg.write('init:cont on')
+    awg.write('init:imm')
+    awg.query('*opc?')
+
+    # Check for errors and gracefully disconnect.
+    awg.err_check()
+    awg.disconnect()
+
+
 def m8190a_duc_example(ipAddress):
     """Sets up the digital upconverter on the M8190A and creates,
     downloads, assigns, and plays back a simple IQ waveform from
@@ -58,15 +94,90 @@ def m8190a_duc_example(ipAddress):
 
     awg = M8190A(ipAddress, port=5025, reset=True)
     awg.configure(res='intx3', cf1=1e9)
-    awg.sanity_check()
+
+    # Create simple sinusoid as IQ.
     i = np.ones(awg.minLen, dtype=np.int16)
     q = np.zeros(awg.minLen, dtype=np.int16)
     awg.download_iq_wfm(i, q)
+
     awg.write('trace:select 1')
     awg.write('output1:route ac')
     awg.write('output1:norm on')
     awg.write('init:imm')
     awg.query('*opc?')
+    awg.err_check()
+    awg.disconnect()
+
+
+def m8190a_duc_chirp_example(ipAddress):
+    """Creates a chirped pulse using digital upconversion in the M8190."""
+    """User-defined sample rate, carrier frequency, chirp bandwidth, 
+    pri, pulse width, and resolution."""
+    ############################################################################
+    fs = 7.2e9
+    cf = 1e9
+    bw = 40e6
+    pri = 200e-6
+    pw = 100e-6
+    res = 'intx3'
+    ############################################################################
+
+    awg = M8190A(ipAddress, reset=True)
+    awg.configure(res=res, fs=fs, out1='ac', cf1=cf)
+    bbfs = fs / awg.intFactor
+
+    # Create chirp and append dead time to waveform.
+    i, q = chirp_generator(pw, bbfs, bw)
+    deadTime = np.zeros(int(bbfs * (pri - pw)))
+    i = np.append(i, deadTime)
+    q = np.append(q, deadTime)
+
+    # Interleave i and q into a single waveform and download to segment 1.
+    awg.download_iq_wfm(i, q, ch=1)
+
+    # Assign segment 1 to trace (channel) 1 and start continuous playback.
+    awg.write('trace1:select 1')
+    awg.write('output1:norm on')
+    awg.write('init:cont on')
+    awg.write('init:imm')
+    awg.query('*opc?')
+
+    # Check for errors and gracefully disconnect.
+    awg.err_check()
+    awg.disconnect()
+
+
+def m8195a_simple_wfm_example(ipAddress):
+    """Sets up the M8195A and creates, downloads, assigns, and plays
+    out a simple sine waveform from the AC output port."""
+
+    # User-defined sample rate and sine frequency.
+    ############################################################################
+    fs = 64e9
+    cf = 1e9
+    dacMode = 'single'
+    func = 'arb'
+    ############################################################################
+
+    awg = M8195A(ipAddress, reset=True)
+    awg.configure(dacMode=dacMode, fs=fs, func=func)
+
+    # Define a waveform, ensuring min length and granularity requirements are met
+    rl = fs / cf * awg.gran
+    t = np.linspace(0, rl / fs, rl, endpoint=False)
+    wfm = awg.check_wfm(np.sin(2 * np.pi * cf * t))
+
+    # Define segment 1 and populate it with waveform data.
+    awg.download_wfm(wfm)
+
+    # Assign segment 1 to trace (channel) 1 and start continuous playback.
+    awg.write('trace:select 1')
+    awg.write('output1:state on')
+    awg.write('init:cont on')
+    awg.write('init:imm')
+    awg.query('*opc?')
+
+    # Check for errors and gracefully disconnect.
     awg.err_check()
     awg.disconnect()
 
@@ -177,8 +288,11 @@ def uxg_lan_streaming_example(ipAddress):
 
 
 def main():
-    # m8190a_example('141.121.210.171')
-    vsg_chirp_example('169.254.224.223')
+    # m8190a_duc_example('141.121.210.241')
+    # m8190a_duc_chirp_example('141.121.210.241')
+    m8190a_simple_wfm_example('141.121.210.241')
+    # m8195a_simple_wfm_example('141.121.210.245')
+    # vsg_chirp_example('169.254.224.223')
     # uxg_example('141.121.210.167')
     # uxg_lan_streaming_example('141.121.210.167')
     # vsg_dig_mod_example('169.254.224.223')
