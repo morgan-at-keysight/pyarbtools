@@ -1,13 +1,13 @@
 """
-Example Functions for PySource
+Example Functions for pyArbTools
 Author: Morgan Allison
 Updated: 10/18
-Tests generic VSGs, UXG, and AWGs using instrument classes from pySource.
+Tests generic VSGs, UXG, and AWGs using instrument classes from pyArbTools.
 Python 3.6.4
 Tested on N5182B, M8190A
 """
 
-from pySource import *
+from pyArbTools import *
 
 def vsg_chirp_example(ipAddress):
     """Creates downloads, assigns, and plays out a chirp waveform."""
