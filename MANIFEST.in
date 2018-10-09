@@ -1,0 +1,5 @@
+include LICENSE
+include README.rst
+
+recursive-exclude *__pychache__
+recursive-exclude * *.py[co]
