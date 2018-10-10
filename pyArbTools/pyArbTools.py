@@ -35,6 +35,7 @@ class M8190A(SocketInstrument):
             self.write('abort')
         self.fs = float(self.query('frequency:raster?').strip())
         self.res = self.query('trace1:dwidth?').strip().lower()
+        self.check_resolution()
         self.func1 = self.query('func1:mode?').strip()
         self.func2 = self.query('func2:mode?').strip()
         self.out1 = self.query('output1:route?').strip()
@@ -118,7 +119,8 @@ class M8190A(SocketInstrument):
         self.res = self.query('trace1:dwidth?').strip().lower()
         self.check_resolution()
 
-    def iq_wfm_combiner(self, i, q):
+    @staticmethod
+    def iq_wfm_combiner(i, q):
         """Combines i and q wfms into a single interleaved wfm for download to AWG."""
         iq = np.empty(2 * len(i), dtype=np.int16)
         iq[0::2] = i
@@ -326,7 +328,8 @@ class VSG(SocketInstrument):
         self.binblockwrite(f'mmemory:data "wfm1:{name}", ', iq)
         self.write(f'radio:arb:waveform "WFM1:{name}"')
 
-    def iq_wfm_combiner(self, i, q):
+    @staticmethod
+    def iq_wfm_combiner(i, q):
         """Combines i and q wfms into a single wfm for download to internal arb."""
         iq = np.empty(2 * len(i), dtype=np.int16)
         iq[0::2] = i
@@ -417,7 +420,8 @@ class UXG(SocketInstrument):
         self.lanStream.shutdown(socket.SHUT_RDWR)
         self.lanStream.close()
 
-    def bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0,
+    @staticmethod
+    def bin_pdw_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0,
                         phaseControl=0, rfOff=0, wIndex=0, wfmMkrMask=0):
         """This function builds a single format-1 PDW from a list of parameters.
 
@@ -579,7 +583,8 @@ class UXG(SocketInstrument):
         if assign:
             self.write(f'radio:arb:waveform "WFM1:{name}"')
 
-    def iq_wfm_combiner(self, i, q):
+    @staticmethod
+    def iq_wfm_combiner(i, q):
         """Combines i and q wfms into a single wfm for download to AWG."""
         iq = np.empty(2 * len(i), dtype=np.uint16)
         iq[0::2] = i
