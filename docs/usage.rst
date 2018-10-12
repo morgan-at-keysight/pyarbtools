@@ -95,8 +95,8 @@ Sets the basic configuration for the M8190A and populates class
 attributes accordingly. It should be called any time these settings are
 changed (ideally *once* directly after creating the M8190A object).
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``res``: AWG resolution. Arguments are ``'wpr'``, ``'wsp'`` (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'``.
 * ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default) or ``'ext'``.
 * ``fs``: Sample rate. Argument is a floating point value from ``125e6`` to ``12e9``.
@@ -106,30 +106,41 @@ Arguments
 * ``func1``, ``func2``: Function of channel 1 and 2 respectively. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
 * ``cf1``, ``cf2``: Carrier frequency of channel 1 and 2 respectively. This setting is only applicable if the digital upconverter is being used (``res`` arguments of ``'intx<#>'``). Arguments are floating point values between ``0`` and ``12e9``.
 
+**Returns**
+
+None
+
 
 ``M8190A``.\ **download_wfm**\ (*wfm*, *ch*)
-""""""""""""""""""""""""""""""""""""""""""""
 
 Defines and downloads a waveform into the lowest available segment slot.
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``wfm``: NumPy array containing real waveform samples (not IQ).
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
 
+**Returns**
+
+None
+
 
 ``M8190A``.\ **download_iq_wfm**\ (*i*, *q*, *ch*)
-""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Defines and downloads a waveform into the lowest available segment slot
 while checking that the waveform meets minimum waveform length and
 granularity requirements.
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
+
+**Returns**
+
+None
+
 
 .. _M8195A:
 
@@ -137,14 +148,12 @@ Arguments
 ----------
 
 ``M8195A``.\ **configure**\ (*dacMode*, *fs*, *refSrc*, *refFreq*, *func*)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Sets the basic configuration for the M8195A and populates class
 attributes accordingly. It should be called any time these settings are
 changed (ideally *once* directly after creating the M8195A object).
 
-Arguments
-"""""""""
+**Arguments**
 * ``dacMode``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
 * ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default), ``'ext'``, ``'sclk1'``, or ``'sclk2'``.
 * ``fs``: Sample rate. Argument is a floating point value from ``53.76e9`` to ``65e9``.
@@ -152,16 +161,23 @@ Arguments
 * ``refFreq``: Reference clock frequency. Argument is a floating point value from ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
 * ``func``: Function of channels. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
 
+**Returns**
+
+None
+
 
 ``M8195A``.\ **download_wfm**\ (*wfm*, *ch*)
-""""""""""""""""""""""""""""""""""""""""""""
 
 Defines and downloads a waveform into the lowest available segment slot.
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``wfm``: NumPy array containing real waveform samples (not IQ).
 * ``ch``: Channel to which waveform will be assigned (default is 1).
+
+**Returns**
+
+None
 
 
 .. _VSG:
@@ -170,14 +186,13 @@ Arguments
 -------
 
 ``VSG``.\ **configure**\ (*rfState*, *modState*, *cf*, *amp*, *iqScale*, *refSrc*, *refFreq*, *fs*)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Sets the basic configuration for M8195A and populates class attributes
 accordingly. It should be called any time these settings are changed
 (ideally *once* directly after creating the UXG object).
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``rfState``: Turns the RF output state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
 * ``modState``: Turns the modulation state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
 * ``cf``: Sets the output carrier frequency. Argument is a floating point value whose range is instrument dependent. Default is ``1e9``.
@@ -193,19 +208,27 @@ Arguments
     * EXG/MXG ``1e3`` to ``200e6``
     * PSG ``1`` to ``100e6``
 
+**Returns**
+
+None
+
 
 ``VSG``.\ **download_iq_wfm**\ (*name*, *i*, *q*)
-"""""""""""""""""""""""""""""""""""""""""""""""""
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
 requirements.
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``name``: The waveform name. Argument is a string.
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
+
+**Returns**
+
+None
+
 
 .. _N5193A + N5194A:
 
@@ -213,14 +236,13 @@ Arguments
 -------------------
 
 ``UXG``.\ **configure**\ (*rfState*, *modState*, *cf*, *amp*, *iqScale*, *refSrc*, *refFreq*, *fs*)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Sets the basic configuration for M8195A and populates class attributes
 accordingly. It should be called any time these settings are changed
 (ideally *once* directly after creating the M8195A object).
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``rfState``: Turns the RF output state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
 * ``modState``: Turns the modulation state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
 * ``cf``: Sets the output carrier frequency. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
@@ -230,32 +252,66 @@ Arguments
 * ``refFreq``: Reference clock frequency. Argument is fixed at ``10e6``. This argument will be removed in a future release.
 * ``fs``: Sample rate. This quantity is fixed based on the instrument's mode (either ``250e6`` or ``2e9``). This argument will be removed in a future release.
 
+**Returns**
+
+None
+
 
 ``UXG``.\ **download_iq_wfm**\ (*name*, *i*, *q*, *assign*)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
 requirements. Optionally assigns waveform to active arb memory.
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``name``: The waveform name. Argument is a string.
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
 * ``assign``: Determines if waveform is assigned or not. Arguments are ``True`` (default) or ``False``.
 
+**Returns**
+
+None
+
+
+``UXG``.\ **open_lan_stream**\ ()
+
+Open connection to port 5033 for LAN streaming to the UXG. Use this
+directly prior to starting streaming control.
+
+**Arguments**
+
+None
+
+**Returns**
+
+None
+
+
+``UXG``.\ **close_lan_stream**\ ()
+
+Close connection to port 5033 for LAN streaming on the UXG. Use this
+after streaming is complete.
+
+**Arguments**
+
+None
+
+**Returns**
+
+None
+
 
 ``UXG``.\ **bin_pdw_file_builder**\ (*pdwList*)
-"""""""""""""""""""""""""""""""""""""""""""""""
 
 Builds a binary PDW file with a padding block to ensure the PDW section
 begins at an offset of 4096 bytes (required by UXG).
 
 See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series Agile Vector Adapter Online Documentation.
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``pdwList``: A list of PDWs. Argument is a tuple of lists where each list contains a single pulse descriptor word.
     * PDW Fields:
         * ``operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
@@ -267,7 +323,7 @@ Arguments
         * ``phaseControl``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
         * ``rfOff``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
         * ``wIndex``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
-        * ``wfmMkrMask``: Enables waveform markers. Argument is a 4 bit binary value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
+        * ``wfmMkrMask``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
 
 ::
 
@@ -276,23 +332,75 @@ Arguments
               [0, 1e9, 0, 120e-6, 0, 0, 0, 0, 2, 0xF],
               [2, 1e9, 0, 300e-6, 0, 0, 0, 0, 2, 0xF])
 
-Returns
-"""""""
+**Returns**
+
 * ``pdwFile``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``UXG``.\ *lanStream*\ .\ **send**
+
+
+``UXG``.\ **csv_windex_file_download**\ (*windex*)
+
+Write header fields separated by commas and terminated with \n
+
+**Arguments**
+
+* ``windex``: Specifies waveform index file name and waveform names contained inside. Argument is a dict with 'fileName' and 'wfmNames' as keys. e.g. {'fileName': '<fileName>', 'wfmNames': ['name0', 'name1',... 'nameN']}
+
+**Returns**
+
+None
 
 
 ``UXG``.\ **csv_pdw_file_download**\ (*fileName*, *fields*, *data*)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file.
+Builds a CSV PDW file, sends it into the UXG, and converts it to a
+binary PDW file. There are *a lot* of fields to choose from, but *you
+do not need to specify all of them.* It really is easier than it looks.
+See User's Guide>Streaming Use>CSV File Use>Streaming CSV File Creation
+section of Keysight UXG X-Series Agile Vector Adapter Online
+Documentation.
 
-Arguments
-"""""""""
+**Arguments**
+
 * ``fileName``: Name of the csv file without the extension. Argument is a string.
 * ``fields``: Fields contained in the PDWs. Argument is a tuple of strings.
 * ``values``: Values for each PDW. Argument is a tuple of lists where each list contains the values for a single pulse descriptor word.
-    * See User's Guide>Streaming Use>CSV File Use>Streaming CSV File Creation section of Keysight UXG X-Series Agile Vector Adapter Online Documentation.
+    * ``PDW Format``: Sets the PDW Format. Argument is a string ``'Auto'`` (automatic type selected), ``'Indexed'`` (Format 1, waveform description only), ``'Control'`` (Format 2, change markers and execute Marked Operations), or ``'Full'`` (Format 3, which specifies all possible values).
+    * ``Operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+    * ``Time``: The start (50% of rise power) of the pulse with respect to Scenario Time. For Arb waveforms, the beginning of the waveform. Argument is a float between ``0 ps`` and ``213.504 days`` in seconds with a resolution of ``1 ps``.
+    * ``Pulse Width``: The duration of the entire waveform. Argument is a float between ``0`` and ``68.72`` in seconds with a resolution of ``500 ps``. An argument of ``0`` uses the known waveform length.
+    * ``Frequency``: CW frequency/chirp start frequency. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
+    * ``Phase Mode``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+    * ``Phase``: Phase of carrier. Argument is an integer between ``-360`` and ``360``.
+    * ``Maximum Power``: Power in dBm. Argument is a float between ``-140`` and ``+23.835``.
+    * ``Power``: Power in dBm. Argument is a float between ``-140`` and ``+23.835``. If not specified, Maximum Power is used.
+    * ``RF Off``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
+    * ``Markers``: Marker enable. Argument is a 12 bit hex spefication where each bit represents marker state. e.g. to activate marker 5 is ``0x020``
+    * ``Marker Mask``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
+    * ``Index``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
+    * ``Name``: Specifies the name of a waveform file to play. This field overrides the ``Index`` field if specified. Argument is a string containing the desired waveform name.
+    * ``New Waveform``: Documentation will be updated in an upcoming release.
+    * ``Blank``: Controls blanking between PDW transitions. Arguments are strings, either ``'None'``, which doesn't blank the output during PDW transition, or ``'Auto'``, which blanks the output during PDW transition.
+    * ``Zero/Hold``: Controls behavior of arb at the end of a waveform. Arguments are strings, either ``'Zero'``, which forces the arb output to go to 0, or ``'Hold'``, which holds the last waveform value until the beginning of the next PDW.
+    * ``LO Lead``: Controls how long before the next PDW the LO begins to switch frequencies. Argument is an integer between ``0`` and ``500 ns``.
+    * Documentation will be updated for the following fields/values in an upcoming release.
+        * ``Width``: Specifies width of the pulse waveform generated at compile time.
+        * ``Rise``: Specifies rise time of the pulse waveform generated at compile time.
+        * ``Fall``: Specifies fall time of the pulse waveform generated at compile time.
+        * ``Shape``: Specifies shape of the pulse waveform generated at compile time.
+        * ``MOP``: Specifies modulation type of the pulse waveform generated at compile time.
+        * ``Par1``: Specifies modulation parameters of the pulse waveform generated at compile time.
+        * ``Par2``: Specifies modulation parameters of the pulse waveform generated at compile time.
+        * ``Waveform Time Offset``: Specifies the start time offset of the pulse waveform generated at compile time.
 
-Returns
-"""""""
-* ``pdwFile``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``UXG``.\ *lanStream*\ .\ **send**
+::
+
+    fileName = 'csv_pdw_test'
+    fields = ('Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name')
+    data = ([1, 0, 1e9, 'Hold', '0x1', 'waveform1'],
+            [2, 10e-6, 1e9, 'Hold', '0x0', 'waveform2'])
+    UXG.csv_pdw_file_download(fileName, fields, data)
+
+
+**Returns**
+
+None
