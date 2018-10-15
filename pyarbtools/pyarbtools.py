@@ -1,5 +1,5 @@
 """
-pyArbTools 0.1.0
+pyarbtools 0.1.0
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18
 Builds instrument specific classes for each AWG. The classes include minimum
@@ -15,11 +15,11 @@ from scipy.signal import max_len_seq
 from scipy.io import loadmat
 
 
-class AwgError(Exception):
+class AWGError(Exception):
     """AWG Exception class"""
 
 
-class VsgError(Exception):
+class VSGError(Exception):
     """Signal Generator Exception class"""
 
 

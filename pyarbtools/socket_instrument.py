@@ -1,7 +1,8 @@
 """
+pyarbtools 0.1.0
 Socket Instrument Class
 Author: Morgan Allison
-Updated: 06/18
+Updated: 10/18
 This program provides a socket interface to Keysight test equipment.
 It handles sending commands, receiving query results, and
 reading/writing binary block data.
