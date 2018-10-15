@@ -1,6 +1,6 @@
-=====
+#####
 Usage
-=====
+#####
 
 To use pyarbtools in a project::
 
@@ -21,12 +21,26 @@ Supported instruments include:
     * E8267D PSG
     * N5182B MXG
     * N5172B EXG
-* :ref:`N5193A + N5194A` Vector UXG
+* :ref:`UXG`
+    * N5193A + N5194A combination
 
 
+You can also create waveforms and load them into your signal generator
+or use them as generic signals for DSP work::
 
-Class Structure
----------------
+    iChirp, qChirp = pyarbtools.wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6)
+    fs = 100e6
+    symRate = 1e6
+    i, q = digmod_prbs_generator(qpsk_modulator, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
+
+:ref:`wfmBuilder`
+
+Supported Instruments
+*********************
+
+
+**Class Structure**
+-------------------
 
 Every class is built on a robust socket connection that allows the user
 to send SCPI commands/queries, send/receive data using IEEE 488.2
@@ -82,14 +96,17 @@ code without having to send a SCPI query to determine values::
     recordLength = 1000
     print(f'Waveform play time is {recordLength / m8190a.fs} seconds.')
 
-
 .. _M8190A:
 
+==========
 **M8190A**
-----------
+==========
 
-``M8190A``.\ **configure**\ (*res*, *clkSrc*, *fs*, *refSrc*, *refFreq*, *out1*, *out2*, *func1*, *func2*, *cf1*, *cf2*)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+**configure**
+-------------
+::
+
+    M8190A.configure(res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac', out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9)
 
 Sets the basic configuration for the M8190A and populates class
 attributes accordingly. It should be called any time these settings are
@@ -108,10 +125,13 @@ changed (ideally *once* directly after creating the M8190A object).
 
 **Returns**
 
-None
+* None
 
+**download_wfm**
+----------------
+::
 
-``M8190A``.\ **download_wfm**\ (*wfm*, *ch*)
+    M8190A.download_wfm(wfm, ch=1)
 
 Defines and downloads a waveform into the lowest available segment slot.
 
@@ -122,10 +142,13 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-None
+* None
 
+**download_iq_wfm**
+-------------------
+::
 
-``M8190A``.\ **download_iq_wfm**\ (*i*, *q*, *ch*)
+    M8190A.download_iq_wfm(i, q, ch=1)
 
 Defines and downloads a waveform into the lowest available segment slot
 while checking that the waveform meets minimum waveform length and
@@ -139,21 +162,27 @@ granularity requirements.
 
 **Returns**
 
-None
+* None
 
 
 .. _M8195A:
 
+==========
 **M8195A**
-----------
+==========
 
-``M8195A``.\ **configure**\ (*dacMode*, *fs*, *refSrc*, *refFreq*, *func*)
+**configure**
+-------------
+::
+
+    M8195A.configure(dacMode='single', fs=64e9, refSrc='axi', refFreq=100e6, func='arb')
 
 Sets the basic configuration for the M8195A and populates class
 attributes accordingly. It should be called any time these settings are
 changed (ideally *once* directly after creating the M8195A object).
 
 **Arguments**
+
 * ``dacMode``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
 * ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default), ``'ext'``, ``'sclk1'``, or ``'sclk2'``.
 * ``fs``: Sample rate. Argument is a floating point value from ``53.76e9`` to ``65e9``.
@@ -163,10 +192,14 @@ changed (ideally *once* directly after creating the M8195A object).
 
 **Returns**
 
-None
+* None
 
 
-``M8195A``.\ **download_wfm**\ (*wfm*, *ch*)
+**download_wfm**
+----------------
+::
+
+    M8195A.download_wfm(wfm, ch=1)
 
 Defines and downloads a waveform into the lowest available segment slot.
 
@@ -177,19 +210,24 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-None
+* None
 
 
 .. _VSG:
 
+=======
 **VSG**
--------
+=======
 
-``VSG``.\ **configure**\ (*rfState*, *modState*, *cf*, *amp*, *iqScale*, *refSrc*, *refFreq*, *fs*)
+**configure**
+-------------
+::
 
-Sets the basic configuration for M8195A and populates class attributes
+    VSG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', refFreq=10e6, fs=200e6)
+
+Sets the basic configuration for the VSG and populates class attributes
 accordingly. It should be called any time these settings are changed
-(ideally *once* directly after creating the UXG object).
+(ideally *once* directly after creating the VSG object).
 
 **Arguments**
 
@@ -210,10 +248,14 @@ accordingly. It should be called any time these settings are changed
 
 **Returns**
 
-None
+* None
 
 
-``VSG``.\ **download_iq_wfm**\ (*name*, *i*, *q*)
+**download_iq_wfm**
+-------------------
+::
+
+    VSG.download_iq_wfm(name, i, q)
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -227,19 +269,24 @@ requirements.
 
 **Returns**
 
-None
+* None
 
 
-.. _N5193A + N5194A:
+.. _UXG:
 
-**N5193A + N5194A**
--------------------
+=======
+**UXG**
+=======
 
-``UXG``.\ **configure**\ (*rfState*, *modState*, *cf*, *amp*, *iqScale*, *refSrc*, *refFreq*, *fs*)
+**configure**
+-------------
+::
 
-Sets the basic configuration for M8195A and populates class attributes
+    UXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', fs=200e6)
+
+Sets the basic configuration for the UXG and populates class attributes
 accordingly. It should be called any time these settings are changed
-(ideally *once* directly after creating the M8195A object).
+(ideally *once* directly after creating the UXG object).
 
 **Arguments**
 
@@ -254,10 +301,14 @@ accordingly. It should be called any time these settings are changed
 
 **Returns**
 
-None
+* None
 
 
-``UXG``.\ **download_iq_wfm**\ (*name*, *i*, *q*, *assign*)
+**download_iq_wfm**
+-------------------
+::
+
+    UXG.download_iq_wfm(name, i, q, assign=True)
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -272,38 +323,50 @@ requirements. Optionally assigns waveform to active arb memory.
 
 **Returns**
 
-None
+* None
 
 
-``UXG``.\ **open_lan_stream**\ ()
+**open_lan_stream**
+-------------------
+::
+
+    UXG.open_lan_stream()
 
 Open connection to port 5033 for LAN streaming to the UXG. Use this
 directly prior to starting streaming control.
 
 **Arguments**
 
-None
+* None
 
 **Returns**
 
-None
+* None
 
 
-``UXG``.\ **close_lan_stream**\ ()
+**close_lan_stream**
+--------------------
+::
+
+    UXG.close_lan_stream()
 
 Close connection to port 5033 for LAN streaming on the UXG. Use this
 after streaming is complete.
 
 **Arguments**
 
-None
+* None
 
 **Returns**
 
-None
+* None
 
 
-``UXG``.\ **bin_pdw_file_builder**\ (*pdwList*)
+**bin_pdw_file_builder**
+------------------------
+::
+
+    UXG.bin_pdw_file_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0, phaseControl=0, rfOff=0, wIndex=0, wfmMkrMask=0)
 
 Builds a binary PDW file with a padding block to ensure the PDW section
 begins at an offset of 4096 bytes (required by UXG).
@@ -337,7 +400,11 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series 
 * ``pdwFile``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``UXG``.\ *lanStream*\ .\ **send**
 
 
-``UXG``.\ **csv_windex_file_download**\ (*windex*)
+**csv_windex_file_download**
+----------------------------
+::
+
+    UXG.csv_windex_file_download(windex)
 
 Write header fields separated by commas and terminated with \n
 
@@ -347,10 +414,14 @@ Write header fields separated by commas and terminated with \n
 
 **Returns**
 
-None
+* None
 
 
-``UXG``.\ **csv_pdw_file_download**\ (*fileName*, *fields*, *data*)
+**csv_pdw_file_download**
+-------------------------
+::
+
+    UXG.csv_pdw_file_download(fileName, fields=('Operation', 'Time'), data=([1, 0], [2, 100e-6]))
 
 Builds a CSV PDW file, sends it into the UXG, and converts it to a
 binary PDW file. There are *a lot* of fields to choose from, but *you
@@ -396,11 +467,96 @@ Documentation.
 
     fileName = 'csv_pdw_test'
     fields = ('Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name')
-    data = ([1, 0, 1e9, 'Hold', '0x1', 'waveform1'],
+    data = ([1, 0    , 1e9, 'Hold', '0x1', 'waveform1'],
             [2, 10e-6, 1e9, 'Hold', '0x0', 'waveform2'])
     UXG.csv_pdw_file_download(fileName, fields, data)
 
 
 **Returns**
 
-None
+* None
+
+
+.. _wfmBuilder:
+
+==============
+**wfmBuilder**
+==============
+
+**chirp_generator**
+-------------------
+::
+
+    wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
+
+Generates a symmetrical linear chirp (linear frequency modulated signal)
+at baseband. Chirp direction is determined by the sign of chirpBw
+(pos=up chirp, neg=down chirp).
+
+**Arguments**
+
+* ``length``: Length of the chirp. Argument is a float in units of seconds. Default is ``100e-6``.
+* ``fs``: Sample rate used to create the signal. Argument is a float. Default is ``100e6``.
+* ``chirpBw``: Total bandwidth of the chirp. Frequency range of resulting signal is ``-chirpBw/2`` to ``chirpBw/2``. Default is ``20e6``.
+* ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
+
+**Returns**
+
+* ``i``: NumPy array of values representing the real component of the chirp waveform.
+* ``q``: NumPy array of values representing the imaginary component of the chirp waveform.
+
+
+**barker_generator**
+--------------------
+::
+
+    wfmBuilder.barker_generator(length=100e-6, fs=100e6, code='b2', zeroLast=False)
+
+Generates a baseband Barker phase coded signal.
+See `Wikipedia article <https://en.wikipedia.org/wiki/Barker_code>`_ for
+more information on Barker coding.
+
+
+**Arguments**
+
+* ``length``: Length of the pulse. Argument is a float in units of seconds. Default is ``100e-6``.
+* ``fs``: Sample rate used to create the signal. Argument is a float. Default is ``100e6``.
+* ``code``: Barker code order. Argument is a string containing ``'b2'`` (default), ``'b3'``, ``'b41'``, ``'b42'``, ``'b5'``, ``'b7'``, ``'b11'``, or ``'b13'``.
+* ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
+
+**Returns**
+
+* ``i``: NumPy array of values representing the real component of the Barker pulse.
+* ``q``: NumPy array of values representing the imaginary component of the Barker pulse.
+
+
+**digmod_prbs_generator**
+-------------------------
+::
+
+    digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
+
+Generates a baseband modulated signal with a given modulation type and
+transmit filter using PRBS data.
+
+
+**Arguments**
+
+* ``modType``: Type of modulation. Argument is a ``_modulator`` function.
+    * ``bpsk_modulator``, generates a binary phase shift keyed signal.
+    * ``qpsk_modulator``, generates a quadrature phase shift keyed signal.
+    * ``psk8_modulator``, generates a 8-state phase shift keyed signal.
+    * ``qam16_modulator``, generates a 16-state quadrature amplitude modulated signal.
+    * ``qam32_modulator``, generates a 32-state quadrature amplitude modulated signal.
+* ``fs``: Sample rate used to create the signal. Argument is a float.
+* ``symRate``: Symbol rate. Argument is a float.
+* ``prbsOrder``: Order of the pseudorandom bit sequence used for the underlying data. Arguments are integers. ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
+* ``filt``: Reference filter type. Argument is a ``_filter`` function.
+    * ``rc_filter``: Creates the impulse response of a `raised cosine filter <https://en.wikipedia.org/wiki/Raised-cosine_filter>`_.
+    * ``rrc_filter``: Creates the impulse response of a `root raised cosine filter <https://en.wikipedia.org/wiki/Root-raised-cosine_filter>`_. (default)
+* ``alpha``: Excess filter bandwidth specification. Also known as roll-off factor, alpha, or beta. Argument is a float between ``0`` and ``1``. Default is ``0.35``.
+
+**Returns**
+
+* ``i``: NumPy array of values representing the real component of the Barker pulse.
+* ``q``: NumPy array of values representing the imaginary component of the Barker pulse.
