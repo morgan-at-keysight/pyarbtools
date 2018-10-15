@@ -15,11 +15,11 @@ from scipy.signal import max_len_seq
 from scipy.io import loadmat
 
 
-class AwgError(Exception):
+class AWGError(Exception):
     """AWG Exception class"""
 
 
-class VsgError(Exception):
+class VSGError(Exception):
     """Signal Generator Exception class"""
 
 

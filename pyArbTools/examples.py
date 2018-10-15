@@ -7,7 +7,7 @@ Python 3.6.4
 Tested on N5182B, M8190A
 """
 
-from pyArbTools import *
+from pyarbtools import *
 
 def vsg_chirp_example(ipAddress):
     """Creates downloads, assigns, and plays out a chirp waveform."""
