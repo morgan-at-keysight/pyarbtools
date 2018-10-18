@@ -12,7 +12,7 @@ Tested on M8190A, M8195A, N5194A, N5182B, E8257D
 
 from socket_instrument import *
 from scipy.io import loadmat
-import wfmBuilder
+# import wfmBuilder
 
 
 class AWGError(Exception):
