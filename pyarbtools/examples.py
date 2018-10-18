@@ -1,6 +1,6 @@
 """
 Example Functions for pyarbtools
-Author: Morgan Allison
+Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18
 Provides example scripts for generic VSGs, UXG, and AWGs using
 instrument classes from pyarbtools.
@@ -17,7 +17,7 @@ def vsg_chirp_example(ipAddress):
     """Creates downloads, assigns, and plays out a chirp waveform with
     a generic VSG."""
 
-    vsg = pyarbtools.VSG(ipAddress, port=5025, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, reset=True)
     vsg.configure(rfState=1, modState=1, amp=-20, fs=50e6, iqScale=70)
     vsg.sanity_check()
 
@@ -40,7 +40,7 @@ def vsg_dig_mod_example(ipAddress):
     """Generates and plays 1 MHz 16 QAM signal with 0.35 alpha RRC filter
     @ 1 GHz CF with a generic VSG."""
 
-    vsg = pyarbtools.VSG(ipAddress, port=5025, timeout=15, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
     vsg.configure(rfState=1, modState=1, amp=-5, fs=50e6, iqScale=70)
     vsg.sanity_check()
 
@@ -68,7 +68,7 @@ def m8190a_simple_wfm_example(ipAddress):
     out1 = 'dac'
     ############################################################################
 
-    awg = pyarbtools.M8190A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
     awg.configure(res=res, fs=fs, out1=out1)
 
     # Define a waveform, ensuring min length and granularity requirements are met
@@ -97,7 +97,7 @@ def m8190a_duc_example(ipAddress):
     downloads, assigns, and plays back a simple IQ waveform from
     the AC output port."""
 
-    awg = pyarbtools.M8190A(ipAddress, port=5025, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, reset=True)
     awg.configure(res='intx3', cf1=1e9)
 
     # Create simple sinusoid as IQ.
@@ -127,7 +127,7 @@ def m8190a_duc_chirp_example(ipAddress):
     res = 'intx3'
     ############################################################################
 
-    awg = pyarbtools.M8190A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
     awg.configure(res=res, fs=fs, out1='ac', cf1=cf)
     bbfs = fs / awg.intFactor
 
@@ -164,7 +164,7 @@ def m8195a_simple_wfm_example(ipAddress):
     func = 'arb'
     ############################################################################
 
-    awg = pyarbtools.M8195A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8195A(ipAddress, reset=True)
     awg.configure(dacMode=dacMode, fs=fs, func=func)
 
     # Define a waveform, ensuring min length and granularity requirements are met
@@ -194,7 +194,7 @@ def uxg_pdw_example(ipAddress):
     """NOTE: trigger settings may need to be adjusted for continuous
     output. This will be fixed in a future release."""
 
-    uxg = pyarbtools.UXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg = pyarbtools.instruments.UXG(ipAddress, port=5025, timeout=10, reset=True)
     uxg.err_check()
 
     uxg.write('stream:state off')
@@ -226,7 +226,7 @@ def uxg_lan_streaming_example(ipAddress):
     builds a PDW file, configures LAN streaming, and streams the PDWs
     to the UXG."""
 
-    uxg = pyarbtools.UXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg = pyarbtools.instruments.UXG(ipAddress, port=5025, timeout=10, reset=True)
     uxg.err_check()
 
     # Waveform creation, three chirps of the same bandwidth and different lengths
@@ -269,7 +269,7 @@ def uxg_lan_streaming_example(ipAddress):
     # The esr=False argument allows you to send your own read/query after binblockwrite
     uxg.binblockwrite(f'stream:external:header? ', header, esr=False)
     if uxg.query('') != '+0':
-        raise pyarbtools.VSGError('stream:external:header? response invalid. This should never happen if file was built correctly.')
+        raise pyarbtools.error.VSGError('stream:external:header? response invalid. This should never happen.')
 
     # Configure LAN streaming and send PDWs
     uxg.write('stream:state on')

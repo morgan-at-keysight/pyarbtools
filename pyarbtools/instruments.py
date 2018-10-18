@@ -1,29 +1,24 @@
 """
 pyarbtools 0.1.0
+Instrument Control Classes
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18
-Builds instrument specific classes for each AWG. The classes include minimum
-waveform length/granularity checks, binary waveform formatting, sequencer
-length/granularity checks, sample rate checks, etc. per AWG.
-Uses socket_instrument.py for instrument communication.
+Builds instrument specific classes for each signal generator.
+The classes include minimum waveform length/granularity checks, binary
+waveform formatting, sequencer length/granularity checks, sample rate
+checks, etc. per instrument.
+Uses communications.py for instrument communication.
 Python 3.6.4
 Tested on M8190A, M8195A, N5194A, N5182B, E8257D
 """
 
-from socket_instrument import *
+from pyarbtools import communications
+from pyarbtools import error
 from scipy.io import loadmat
-# import wfmBuilder
+import numpy as np
 
 
-class AWGError(Exception):
-    """AWG Exception class"""
-
-
-class VSGError(Exception):
-    """Signal Generator Exception class"""
-
-
-class M8190A(SocketInstrument):
+class M8190A(communications.SocketInstrument):
     """Generic class for controlling a Keysight M8190A AWG."""
 
     def __init__(self, host, port=5025, timeout=3, reset=False):
@@ -33,16 +28,24 @@ class M8190A(SocketInstrument):
             self.write('*rst')
             self.query('*opc?')
             self.write('abort')
-        self.fs = float(self.query('frequency:raster?').strip())
         self.res = self.query('trace1:dwidth?').strip().lower()
-        self.func1 = self.query('func1:mode?').strip()
-        self.func2 = self.query('func2:mode?').strip()
-        self.out1 = self.query('output1:route?').strip()
-        self.out2 = self.query('output2:route?').strip()
-        self.cf1 = float(self.query('carrier1:freq?').strip().split(',')[0])
-        self.cf2 = float(self.query('carrier2:freq?').strip().split(',')[0])
+        self.gran = 0
+        self.minLen = 0
+        self.binMult = 0
+        self.binShift = 0
+        self.intFactor = 0
+        self.idleGran = 0
+        self.check_resolution()
+        self.clkSrc = self.query('frequency:raster:source?').strip().lower()
+        self.fs = float(self.query('frequency:raster?').strip())
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = float(self.query('roscillator:frequency?').strip())
+        self.out1 = self.query('output1:route?').strip()
+        self.out2 = self.query('output2:route?').strip()
+        self.func1 = self.query('func1:mode?').strip()
+        self.func2 = self.query('func2:mode?').strip()
+        self.cf1 = float(self.query('carrier1:freq?').strip().split(',')[0])
+        self.cf2 = float(self.query('carrier2:freq?').strip().split(',')[0])
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -65,13 +68,14 @@ class M8190A(SocketInstrument):
 
         rl = len(wfm)
         if rl < self.minLen:
-            raise AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+            raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
-            raise AWGError(f'Waveform must have a granularity of {self.gran}.')
+            raise error.AWGError(f'Waveform must have a granularity of {self.gran}.')
 
         return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
 
-    def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac', out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9):
+    def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
+                  out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9):
         """Sets basic configuration for M8190A and populates class attributes accordingly."""
         self.set_resolution(res)
 
@@ -154,7 +158,7 @@ class M8190A(SocketInstrument):
             elif self.intFactor == 24 or self.intFactor == 48:
                 self.idleGran = 1
         else:
-            raise AWGError('Invalid resolution selected.')
+            raise error.AWGError('Invalid resolution selected.')
 
     def download_wfm(self, wfm, ch=1):
         """Defines and downloads a waveform into the segment memory."""
@@ -177,7 +181,7 @@ class M8190A(SocketInstrument):
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', iq)
 
 
-class M8195A(SocketInstrument):
+class M8195A(communications.SocketInstrument):
     """Generic class for controlling Keysight M8195A AWG."""
 
     def __init__(self, host, port=5025, timeout=3, reset=False):
@@ -213,9 +217,9 @@ class M8195A(SocketInstrument):
 
         rl = len(wfm)
         if rl < self.minLen:
-            raise AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+            raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
-            raise AWGError(f'Waveform must have a granularity of {self.gran}.')
+            raise error.AWGError(f'Waveform must have a granularity of {self.gran}.')
 
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
 
@@ -248,7 +252,7 @@ class M8195A(SocketInstrument):
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
 
 
-class VSG(SocketInstrument):
+class VSG(communications.SocketInstrument):
     def __init__(self, host, port=5025, timeout=5, reset=False):
         """Generic class for controlling the EXG, MXG, and PSG family
         signal generators."""
@@ -262,6 +266,7 @@ class VSG(SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
         self.cf = float(self.query('frequency?').strip())
         self.amp = float(self.query('power?').strip())
+        self.iqScale = float(self.query('radio:arb:rscaling?').strip())
         self.refSrc = self.query('roscillator:source?').strip()
         self.arbState = float(self.query('radio:arb:state?').strip())
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
@@ -272,7 +277,7 @@ class VSG(SocketInstrument):
         elif 'bbg' in self.refSrc.lower():
             self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
         else:
-            raise VSGError('Unknown refSrc selected.')
+            raise error.VSGError('Unknown refSrc selected.')
         self.gran = 2
         self.minLen = 60
         self.binMult = 32767
@@ -296,7 +301,7 @@ class VSG(SocketInstrument):
         elif 'bbg' in self.refSrc.lower():
             self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
         else:
-            raise VSGError('Unknown refSrc selected.')
+            raise error.VSGError('Unknown refSrc selected.')
         self.write(f'radio:arb:sclock:rate {fs}')
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
         self.write(f'radio:arb:rscaling {iqScale}')
@@ -345,10 +350,10 @@ class VSG(SocketInstrument):
 
         rl = len(wfm)
         if rl < self.minLen:
-            raise VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+            raise error.VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
             # vsg.query('*opc?')
-            raise VSGError(f'Waveform must have a granularity of {self.gran}.')
+            raise error.VSGError(f'Waveform must have a granularity of {self.gran}.')
 
         if bigEndian:
             return np.array(self.binMult * wfm, dtype=np.int16).byteswap()
@@ -356,7 +361,8 @@ class VSG(SocketInstrument):
             return np.array(self.binMult * wfm, dtype=np.int16)
 
 
-class UXG(SocketInstrument):
+# noinspection PyRedundantParentheses
+class UXG(communications.SocketInstrument):
     """Generic class for controlling the N5194A + N5193A (Vector + Analog)
     UXG agile signal generators."""
 
@@ -371,6 +377,9 @@ class UXG(SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
         self.cf = float(self.query('frequency?').strip())
         self.amp = float(self.query('power?').strip())
+        self.iqScale = float(self.query('radio:arb:rscaling?').strip())
+        self.refSrc = self.query('roscillator:source?').strip()
+        self.refFreq = 10e6
         self.mode = self.query('instrument:select?').strip()
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
         self.gran = int(self.query('radio:arb:information:quantum?').strip())
@@ -378,7 +387,8 @@ class UXG(SocketInstrument):
         self.binMult = 32767
 
         # Set up separate socket for LAN PDW streaming
-        self.lanStream = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.lanStream = communications.socket.socket(
+            communications.socket.AF_INET, communications.socket.SOCK_STREAM)
         self.lanStream.setblocking(False)
         self.lanStream.settimeout(timeout)
         # Can't connect until LAN streaming is turned on
@@ -402,7 +412,7 @@ class UXG(SocketInstrument):
         elif 'bbg' in self.refSrc.lower():
             self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
         else:
-            raise VSGError('Unknown refSrc selected.')
+            raise error.VSGError('Unknown refSrc selected.')
         self.write(f'radio:arb:sclock:rate {fs}')
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
         self.write(f'radio:arb:rscaling {iqScale}')
@@ -416,7 +426,7 @@ class UXG(SocketInstrument):
 
     def close_lan_stream(self):
         """Close LAN streaming port."""
-        self.lanStream.shutdown(socket.SHUT_RDWR)
+        self.lanStream.shutdown(communications.socket.SHUT_RDWR)
         self.lanStream.close()
 
     @staticmethod
@@ -436,7 +446,7 @@ class UXG(SocketInstrument):
 
         # Build PDW
         pdw = np.zeros(6, dtype=np.uint32)
-        # Word 0: Mask pdw format (3 bits), operation (2 bits), and the lower 27 bits (32 - 5) of freq
+        # Word 0: Mask pdw format (3 bits), operation (2 bits), and the lower 27 bits of freq
         pdw[0] = (pdwFormat | operation << 3 | _freq << 5) & 0xFFFFFFFF
         # Word 1: Mask the upper 20 bits (47 - 27) of freq and phase (12 bits)
         pdw[1] = (_freq >> 27 | _phase << 20) & 0xFFFFFFFF
@@ -500,9 +510,9 @@ class UXG(SocketInstrument):
 
         return pdwFile
 
-    def csv_pdw_file_download(self, fileName, fields=('Operation', 'Time'), data=((1, 0), (2, 100e-6))):
+    def csv_pdw_file_download(self, fileName, fields=('Operation', 'Time'),
+                              data=((1, 0), (2, 100e-6))):
         """Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file."""
-
         # Write header fields separated by commas and terminated with \n
         pdwCsv = ','.join(fields) + '\n'
         for row in data:
@@ -600,9 +610,9 @@ class UXG(SocketInstrument):
 
         rl = len(wfm)
         if rl < self.minLen:
-            raise VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+            raise error.VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
-            raise VSGError(f'Waveform must have a granularity of {self.gran}.')
+            raise error.VSGError(f'Waveform must have a granularity of {self.gran}.')
 
         if bigEndian:
             return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()
