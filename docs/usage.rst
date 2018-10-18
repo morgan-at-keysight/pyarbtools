@@ -8,9 +8,8 @@ To use pyarbtools in a project::
 
 pyarbtools is built from two primary submodules:
 
-* :ref: `instruments`
-* :ref: `wfmBuilder`
-
+* :ref:`instruments`
+* :ref:`wfmBuilder`
 
 Supported instruments include:
 
