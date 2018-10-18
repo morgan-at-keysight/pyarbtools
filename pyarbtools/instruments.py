@@ -397,7 +397,7 @@ class UXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', fs=200e6):
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int'):
         self.write(f'output {rfState}')
         self.rfState = self.query('output?').strip()
         self.write(f'output:modulation {modState}')
@@ -417,7 +417,6 @@ class UXG(communications.SocketInstrument):
         else:
             raise error.VSGError('Unknown refSrc selected.')
         self.write(f'radio:arb:sclock:rate {fs}')
-        self.fs = float(self.query('radio:arb:sclock:rate?').strip())
         self.write(f'radio:arb:rscaling {iqScale}')
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 

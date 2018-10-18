@@ -6,12 +6,11 @@ To use pyarbtools in a project::
 
     import pyarbtools
 
+pyarbtools is built from two primary submodules:
 
-Create a class with the signal generator type and the instrument's IP
-address::
+* :ref: `instruments`
+* :ref: `wfmBuilder`
 
-    m8190a = pyarbtools.M8910A('192.168.1.12')
-    n5182b = pyarbtools.VSG('192.168.1.13')
 
 Supported instruments include:
 
@@ -24,23 +23,17 @@ Supported instruments include:
 * :ref:`UXG`
     * N5193A + N5194A combination
 
+.. _instruments:
 
-You can also create waveforms and load them into your signal generator
-or use them as generic signals for DSP work::
+===============
+**instruments**
+===============
 
-    iChirp, qChirp = pyarbtools.wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6)
-    fs = 100e6
-    symRate = 1e6
-    i, q = digmod_prbs_generator(qpsk_modulator, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
+To use/control a signal generator, reate a class with the signal
+generator type and the instrument's IP address::
 
-:ref:`wfmBuilder`
-
-Supported Instruments
-*********************
-
-
-**Class Structure**
--------------------
+    m8190a = pyarbtools.instruments.M8910A('192.168.1.12')
+    n5182b = pyarbtools.instruments.VSG('192.168.1.13')
 
 Every class is built on a robust socket connection that allows the user
 to send SCPI commands/queries, send/receive data using IEEE 488.2
@@ -282,7 +275,7 @@ requirements.
 -------------
 ::
 
-    UXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', fs=200e6)
+    UXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int')
 
 Sets the basic configuration for the UXG and populates class attributes
 accordingly. It should be called any time these settings are changed
@@ -296,8 +289,6 @@ accordingly. It should be called any time these settings are changed
 * ``amp``: Sets the output power. Argument is a floating point value from ``-120`` to ``+3``. Default is ``-120``.
 * ``iqScale``: Sets the IQ scale factor. Argument is an integer from ``1`` to ``100``. Default is ``70``.
 * ``refSrc``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
-* ``refFreq``: Reference clock frequency. Argument is fixed at ``10e6``. This argument will be removed in a future release.
-* ``fs``: Sample rate. This quantity is fixed based on the instrument's mode (either ``250e6`` or ``2e9``). This argument will be removed in a future release.
 
 **Returns**
 
@@ -482,6 +473,16 @@ Documentation.
 ==============
 **wfmBuilder**
 ==============
+
+In addition to instrument control and communication, pyarbtools allows
+you to create waveforms and load them into your signal generator or use
+them as generic signals for DSP work::
+
+    iChirp, qChirp = pyarbtools.wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6)
+    fs = 100e6
+    symRate = 1e6
+    i, q = digmod_prbs_generator(qpsk_modulator, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
+
 
 **chirp_generator**
 -------------------
