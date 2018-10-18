@@ -4,7 +4,7 @@ pyarbtools: Keysight Signal Generator Control
 
 License: GPL 3
 
-`DOCUMENTATION <pyarbtools.readthedocs.io>`_
+`DOCUMENTATION <https://pyarbtools.readthedocs.io/en/latest/>`_
 
 pyarbtools is a collection of Python classes and functions that provide basic signal creation, instrument configuration, and waveform download capabilities for Keysight signal sources.
 
