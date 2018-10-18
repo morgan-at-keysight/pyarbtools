@@ -4,13 +4,11 @@ wfmBuilder
 Author: Morgan Allison
 Updated: 10/18
 Provides generic waveform creation capabilities for pyarbtools.
-Python 3.6.4
-NumPy 1.14.2
-Tested on N5182B, M8190A
 """
 
 import numpy as np
 from scipy.signal import max_len_seq
+
 
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
@@ -20,7 +18,7 @@ def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     -1/2 to 1/2 instead of 0 to 1. This ensures that the chirp will be
     symmetrical around the carrier."""
 
-    rl = fs * length
+    rl = int(fs * length)
     chirpRate = chirpBw / length
     t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
 
@@ -301,10 +299,10 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     """Create pulse shaping filter. Taps should be an odd number to 
     ensure there is a tap in the center of the filter."""
     taps = filterSymbolLength * saPerSym + 1
-    time, filter = filt(int(taps), alpha, symRate, fs)
+    time, modFilter = filt(int(taps), alpha, symRate, fs)
 
     # Apply filter and trim off zeroed samples to ensure EXACT wraparound.
-    iq = np.convolve(iq, filter)
+    iq = np.convolve(iq, modFilter)
     iq = iq[taps-1:-taps+1]
     # Scale waveform data
     sFactor = abs(np.amax(iq))
