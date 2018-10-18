@@ -6,6 +6,8 @@ License: GPL 3
 
 `DOCUMENTATION <https://pyarbtools.readthedocs.io/en/latest/>`_
 
+Take a look at pyarbtools/examples.py for sample code.
+
 pyarbtools is a collection of Python classes and functions that provide basic signal creation, instrument configuration, and waveform download capabilities for Keysight signal sources.
 
 It is loosely based on Keysight's `IQ Tools <https://www.keysight.com/main/techSupport.jspx?cc=US&lc=eng&nid=-33319.972199&pid=1969138&pageMode=DS>`_, a Matlab-based toolkit that accomplishes similar things.

@@ -6,7 +6,7 @@ __author__ = """Morgan Allison"""
 __email__ = 'morgan.j.allison@gmail.com'
 __version__ = '0.1.0'
 
-import communications
-import instruments
-import wfmBuilder
-import error
+from . import communications
+from . import instruments
+from . import wfmBuilder
+from . import error
