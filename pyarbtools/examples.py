@@ -1,25 +1,30 @@
 """
-Example Functions for pyArbTools
-Author: Morgan Allison
+Example Functions for pyarbtools
+Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18
-Tests generic VSGs, UXG, and AWGs using instrument classes from pyArbTools.
+Provides example scripts for generic VSGs, UXG, and AWGs using
+instrument classes from pyarbtools.
 Python 3.6.4
+NumPy 1.14.2
 Tested on N5182B, M8190A
 """
 
-from pyarbtools import *
+import pyarbtools
+import numpy as np
+
 
 def vsg_chirp_example(ipAddress):
-    """Creates downloads, assigns, and plays out a chirp waveform."""
+    """Creates downloads, assigns, and plays out a chirp waveform with
+    a generic VSG."""
 
-    vsg = VSG(ipAddress, port=5025, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, reset=True)
     vsg.configure(rfState=1, modState=1, amp=-20, fs=50e6, iqScale=70)
     vsg.sanity_check()
 
     name = 'chirp'
     length = 100e-6
     bw = 40e6
-    i, q = chirp_generator(length, vsg.fs, bw)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(length, vsg.fs, bw)
 
     i = np.append(i, np.zeros(5000))
     q = np.append(q, np.zeros(5000))
@@ -35,13 +40,13 @@ def vsg_dig_mod_example(ipAddress):
     """Generates and plays 1 MHz 16 QAM signal with 0.35 alpha RRC filter
     @ 1 GHz CF with a generic VSG."""
 
-    vsg = VSG(ipAddress, port=5025, timeout=15, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
     vsg.configure(rfState=1, modState=1, amp=-5, fs=50e6, iqScale=70)
     vsg.sanity_check()
 
     name = '1MHZ_16QAM'
     symRate = 1e6
-    i, q = digmod_prbs_generator('qam16', vsg.fs, symRate)
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam16', vsg.fs, symRate)
 
     vsg.write('mmemory:delete:wfm')
     vsg.download_iq_wfm(name, i, q)
@@ -63,7 +68,7 @@ def m8190a_simple_wfm_example(ipAddress):
     out1 = 'dac'
     ############################################################################
 
-    awg = M8190A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
     awg.configure(res=res, fs=fs, out1=out1)
 
     # Define a waveform, ensuring min length and granularity requirements are met
@@ -92,7 +97,7 @@ def m8190a_duc_example(ipAddress):
     downloads, assigns, and plays back a simple IQ waveform from
     the AC output port."""
 
-    awg = M8190A(ipAddress, port=5025, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, reset=True)
     awg.configure(res='intx3', cf1=1e9)
 
     # Create simple sinusoid as IQ.
@@ -122,12 +127,12 @@ def m8190a_duc_chirp_example(ipAddress):
     res = 'intx3'
     ############################################################################
 
-    awg = M8190A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
     awg.configure(res=res, fs=fs, out1='ac', cf1=cf)
     bbfs = fs / awg.intFactor
 
     # Create chirp and append dead time to waveform.
-    i, q = chirp_generator(pw, bbfs, bw)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(pw, bbfs, bw)
     deadTime = np.zeros(int(bbfs * (pri - pw)))
     i = np.append(i, deadTime)
     q = np.append(q, deadTime)
@@ -159,7 +164,7 @@ def m8195a_simple_wfm_example(ipAddress):
     func = 'arb'
     ############################################################################
 
-    awg = M8195A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8195A(ipAddress, reset=True)
     awg.configure(dacMode=dacMode, fs=fs, func=func)
 
     # Define a waveform, ensuring min length and granularity requirements are met
@@ -189,7 +194,7 @@ def uxg_pdw_example(ipAddress):
     """NOTE: trigger settings may need to be adjusted for continuous
     output. This will be fixed in a future release."""
 
-    uxg = UXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg = pyarbtools.instruments.UXG(ipAddress, port=5025, timeout=10, reset=True)
     uxg.err_check()
 
     uxg.write('stream:state off')
@@ -199,7 +204,7 @@ def uxg_pdw_example(ipAddress):
     length = 1e-6
     fs = 250e6
     chirpBw = 100e6
-    i, q = chirp_generator(length, fs, chirpBw, zeroLast=True)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(length, fs, chirpBw, zeroLast=True)
     wfmName = '1US_100MHz_CHIRP'
     uxg.download_iq_wfm(wfmName, i, q)
 
@@ -221,14 +226,14 @@ def uxg_lan_streaming_example(ipAddress):
     builds a PDW file, configures LAN streaming, and streams the PDWs
     to the UXG."""
 
-    uxg = UXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg = pyarbtools.instruments.UXG(ipAddress, port=5025, timeout=10, reset=True)
     uxg.err_check()
 
     # Waveform creation, three chirps of the same bandwidth and different lengths
     lengths = [10e-6, 50e-6, 100e-6]
     wfmNames = []
     for l in lengths:
-        i, q = chirp_generator(l, fs=250e6, chirpBw=100e6, zeroLast=True)
+        i, q = pyarbtools.wfmBuilder.chirp_generator(l, fs=250e6, chirpBw=100e6, zeroLast=True)
         uxg.download_iq_wfm(f'{l}_100MHz_CHIRP', i, q)
         wfmNames.append(f'{l}_100MHz_CHIRP')
 
@@ -264,7 +269,7 @@ def uxg_lan_streaming_example(ipAddress):
     # The esr=False argument allows you to send your own read/query after binblockwrite
     uxg.binblockwrite(f'stream:external:header? ', header, esr=False)
     if uxg.query('') != '+0':
-        raise VsgError('stream:external:header? response invalid. This should never happen if file was built correctly.')
+        raise pyarbtools.error.VSGError('stream:external:header? response invalid. This should never happen.')
 
     # Configure LAN streaming and send PDWs
     uxg.write('stream:state on')
@@ -290,12 +295,12 @@ def uxg_lan_streaming_example(ipAddress):
 def main():
     # m8190a_duc_example('141.121.210.241')
     # m8190a_duc_chirp_example('141.121.210.241')
-    m8190a_simple_wfm_example('141.121.210.241')
+    # m8190a_simple_wfm_example('141.121.210.241')
     # m8195a_simple_wfm_example('141.121.210.245')
-    # vsg_chirp_example('169.254.224.223')
+    vsg_dig_mod_example('141.121.210.196')
+    # vsg_chirp_example('141.121.210.196')
     # uxg_example('141.121.210.167')
     # uxg_lan_streaming_example('141.121.210.167')
-    # vsg_dig_mod_example('169.254.224.223')
 
 
 if __name__ == '__main__':

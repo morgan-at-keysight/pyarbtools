@@ -1,28 +1,16 @@
 """
 pyarbtools 0.1.0
-Socket Instrument Class
-Author: Morgan Allison
+communications
+Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18
 This program provides a socket interface to Keysight test equipment.
 It handles sending commands, receiving query results, and
 reading/writing binary block data.
-Windows 7 64-bit
-Python 3.6.4 64-bit
-NumPy 1.14.2
 """
 
 import socket
 import numpy as np
-
-
-class BinblockError(Exception):
-    """Binary Block Exception class"""
-    pass
-
-
-class SockInstError(Exception):
-    """Socket Instrument Exception class"""
-    pass
+from pyarbtools import error
 
 
 class SocketInstrument:
@@ -77,7 +65,7 @@ class SocketInstrument:
             temp = self.query('syst:err?').strip().replace('+', '').replace('-', '')
         # print(self.query('syst:err?'))
         if err:
-            raise SockInstError(err)
+            raise error.SockInstError(err)
 
     def binblockread(self, dtype=np.int8, debug=False):
         """Read data with IEEE 488.2 binary block format
@@ -96,7 +84,7 @@ class SocketInstrument:
 
         # Read # character, raise exception if not present.
         if self.socket.recv(1) != b'#':
-            raise BinblockError('Data in buffer is not in binblock format.')
+            raise error.BinblockError('Data in buffer is not in binblock format.')
 
         # Extract header length and number of bytes in binblock.
         headerLength = int(self.socket.recv(1).decode('latin_1'), 16)
@@ -128,12 +116,14 @@ class SocketInstrument:
         if term != b'\n':
             print('Term char: {}, rawData Length: {}'.format(
                 term, len(rawData)))
-            raise BinblockError('Data not terminated correctly.')
+            raise error.BinblockError('Data not terminated correctly.')
 
         # Convert binary data to NumPy array of specified data type and return.
         return np.frombuffer(rawData, dtype=dtype)
 
-    def binblock_header(self, data):
+    # noinspection PyUnresolvedReferences
+    @staticmethod
+    def binblock_header(data):
         """Returns a IEEE 488.2 binary block header
 
         #<x><yyy>..., where:
@@ -200,7 +190,7 @@ def awg_example(ipAddress, port=5025):
     awg.write('output1:route dac')
     awg.write('output1:norm on')
 
-    rl = fs / freq * 64
+    rl = int(fs / freq * 64)
     t = np.linspace(0, rl / fs, rl, endpoint=False)
     wfm = np.array(2047 * np.sin(2 * np.pi * freq * t), dtype=np.int16) << 4
 
