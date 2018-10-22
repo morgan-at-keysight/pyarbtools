@@ -8,6 +8,7 @@ Provides generic waveform creation capabilities for pyarbtools.
 
 import numpy as np
 from scipy.signal import max_len_seq
+from pyarbtools import communications
 
 
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
@@ -309,3 +310,15 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     iq = iq / sFactor * 0.707
 
     return np.real(iq), np.imag(iq)
+
+
+def iq_correction(i, q, fs, vsaIPAddress='127.0.0.1', cf=1e9, bw=40e6):
+        """Extracts an equalization filter from VSA and applies it to a
+        waveform at a given center frequency, bandwidth, and sample rate"""
+
+        vsa = communications.SocketInstrument(vsaIPAddress, 5025)
+        print(vsa.query('*idn?'))
+
+
+if __name__ == '__main__':
+    iq_correction(0, 1, 100)

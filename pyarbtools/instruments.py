@@ -41,6 +41,7 @@ class M8190A(communications.SocketInstrument):
         self.check_resolution()
         self.clkSrc = self.query('frequency:raster:source?').strip().lower()
         self.fs = float(self.query('frequency:raster?').strip())
+        self.bbfs = self.fs
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = float(self.query('roscillator:frequency?').strip())
         self.out1 = self.query('output1:route?').strip()
@@ -154,6 +155,7 @@ class M8190A(communications.SocketInstrument):
             self.binMult = 16383
             self.binShift = 1
             self.intFactor = int(self.res.split('x')[-1])
+            self.bbfs = self.fs / self.intFactor
             if self.intFactor == 3:
                 self.idleGran = 8
             elif self.intFactor == 12:
@@ -416,7 +418,6 @@ class UXG(communications.SocketInstrument):
             self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
         else:
             raise error.VSGError('Unknown refSrc selected.')
-        self.write(f'radio:arb:sclock:rate {fs}')
         self.write(f'radio:arb:rscaling {iqScale}')
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
