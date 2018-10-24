@@ -29,7 +29,6 @@ class M8190A(communications.SocketInstrument):
             self.query('*opc?')
             self.write('abort')
         self.res = self.query('trace1:dwidth?').strip().lower()
-        self.check_resolution()
         self.func1 = self.query('func1:mode?').strip()
         self.func2 = self.query('func2:mode?').strip()
         self.gran = 0
@@ -38,7 +37,6 @@ class M8190A(communications.SocketInstrument):
         self.binShift = 0
         self.intFactor = 0
         self.idleGran = 0
-        self.check_resolution()
         self.clkSrc = self.query('frequency:raster:source?').strip().lower()
         self.fs = float(self.query('frequency:raster?').strip())
         self.bbfs = self.fs
@@ -50,6 +48,7 @@ class M8190A(communications.SocketInstrument):
         self.func2 = self.query('func2:mode?').strip()
         self.cf1 = float(self.query('carrier1:freq?').strip().split(',')[0])
         self.cf2 = float(self.query('carrier2:freq?').strip().split(',')[0])
+        self.check_resolution()
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -74,6 +73,7 @@ class M8190A(communications.SocketInstrument):
         if rl < self.minLen:
             raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
+            print(rl % self.gran)
             raise error.AWGError(f'Waveform must have a granularity of {self.gran}.')
 
         return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
@@ -81,8 +81,6 @@ class M8190A(communications.SocketInstrument):
     def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
                   out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9):
         """Sets basic configuration for M8190A and populates class attributes accordingly."""
-        self.set_resolution(res)
-
         self.write(f'frequency:raster:source {clkSrc}')
         self.clkSrc = self.query('frequency:raster:source?').strip().lower()
 
@@ -116,8 +114,8 @@ class M8190A(communications.SocketInstrument):
 
         self.write(f'roscillator:frequency {refFreq}')
         self.refFreq = float(self.query('roscillator:frequency?').strip())
+        self.set_resolution(res)
 
-        self.check_resolution()
         self.err_check()
 
     def set_resolution(self, res='wsp'):
@@ -328,7 +326,7 @@ class VSG(communications.SocketInstrument):
         print('Internal Arb Sample Rate:', self.fs)
         print('IQ Scaling:', self.iqScale)
 
-    def download_iq_wfm(self, name, i, q):
+    def download_iq_wfm(self, i, q, name='wfm'):
         """Defines and downloads an iq waveform into the segment memory."""
         i = self.check_wfm(i)
         q = self.check_wfm(q)
@@ -573,7 +571,7 @@ class UXG(communications.SocketInstrument):
         # Split I and Q and download waveform
         i = np.real(iq).reshape(iq.shape[0])
         q = np.imag(iq).reshape(iq.shape[0])
-        self.download_iq_wfm(name, i, q)
+        self.download_iq_wfm(i, q, name)
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -586,7 +584,7 @@ class UXG(communications.SocketInstrument):
         print('Internal Arb Sample Rate:', self.fs)
         print('IQ Scaling:', self.iqScale)
 
-    def download_iq_wfm(self, name, i, q, assign=True):
+    def download_iq_wfm(self, i, q, name='wfm', assign=True):
         """Formats, downloads, and assigns an iq waveform into arb memory."""
         i = self.check_wfm(i)
         q = self.check_wfm(q)
