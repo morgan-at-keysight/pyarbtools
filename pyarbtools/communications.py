@@ -166,9 +166,7 @@ class SocketInstrument:
         if esr:
             r = self.query('*esr?')
             if int(r) is not 0:
-                print(r)
                 self.err_check()
-                # raise BinblockError(f'Non-zero ESR: {r}')
 
 
 def awg_example(ipAddress, port=5025):

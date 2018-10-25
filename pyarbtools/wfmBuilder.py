@@ -6,8 +6,6 @@ Updated: 10/18
 Provides generic waveform creation capabilities for pyarbtools.
 """
 
-import nnresample
-
 import os
 import numpy as np
 from scipy.signal import max_len_seq
@@ -316,129 +314,127 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     return np.real(iq), np.imag(iq)
 
 
-def iq_correction(i, q, instrument, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, bw=40e6):
+def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4):
     """Creates a 16-QAM signal from a signal generator at a
-    user-selected center frequency, bandwidth, and sample rate.
-    Creates a VSA instrument, which receives the 16-QAM signal and
-    extracts an equalization filter and applies it to the
-    user-defined waveform."""
+    user-selected center frequency and sample rate. Symbol rate and
+    effective bandwidth of the calibration signal is determined by
+    the oversampling rate in VSA. Creates a VSA instrument, which
+    receives the 16-QAM signal and extracts & inverts an equalization
+    filter and applies it to the user-defined waveform."""
 
-    i, q = digmod_prbs_generator('qam16', instrument.bbfs, bw)
-    saPerSym = instrument.bbfs / bw
-    instrument.download_iq_wfm(i, q)
+    # Use M8190A baseband sample rate if present
+    if hasattr(inst, 'bbfs'):
+        fs = inst.bbfs
+    else:
+        fs = inst.fs
+
+    # Create and load calibration signal
+    symRate = fs / osFactor
+    i, q = digmod_prbs_generator('qam16', fs, symRate)
+    inst.download_iq_wfm(i, q)
+
     # Add .play() method to each instrument class, for now use M8190A
-    instrument.write('trace:select 1')
-    instrument.write('output1:route ac')
-    instrument.write('output1:norm on')
-    instrument.write('init:cont on')
-    instrument.write('init:imm')
-    instrument.query('*opc?')
+    inst.write('trace:select 1')
+    inst.write('output1:route ac')
+    inst.write('output1:norm on')
+    inst.write('init:cont on')
+    inst.write('init:imm')
+    inst.query('*opc?')
+    # inst.write('radio:arb:state on')
 
+    # Connect to VSA
     vsa = communications.SocketInstrument(vsaIPAddress, 5025)
-    print(vsa.query('*idn?'))
     vsa.write('*rst')
     vsa.query('*opc?')
-    hwList = vsa.query('system:vsa:hardware:configuration:catalog?')
-    hwList = hwList.split(',')
+    hwList = vsa.query('system:vsa:hardware:configuration:catalog?').split(',')
     if vsaHardware not in hwList:
         raise ValueError('Selected hardware not present in VSA hardware list.')
     vsa.write(f'system:vsa:hardware:configuration:select {vsaHardware}')
     vsa.query('*opc?')
 
+    # Configure basic settings
     vsa.write('measure:nselect 1')
     vsa.write('measure:configure ddemod')
+    vsa.write('trace1:data:name "Error Vector Time1"')
     vsa.write('trace3:data:name "Eq Impulse Response1"')
     vsa.write('format:trace:data real64')  # This is float64/double, not int64
     vsa.write(f'sense:frequency:center {cf}')
-    vsa.write(f'sense:frequency:span {bw * 1.35}')
     vsa.write('input:analog:range:auto')
     vsa.write('display:layout 2, 2')
-    vsa.query('*opc?')
-    vsaFs = int(vsa.query("frequency:srate?").strip())
 
-    # Configure digital demod parameters
+    # Configure digital demod parameters and enable equalizer
     vsa.write(f'ddemod:mod "Qam16"')
-    vsa.write(f'ddemod:srate {bw}')
+    vsa.write(f'ddemod:srate {symRate}')
+    vsa.write(f'ddemod:symbol:points {osFactor}')
     vsa.write('ddemod:filter "RootRaisedCosine"')
     vsa.write('ddemod:filter:abt 0.35')
-    eqSaPerSym = float(vsa.query('ddemod:symbol:points?').strip())
-    symRate = float(vsa.query('ddemod:srate?').strip())
-    eqLength = int(vsa.query('ddemod:compensate:equalize:length?').strip())
-    print(symRate/eqSaPerSym)
     vsa.write('ddemod:compensate:equalize 1')
 
     # Acquire data until EVM drops below a certain threshold
     evm = 100
-    while evm > 0.6:
-        vsa.write('initiate:continuous off')
+    vsa.write('initiate:continuous off')
+    while evm > thresh:
         vsa.write('initiate:immediate')
         vsa.query('*opc?')
         evm = float(vsa.query('trace4:data:table? "EvmRms"').strip())
 
-    fileName = os.getcwd() + '\\equalizer_taps.csv'
-    vsa.write(f'mmemory:store:trace 2, "{fileName}", "CSV", 1')
-
     vsa.write('trace3:format "IQ"')
     vsa.write('trace3:data:x?')
-    x = vsa.binblockread(dtype=np.float64).byteswap()
+    eqI = vsa.binblockread(dtype=np.float64).byteswap()
     vsa.write('trace3:data:y?')
-    y = vsa.binblockread(dtype=np.float64).byteswap()
+    eqQ = vsa.binblockread(dtype=np.float64).byteswap()
     vsa.write('ddemod:compensate:equalize 0')
 
     vsa.err_check()
-    instrument.err_check()
+    inst.err_check()
 
-    equalizer = np.array(x + y*1j)
-    equalizer = nnresample.resample(equalizer, int(awg.bbfs), int(vsaFs))
+    # Invert the phase of the equalizer impulse response
+    equalizer = np.array(eqI - eqQ*1j)
+
+    # Pseudo circular convolution to mitigate zeroing of samples due to filter delay
     rawIQ = np.array(i + q*1j)
-
-    """Perform a pseudo circular convolution on the symbols to mitigate
-    zeroing of samples due to filter delay (i.e. PREpend the
-    last few symbols and APpend the first few symbols)."""
     taps = len(equalizer)
     circIQ = np.concatenate((rawIQ[-int(taps / 2):], rawIQ, rawIQ[:int(taps / 2)]))
-    # symbols = np.concatenate((symbols[-int(filterSymbolLength / 2):], symbols, symbols[:int(filterSymbolLength / 2)]))
 
-    iq = np.convolve(circIQ, equalizer)
+    # Apply filter, trim off delayed samples, and normalize
+    iq = np.convolve(equalizer, circIQ)
     iq = iq[taps-1:-taps+1]
+    sFactor = abs(np.amax(iq))
+    iq = iq / sFactor * 0.707
 
     iCorr = iq.real
     qCorr = iq.imag
 
-    # eqIQ = np.empty(2 * len(x))
-    # eqIQ[0::2] = x
-    # eqIQ[1::2] = y
-    # with open(fileName, 'r') as f:
-    #     raw = f.read()
-    #     raw = raw.replace('\n', ',')
-    #     raw = raw.split(',')[:-1]
-    #     print(raw)
-    # loadedIQ = [float(r) for r in raw]
-    # for a, b in zip(nativeIQ, loadedIQ):
-    #     print(a, b)
+    # For testing
+    vsa.write('initiate:continuous on')
+    vsa.write('initiate:immediate')
+
+    # For production
+    # vsa.write('*rst')
+    # vsa.disconnect()
+    # inst.disconnect()
 
     return iCorr, qCorr
-
 
 
 if __name__ == '__main__':
     awg = instruments.M8190A('141.121.210.241', reset=True)
     awg.configure('intx3', fs=7.2e9, out1='ac', cf1=1e9)
-    i, q = digmod_prbs_generator('qam16', awg.bbfs, 100e6)
+    # i, q = digmod_prbs_generator('qam16', awg.bbfs, 100e6)
+    # awg = instruments.VSG('141.121.210.196', reset=True)
+    # awg.configure(1, 1, amp=0)
+    i, q = digmod_prbs_generator('qam16', awg.bbfs, 50e6)
 
-    iCorr, qCorr = iq_correction(i, q, awg, vsaHardware='"PXA M"', bw=100e6)
+    iCorr, qCorr = iq_correction(i, q, awg, vsaHardware='"PXA M"', osFactor=10)
 
-    import matplotlib.pyplot as plt
-    plt.plot(iCorr)
-    plt.plot(qCorr)
-    plt.show()
+    # awg.write('radio:arb:state off')
     awg.download_iq_wfm(iCorr, qCorr)
-    print(awg.query(f'trace:catalog?').strip())
+
+    # awg.write('radio:arb:state on')
 
     awg.write('abort')
     awg.write('trace:select 2')
     awg.write('init:cont on')
     awg.write('init:imm')
-    print(awg.query('trace:select?'))
     awg.query('*opc?')
     awg.err_check()
