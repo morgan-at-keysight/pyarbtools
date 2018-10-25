@@ -7,6 +7,10 @@ Custom error classes for pyarbtools.
 """
 
 
+class GranularityError(Exception):
+    """Waveform Granularity Exception class"""
+
+
 class AWGError(Exception):
     """AWG Exception class"""
 

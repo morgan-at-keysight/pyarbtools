@@ -12,10 +12,24 @@ Python 3.6.4
 Tested on M8190A, M8195A, N5194A, N5182B, E8257D
 """
 
+import numpy as np
+from scipy.io import loadmat
 from pyarbtools import communications
 from pyarbtools import error
-from scipy.io import loadmat
-import numpy as np
+
+
+def wraparound_calc(length, gran):
+    """Computes the number of times to repeat a waveform based on
+    generator granularity requirements."""
+
+    repeats = 1
+    temp = length
+    while temp % gran != 0:
+        temp += length
+        repeats += 1
+        # print(repeats)
+    # print(f'Final Length: {temp}\nRepeats: {repeats}')
+    return repeats
 
 
 class M8190A(communications.SocketInstrument):
@@ -69,12 +83,14 @@ class M8190A(communications.SocketInstrument):
 
         self.check_resolution()
 
+        repeats = wraparound_calc(len(wfm), self.gran)
+        wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
             raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
-        if rl % self.gran != 0:
-            print(rl % self.gran)
-            raise error.AWGError(f'Waveform must have a granularity of {self.gran}.')
+        rem = rl % self.gran
+        if rem != 0:
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}. Extra samples: {rem}')
 
         return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
 
@@ -163,9 +179,13 @@ class M8190A(communications.SocketInstrument):
         else:
             raise error.AWGError('Invalid resolution selected.')
 
-    def download_wfm(self, wfm, ch=1):
+    def download_wfm(self, wfm, ch=1, granHandling='repeat'):
         """Defines and downloads a waveform into the segment memory."""
-        wfm = self.check_wfm(wfm)
+        try:
+            wfm = self.check_wfm(wfm)
+        except error.GranularityError as g:
+            print(str(g))
+
         length = len(wfm)
 
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
@@ -176,6 +196,7 @@ class M8190A(communications.SocketInstrument):
         """Defines and downloads an iq waveform into the segment memory."""
         i = self.check_wfm(i)
         q = self.check_wfm(q)
+
         iq = self.iq_wfm_combiner(i, q)
         length = len(iq) / 2
 
@@ -218,11 +239,13 @@ class M8195A(communications.SocketInstrument):
         See pages 273-274 in Keysight M8195A User's Guide (Edition 13.0,
         October 2017) for more info."""
 
+        repeats = wraparound_calc(len(wfm), self.gran)
+        wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
             raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
-            raise error.AWGError(f'Waveform must have a granularity of {self.gran}.')
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
 
@@ -351,12 +374,14 @@ class VSG(communications.SocketInstrument):
         See pages 205-256 in Keysight X-Series Signal Generators Programming
         Guide (November 2014 Edition) for more info."""
 
+        repeats = wraparound_calc(len(wfm), self.gran)
+        wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
             raise error.VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
             # vsg.query('*opc?')
-            raise error.VSGError(f'Waveform must have a granularity of {self.gran}.')
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
         if bigEndian:
             return np.array(self.binMult * wfm, dtype=np.int16).byteswap()
@@ -609,11 +634,14 @@ class UXG(communications.SocketInstrument):
         See pages 205-256 in Keysight X-Series Signal Generators Programming
         Guide (November 2014 Edition) for more info."""
 
+        repeats = wraparound_calc(len(wfm), self.gran)
+        wfm = np.tile(wfm, repeats)
         rl = len(wfm)
+
         if rl < self.minLen:
             raise error.VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
-            raise error.VSGError(f'Waveform must have a granularity of {self.gran}.')
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
         if bigEndian:
             return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()

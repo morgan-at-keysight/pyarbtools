@@ -92,7 +92,7 @@ def m8190a_simple_wfm_example(ipAddress):
     awg.disconnect()
 
 
-def m8190a_duc_example(ipAddress):
+def m8190a_duc_dig_mod_example(ipAddress):
     """Sets up the digital upconverter on the M8190A and creates,
     downloads, assigns, and plays back a simple IQ waveform from
     the AC output port."""
@@ -101,8 +101,10 @@ def m8190a_duc_example(ipAddress):
     awg.configure(res='intx3', cf1=1e9)
 
     # Create simple sinusoid as IQ.
-    i = np.ones(awg.minLen, dtype=np.int16)
-    q = np.zeros(awg.minLen, dtype=np.int16)
+    symRate = 20e6
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam16', awg.bbfs, symRate)
+
+    # Define segment 1 and populate it with waveform data.
     awg.download_iq_wfm(i, q)
 
     awg.write('trace:select 1')
@@ -293,11 +295,11 @@ def uxg_lan_streaming_example(ipAddress):
 
 
 def main():
-    # m8190a_duc_example('141.121.210.241')
+    m8190a_duc_dig_mod_example('141.121.210.241')
     # m8190a_duc_chirp_example('141.121.210.241')
     # m8190a_simple_wfm_example('141.121.210.241')
     # m8195a_simple_wfm_example('141.121.210.245')
-    vsg_dig_mod_example('141.121.210.196')
+    # vsg_dig_mod_example('141.121.210.196')
     # vsg_chirp_example('141.121.210.196')
     # uxg_example('141.121.210.167')
     # uxg_lan_streaming_example('141.121.210.167')
