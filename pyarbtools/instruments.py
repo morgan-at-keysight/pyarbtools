@@ -77,6 +77,8 @@ class M8190A(communications.SocketInstrument):
     def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
                   out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9):
         """Sets basic configuration for M8190A and populates class attributes accordingly."""
+        self.set_resolution(res)
+
         self.write(f'frequency:raster:source {clkSrc}')
         self.clkSrc = self.query('frequency:raster:source?').strip().lower()
 
@@ -110,7 +112,6 @@ class M8190A(communications.SocketInstrument):
 
         self.write(f'roscillator:frequency {refFreq}')
         self.refFreq = float(self.query('roscillator:frequency?').strip())
-        self.set_resolution(res)
 
         self.err_check()
 
@@ -159,7 +160,7 @@ class M8190A(communications.SocketInstrument):
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
-        self.write(f'trace{ch}:name {segIndex},{name}')
+        self.write(f'trace{ch}:name {segIndex},"{name}"')
 
     def download_iq_wfm(self, i, q, ch=1, name='wfm'):
         """Defines, names, and downloads an iq waveform into the segment memory."""
@@ -172,7 +173,7 @@ class M8190A(communications.SocketInstrument):
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', iq)
-        self.write(f'trace{ch}:name {segIndex},{name}')
+        self.write(f'trace{ch}:name {segIndex},"{name}"')
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -270,7 +271,7 @@ class M8195A(communications.SocketInstrument):
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
-        self.write(f'trace{ch}:name {segIndex},{name}')
+        self.write(f'trace{ch}:name {segIndex},"{name}"')
 
     def check_wfm(self, wfm):
         """Checks minimum size and granularity and returns waveform with

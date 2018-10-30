@@ -18,20 +18,19 @@ def vsg_chirp_example(ipAddress):
     a generic VSG."""
 
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, reset=True)
-    vsg.configure(rfState=1, modState=1, amp=-20, fs=50e6, iqScale=70)
+    vsg.configure(amp=-20, fs=50e6, iqScale=70)
     vsg.sanity_check()
 
     name = 'chirp'
     length = 100e-6
     bw = 40e6
-    i, q = pyarbtools.wfmBuilder.chirp_generator(length, vsg.fs, bw)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(length=length, fs=vsg.fs, chirpBw=bw)
 
     i = np.append(i, np.zeros(5000))
     q = np.append(q, np.zeros(5000))
     vsg.write('mmemory:delete:wfm')
-    vsg.download_iq_wfm(name, i, q)
-    print(vsg.query('mmemory:catalog? "WFM1:"'))
-    vsg.write('radio:arb:state on')
+    vsg.download_iq_wfm(i, q, name)
+    vsg.play(name)
     vsg.err_check()
     vsg.disconnect()
 
@@ -41,7 +40,7 @@ def vsg_dig_mod_example(ipAddress):
     @ 1 GHz CF with a generic VSG."""
 
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
-    vsg.configure(rfState=1, modState=1, amp=-5, fs=50e6, iqScale=70)
+    vsg.configure(amp=-5, fs=50e6, iqScale=70)
     vsg.sanity_check()
 
     name = '1MHZ_16QAM'
@@ -49,9 +48,8 @@ def vsg_dig_mod_example(ipAddress):
     i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam16', vsg.fs, symRate)
 
     vsg.write('mmemory:delete:wfm')
-    vsg.download_iq_wfm(name, i, q)
-    print(vsg.query('mmemory:catalog? "WFM1:"'))
-    vsg.write('radio:arb:state on')
+    vsg.download_iq_wfm(i, q, name)
+    vsg.play(name)
     vsg.err_check()
     vsg.disconnect()
 
@@ -65,7 +63,7 @@ def m8190a_simple_wfm_example(ipAddress):
     fs = 10e9
     cf = 1e9
     res = 'wsp'
-    out1 = 'dac'
+    out1 = 'ac'
     ############################################################################
 
     awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
@@ -79,13 +77,8 @@ def m8190a_simple_wfm_example(ipAddress):
     # Define segment 1 and populate it with waveform data.
     awg.download_wfm(wfm)
 
-    # Assign segment 1 to trace (channel) 1 and start continuous playback.
-    awg.write('trace:select 1')
-    awg.write('output1:route ac')
-    awg.write('output1:norm on')
-    awg.write('init:cont on')
-    awg.write('init:imm')
-    awg.query('*opc?')
+    # Assign segment 1 to channel 1 and start continuous playback.
+    awg.play(ch=1, wfm=1)
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
@@ -94,24 +87,20 @@ def m8190a_simple_wfm_example(ipAddress):
 
 def m8190a_duc_dig_mod_example(ipAddress):
     """Sets up the digital upconverter on the M8190A and creates,
-    downloads, assigns, and plays back a simple IQ waveform from
+    downloads, assigns, and plays back a 16 QAM waveform from
     the AC output port."""
 
     awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, reset=True)
-    awg.configure(res='intx3', cf1=1e9)
+    awg.configure(res='intx3', cf1=1e9, out1='ac')
 
-    # Create simple sinusoid as IQ.
+    # Create 16 QAM signal.
     symRate = 20e6
     i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam16', awg.bbfs, symRate)
 
     # Define segment 1 and populate it with waveform data.
     awg.download_iq_wfm(i, q)
 
-    awg.write('trace:select 1')
-    awg.write('output1:route ac')
-    awg.write('output1:norm on')
-    awg.write('init:imm')
-    awg.query('*opc?')
+    awg.play(ch=1, wfm=1)
     awg.err_check()
     awg.disconnect()
 
@@ -121,6 +110,7 @@ def m8190a_duc_chirp_example(ipAddress):
     """User-defined sample rate, carrier frequency, chirp bandwidth, 
     pri, pulse width, and resolution."""
     ############################################################################
+    name = 'chirp'
     fs = 7.2e9
     cf = 1e9
     bw = 40e6
@@ -140,14 +130,10 @@ def m8190a_duc_chirp_example(ipAddress):
     q = np.append(q, deadTime)
 
     # Interleave i and q into a single waveform and download to segment 1.
-    awg.download_iq_wfm(i, q, ch=1)
+    awg.download_iq_wfm(i, q, ch=1, name=name)
 
     # Assign segment 1 to trace (channel) 1 and start continuous playback.
-    awg.write('trace1:select 1')
-    awg.write('output1:norm on')
-    awg.write('init:cont on')
-    awg.write('init:imm')
-    awg.query('*opc?')
+    awg.play(wfm=1)
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
@@ -295,12 +281,12 @@ def uxg_lan_streaming_example(ipAddress):
 
 
 def main():
-    m8190a_duc_dig_mod_example('141.121.210.241')
+    # m8190a_duc_dig_mod_example('141.121.210.241')
     # m8190a_duc_chirp_example('141.121.210.241')
-    # m8190a_simple_wfm_example('141.121.210.241')
+    m8190a_simple_wfm_example('141.121.210.241')
     # m8195a_simple_wfm_example('141.121.210.245')
-    # vsg_dig_mod_example('141.121.210.196')
-    # vsg_chirp_example('141.121.210.196')
+    # vsg_dig_mod_example('10.112.180.215')
+    # vsg_chirp_example('10.112.180.215')
     # uxg_example('141.121.210.167')
     # uxg_lan_streaming_example('141.121.210.167')
 
