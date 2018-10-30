@@ -240,16 +240,21 @@ def qam32_modulator(data, customMap=None):
     if customMap:
         qamMap = customMap
     else:
-        qamMap = {'0000': -3 - 3j, '0001': -3 - 1j, '0010': -3 + 3j,
-                  '0011': -3 + 1j, '0100': -1 - 3j, '0101': -1 - 1j,
-                  '0110': -1 + 3j, '0111': -1 + 1j, '1000': 3 - 3j,
-                  '1001': 3 - 1j, '1010': 3 + 3j, '1011': 3 + 1j,
-                  '1100': 1 - 3j, '1101': 1 - 1j, '1110': 1 + 3j,
-                  '1111': 1 + 1j}
+        qamMap = {'00000': -3 + 5j, '00001': -5 - 1j, '00010': 3 + 3j,
+                  '00011': -3 - 1j, '00100': -5 + 3j, '00101': 3 - 1j,
+                  '00110': -1 + 1j, '00111': -3 - 5j, '01000': 1 + 5j,
+                  '01001': -1 - 1j, '01010': -5 + 1j, '01011': 3 - 3j,
+                  '01100': -1 + 3j, '01101': -5 - 3j, '01110': 3 + 1j,
+                  '01111': 1 - 5j, '10000': -1 + 5j, '10001': -3 - 1j,
+                  '10010': 5 + 3j, '10011': 1 - 3j, '10100': -3 + 3j,
+                  '10101': 5 - 1j, '10110': 1 + 1j, '10111': -1 - 5j,
+                  '11000': 3 + 5j, '11001': 1 - 1j, '11010': -3 + 1j,
+                  '11011': 5 - 3j, '11100': 1 + 3j, '11101': -3 - 3j,
+                  '11110': 5 + 1j, '11111': 3 - 3j}
     try:
         return np.array([qamMap[p] for p in pattern])
     except KeyError:
-        raise ValueError('Invalid 16 QAM symbol.')
+        raise ValueError('Invalid 32 QAM symbol.')
 
 
 def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35):
@@ -272,6 +277,9 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     elif modType.lower() == 'qam16':
         bitsPerSym = 4
         modulator = qam16_modulator
+    elif modType.lower() == 'qam32':
+        bitsPerSym = 5
+        modulator = qam32_modulator
     else:
         raise ValueError('Invalid modType chosen.')
 
@@ -322,25 +330,21 @@ def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"
     receives the 16-QAM signal and extracts & inverts an equalization
     filter and applies it to the user-defined waveform."""
 
+
+    if osFactor not in [2, 4, 5, 10, 20]:
+        raise ValueError('Oversampling factor invalid. Choose 2, 4, 5, 10, or 20.')
+
     # Use M8190A baseband sample rate if present
     if hasattr(inst, 'bbfs'):
         fs = inst.bbfs
     else:
         fs = inst.fs
 
-    # Create and load calibration signal
+    # Create, load, and play calibration signal
     symRate = fs / osFactor
-    i, q = digmod_prbs_generator('qam16', fs, symRate)
-    inst.download_iq_wfm(i, q)
-
-    # Add .play() method to each instrument class, for now use M8190A
-    inst.write('trace:select 1')
-    inst.write('output1:route ac')
-    inst.write('output1:norm on')
-    inst.write('init:cont on')
-    inst.write('init:imm')
-    inst.query('*opc?')
-    # inst.write('radio:arb:state on')
+    iCal, qCal = digmod_prbs_generator('qam16', fs, symRate)
+    wfmId = inst.download_iq_wfm(iCal, qCal)
+    inst.play(wfmId)
 
     # Connect to VSA
     vsa = communications.SocketInstrument(vsaIPAddress, 5025)
@@ -415,26 +419,3 @@ def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"
     # inst.disconnect()
 
     return iCorr, qCorr
-
-
-if __name__ == '__main__':
-    awg = instruments.M8190A('141.121.210.241', reset=True)
-    awg.configure('intx3', fs=7.2e9, out1='ac', cf1=1e9)
-    # i, q = digmod_prbs_generator('qam16', awg.bbfs, 100e6)
-    # awg = instruments.VSG('141.121.210.196', reset=True)
-    # awg.configure(1, 1, amp=0)
-    i, q = digmod_prbs_generator('qam16', awg.bbfs, 50e6)
-
-    iCorr, qCorr = iq_correction(i, q, awg, vsaHardware='"PXA M"', osFactor=10)
-
-    # awg.write('radio:arb:state off')
-    awg.download_iq_wfm(iCorr, qCorr)
-
-    # awg.write('radio:arb:state on')
-
-    awg.write('abort')
-    awg.write('trace:select 2')
-    awg.write('init:cont on')
-    awg.write('init:imm')
-    awg.query('*opc?')
-    awg.err_check()

@@ -152,18 +152,29 @@ class M8190A(communications.SocketInstrument):
         else:
             raise error.AWGError('Invalid resolution selected.')
 
-    def download_wfm(self, wfm, ch=1, name='wfm'):
-        """Defines, names, and downloads a waveform into the segment memory."""
+    def download_wfm(self, wfm, ch=1, **kwargs):
+        """Defines and downloads a waveform into the segment memory.
+        Optionally defines a waveform name. Returns useful waveform
+        identifier."""
+
+        self.write('abort')
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
-        self.write(f'trace{ch}:name {segIndex},"{name}"')
+        if 'name' in kwargs.keys():
+            self.write(f'trace{ch}:name {segIndex},"{name}"')
 
-    def download_iq_wfm(self, i, q, ch=1, name='wfm'):
-        """Defines, names, and downloads an iq waveform into the segment memory."""
+        return segIndex
+
+    def download_iq_wfm(self, i, q, ch=1, **kwargs):
+        """Defines and downloads an IQ waveform into the segment memory.
+        Optionally defines a waveform name. Returns useful waveform
+        identifier."""
+
+        self.write('abort')
         i = self.check_wfm(i)
         q = self.check_wfm(q)
 
@@ -173,7 +184,10 @@ class M8190A(communications.SocketInstrument):
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', iq)
-        self.write(f'trace{ch}:name {segIndex},"{name}"')
+        if 'name' in kwargs.keys():
+            self.write(f'trace{ch}:name {segIndex},"{name}"')
+
+        return segIndex
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -203,9 +217,9 @@ class M8190A(communications.SocketInstrument):
 
         return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
 
-    def play(self, ch=1, wfm=1):
+    def play(self, wfmID=1, ch=1):
         """Selects waveform, turns on analog output, and begins continuous playback."""
-        self.write(f'trace:select {wfm}')
+        self.write(f'trace:select {wfmID}')
         self.write(f'output{ch}:norm on')
         self.write('init:cont on')
         self.write('init:imm')
@@ -263,8 +277,12 @@ class M8195A(communications.SocketInstrument):
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
 
-    def download_wfm(self, wfm, ch=1, name='wfm'):
-        """Defines, names, and downloads a waveform into the segment memory."""
+    def download_wfm(self, wfm, ch=1, **kwargs):
+        """Defines and downloads a waveform into the segment memory.
+        Optionally defines a name for the waveform. Returns useful
+        waveform identifier."""
+
+        self.write('abort')
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
@@ -272,6 +290,8 @@ class M8195A(communications.SocketInstrument):
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
         self.write(f'trace{ch}:name {segIndex},"{name}"')
+
+        return segIndex
 
     def check_wfm(self, wfm):
         """Checks minimum size and granularity and returns waveform with
@@ -290,9 +310,9 @@ class M8195A(communications.SocketInstrument):
 
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
 
-    def play(self, ch=1, wfm=1):
+    def play(self, wfmID=1, ch=1):
         """Selects waveform, turns on analog output, and begins continuous playback."""
-        self.write(f'trace:select {wfm}')
+        self.write(f'trace:select {wfmID}')
         self.write(f'output{ch}:norm on')
         self.write('init:cont on')
         self.write('init:imm')
@@ -375,13 +395,19 @@ class VSG(communications.SocketInstrument):
         print('IQ Scaling:', self.iqScale)
 
     def download_iq_wfm(self, i, q, name='wfm'):
-        """Defines and downloads an iq waveform into the segment memory."""
+        """Defines and downloads a waveform into the waveform memory.
+        Returns useful waveform identifier."""
+
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
         i = self.check_wfm(i)
         q = self.check_wfm(q)
         iq = self.iq_wfm_combiner(i, q)
 
         self.binblockwrite(f'mmemory:data "wfm1:{name}", ', iq)
-        self.write(f'radio:arb:waveform "WFM1:{name}"')
+        # self.write(f'radio:arb:waveform "WFM1:{name}"')
+
+        return name
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -413,9 +439,9 @@ class VSG(communications.SocketInstrument):
         else:
             return np.array(self.binMult * wfm, dtype=np.int16)
 
-    def play(self, name='wfm'):
+    def play(self, wfmID='wfm'):
         """Selects waveform and activates arb mode, RF output, and modulation."""
-        self.write(f'radio:arb:waveform "WFM1:{name}"')
+        self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
         self.write('radio:arb:state on')
         self.arbState = self.query('radio:arb:state?').strip()
         self.write('output on')
@@ -656,14 +682,18 @@ class UXG(communications.SocketInstrument):
         q = np.imag(iq).reshape(iq.shape[0])
         self.download_iq_wfm(i, q, name)
 
-    def download_iq_wfm(self, i, q, name='wfm', assign=True):
-        """Formats, downloads, and assigns an iq waveform into arb memory."""
+    def download_iq_wfm(self, i, q, name='wfm'):
+        """Defines and downloads a waveform into the waveform memory.
+        Returns useful waveform identifier."""
+
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
         i = self.check_wfm(i)
         q = self.check_wfm(q)
         iq = self.iq_wfm_combiner(i, q)
         self.binblockwrite(f'memory:data "WFM1:{name}", ', iq)
-        if assign:
-            self.write(f'radio:arb:waveform "WFM1:{name}"')
+
+        return name
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -695,9 +725,9 @@ class UXG(communications.SocketInstrument):
         else:
             return np.array(self.binMult * wfm, dtype=np.uint16)
 
-    def play(self, name='wfm'):
+    def play(self, wfmID='wfm'):
         """Selects waveform and activates arb mode, RF output, and modulation."""
-        self.write(f'radio:arb:waveform "WFM1:{name}"')
+        self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
         self.write('radio:arb:state on')
         self.arbState = self.query('radio:arb:state?').strip()
         self.write('output on')

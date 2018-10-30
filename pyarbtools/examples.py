@@ -130,12 +130,29 @@ def m8190a_duc_chirp_example(ipAddress):
     q = np.append(q, deadTime)
 
     # Interleave i and q into a single waveform and download to segment 1.
-    awg.download_iq_wfm(i, q, ch=1, name=name)
+    wfmID = awg.download_iq_wfm(i, q, ch=1, name=name)
 
     # Assign segment 1 to trace (channel) 1 and start continuous playback.
-    awg.play(wfm=1)
+    awg.play(wfmID=wfmID)
 
     # Check for errors and gracefully disconnect.
+    awg.err_check()
+    awg.disconnect()
+
+
+def m8190a_iq_correction_example(instIPAddress, vsaIPAddress, vsaHardware):
+    """Performs IQ calibration on a digitally modulated signal using VSA."""
+
+    awg = pyarbtools.instruments.M8190A(instIPAddress, reset=True)
+    awg.configure('intx3', fs=7.2e9, out1='ac', cf1=1e9)
+
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam32', awg.bbfs, 40e6)
+
+    iCorr, qCorr = pyarbtools.wfmBuilder.iq_correction(
+        i, q, awg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20)
+
+    wfmID = awg.download_iq_wfm(iCorr, qCorr)
+    awg.play(wfmID=wfmID)
     awg.err_check()
     awg.disconnect()
 
@@ -283,7 +300,8 @@ def uxg_lan_streaming_example(ipAddress):
 def main():
     # m8190a_duc_dig_mod_example('141.121.210.241')
     # m8190a_duc_chirp_example('141.121.210.241')
-    m8190a_simple_wfm_example('141.121.210.241')
+    # m8190a_simple_wfm_example('141.121.210.241')
+    m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
     # m8195a_simple_wfm_example('141.121.210.245')
     # vsg_dig_mod_example('10.112.180.215')
     # vsg_chirp_example('10.112.180.215')
