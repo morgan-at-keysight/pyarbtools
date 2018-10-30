@@ -1,5 +1,5 @@
 """
-pyarbtools 0.1.0
+pyarbtools 0.0.7
 communications
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18

@@ -1,5 +1,5 @@
 """
-pyarbtools 0.1.0
+pyarbtools 0.0.7
 Instrument Control Classes
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18
@@ -161,13 +161,13 @@ class M8190A(communications.SocketInstrument):
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
-        segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
-        self.write(f'trace{ch}:def {segIndex}, {length}')
-        self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
+        wfmID = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        self.write(f'trace{ch}:def {wfmID}, {length}')
+        self.binblockwrite(f'trace{ch}:data {wfmID}, 0, ', wfm)
         if 'name' in kwargs.keys():
-            self.write(f'trace{ch}:name {segIndex},"{name}"')
+            self.write(f'trace{ch}:name {wfmID},"{name}"')
 
-        return segIndex
+        return wfmID
 
     def download_iq_wfm(self, i, q, ch=1, **kwargs):
         """Defines and downloads an IQ waveform into the segment memory.
@@ -181,13 +181,13 @@ class M8190A(communications.SocketInstrument):
         iq = self.iq_wfm_combiner(i, q)
         length = len(iq) / 2
 
-        segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
-        self.write(f'trace{ch}:def {segIndex}, {length}')
-        self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', iq)
+        wfmID = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        self.write(f'trace{ch}:def {wfmID}, {length}')
+        self.binblockwrite(f'trace{ch}:data {wfmID}, 0, ', iq)
         if 'name' in kwargs.keys():
-            self.write(f'trace{ch}:name {segIndex},"{name}"')
+            self.write(f'trace{ch}:name {wfmID},"{name}"')
 
-        return segIndex
+        return wfmID
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -286,12 +286,12 @@ class M8195A(communications.SocketInstrument):
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
-        segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
-        self.write(f'trace{ch}:def {segIndex}, {length}')
-        self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
-        self.write(f'trace{ch}:name {segIndex},"{name}"')
+        wfmID = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        self.write(f'trace{ch}:def {wfmID}, {length}')
+        self.binblockwrite(f'trace{ch}:data {wfmID}, 0, ', wfm)
+        self.write(f'trace{ch}:name {wfmID},"{name}"')
 
-        return segIndex
+        return wfmID
 
     def check_wfm(self, wfm):
         """Checks minimum size and granularity and returns waveform with

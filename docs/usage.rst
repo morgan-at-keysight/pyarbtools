@@ -108,7 +108,7 @@ changed (ideally *once* directly after creating the M8190A object).
 
 * ``res``: AWG resolution. Arguments are ``'wpr'``, ``'wsp'`` (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'``.
 * ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default) or ``'ext'``.
-* ``fs``: Sample rate. Argument is a floating point value from ``125e6`` to ``12e9``.
+* ``fs``: Sample rate. Argument is a floating point value from ``125e6`` to ``12e9``. Default is ``7.2e9``.
 * ``refSrc``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
 * ``refFreq``: Reference clock frequency. Argument is a floating point value from ``1e6`` to ``200e6`` in steps of ``1e6``. Default is ``100e6``.
 * ``out1``, ``out2``: Output signal path for channel 1 and 2 respectively. Arguments are ``'dac'`` (default), ``'dc'``, ``'ac'``.
@@ -123,7 +123,7 @@ changed (ideally *once* directly after creating the M8190A object).
 ----------------
 ::
 
-    M8190A.download_wfm(wfm, ch=1)
+    M8190A.download_wfm(wfm, ch=1, name -> str)
 
 Defines and downloads a waveform into the lowest available segment slot.
 
@@ -131,16 +131,17 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 * ``wfm``: NumPy array containing real waveform samples (not IQ).
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
+* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
 
 **Returns**
 
-* None
+* ``wfmID```: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
 
 **download_iq_wfm**
 -------------------
 ::
 
-    M8190A.download_iq_wfm(i, q, ch=1)
+    M8190A.download_iq_wfm(i, q, ch=1, name -> str)
 
 Defines and downloads a waveform into the lowest available segment slot
 while checking that the waveform meets minimum waveform length and
@@ -151,11 +152,44 @@ granularity requirements.
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
+* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
+
+**Returns**
+
+* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+
+**play**
+--------
+::
+
+    M8190A.play(wfmID=1, ch=1)
+
+Selects waveform, turns on analog output, and begins continuous playback.
+
+**Arguments**
+
+* ``wfmID``: Segment index of the waveform to be loaded. Default is ``1``.
+* ``ch``: Channel to be used for playback. Default is ``1``.
 
 **Returns**
 
 * None
 
+**stop**
+--------
+::
+
+    M8190A.stop(ch=1)
+
+Turns off analog output and stops playback.
+
+**Arguments**
+
+* ``ch``: Channel to be stopped. Default is ``1``.
+
+**Returns**
+
+* None
 
 .. _M8195A:
 
@@ -186,24 +220,56 @@ changed (ideally *once* directly after creating the M8195A object).
 
 * None
 
-
 **download_wfm**
 ----------------
 ::
 
-    M8195A.download_wfm(wfm, ch=1)
+    M8195A.download_wfm(wfm, ch=1, name -> str)
 
 Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
 * ``wfm``: NumPy array containing real waveform samples (not IQ).
-* ``ch``: Channel to which waveform will be assigned (default is 1).
+* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
+* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
+
+**Returns**
+
+* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+
+**play**
+--------
+::
+
+    M8195A.play(wfmID=1, ch=1)
+
+Selects waveform, turns on analog output, and begins continuous playback.
+
+**Arguments**
+
+* ``wfmID``: Segment index of the waveform to be loaded. Default is ``1``.
+* ``ch``: Channel to be used for playback. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
 
 **Returns**
 
 * None
 
+**stop**
+--------
+::
+
+    M8195A.stop(ch=1)
+
+Turns off analog output and stops playback.
+
+**Arguments**
+
+* ``ch``: Channel to be stopped. Default is ``1``.
+
+**Returns**
+
+* None
 
 .. _VSG:
 
@@ -242,12 +308,11 @@ accordingly. It should be called any time these settings are changed
 
 * None
 
-
 **download_iq_wfm**
 -------------------
 ::
 
-    VSG.download_iq_wfm(name, i, q)
+    VSG.download_iq_wfm(i, q, name='wfm)
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -255,14 +320,45 @@ requirements.
 
 **Arguments**
 
-* ``name``: The waveform name. Argument is a string.
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
+* ``name``: String containing the waveform name. Default is ``'wfm'``.
+
+**Returns**
+
+* ``name``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+
+**play**
+--------
+::
+
+    VSG.play(wfmID='wfm')
+
+Selects waveform and activates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* ``wfmID``: Name of the waveform to be loaded. Default is ``'wfm'``.
 
 **Returns**
 
 * None
 
+**stop**
+--------
+::
+
+    VSG.stop()
+
+Deactivates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
 
 .. _UXG:
 
@@ -298,23 +394,53 @@ accordingly. It should be called any time these settings are changed
 -------------------
 ::
 
-    UXG.download_iq_wfm(name, i, q, assign=True)
+    UXG.download_iq_wfm(i, q, name='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
-requirements. Optionally assigns waveform to active arb memory.
+requirements.
 
 **Arguments**
 
-* ``name``: The waveform name. Argument is a string.
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
-* ``assign``: Determines if waveform is assigned or not. Arguments are ``True`` (default) or ``False``.
+* ``name``: String containing the waveform name. Default is ``'wfm'``.
+
+**Returns**
+
+* ``name``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+
+**play**
+--------
+::
+
+    UXG.play(wfmID='wfm')
+
+Selects waveform and activates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* ``wfmID``: Name of the waveform to be loaded. Default is ``'wfm'``.
 
 **Returns**
 
 * None
 
+**stop**
+--------
+::
+
+    UXG.stop()
+
+Deactivates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
 
 **open_lan_stream**
 -------------------
@@ -560,3 +686,35 @@ transmit filter using PRBS data.
 
 * ``i``: NumPy array of values representing the real component of the Barker pulse.
 * ``q``: NumPy array of values representing the imaginary component of the Barker pulse.
+
+
+**iq_correction**
+-------------------------
+::
+
+    iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
+
+
+Creates a 16-QAM signal from a signal generator at a user-selected
+center frequency and sample rate. Symbol rate and effective bandwidth
+of the calibration signal is determined by the oversampling rate in VSA.
+Creates a VSA instrument, which receives the 16-QAM signal and extracts
+& inverts an equalization filter and applies it to the user-defined
+waveform.
+
+**Arguments**
+
+* ``i``: NumPy array of values representing the real component of the waveform to be corrected.
+* ``q``: NumPy array of values representing the imaginary component of the waveform to be corrected.
+* ``inst``: Instrument class of the generator to be used in the calibration. Must already be connected and configured. ``inst.fs`` is used as the basis for the calibration and ``inst.play()`` method is used.
+* ``vsaIPAddress``: String containing the IP address of the VSA instance to be used in calibration. Default is ``'127.0.0.1'``.
+* ``vsaHardware``: String containing the name of the hardware to be used by VSA. Name must be surrounded by double quotes (``"``). Default is ``'"Analyzer1"'``.
+* ``cf``: Floating point value for the center frequency at which calibration takes place. Default is ``1e9``.
+* ``osFactor``: Oversampling factor used by the digital demodulator in VSA. The larger the value, the narrower the bandwidth of the calibration. Effective bandwidth is roughly ``inst.fs / osFactor * 1.35``. Arguments are ``2``, ``4`` (default), ``5``, ``10``, or ``20``.
+* ``thresh``: Defines the target EVM value that should be reached before extracting equalizer impulse response. Argument is a float < ``1.0``. Default is ``0.4``. Low values take longer to settle but result in better calibration.
+* ``convergence``: Equalizer convergence value. Argument is a floating point value << 1. Default is ``2e-8``. High values settle more quickly but may become unstable. Lower values take longer to settle but tend to have better stability.
+
+**Returns**
+
+* ``iCorr``: NumPy array of values representing the real component of corrected signal.
+* ``qCorr``: NumPy array of values representing the imaginary component of the corrected signal.

@@ -1,5 +1,5 @@
 """
-pyarbtools 0.1.0
+pyarbtools 0.0.7
 wfmBuilder
 Author: Morgan Allison
 Updated: 10/18
@@ -322,14 +322,13 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     return np.real(iq), np.imag(iq)
 
 
-def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4):
+def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
     """Creates a 16-QAM signal from a signal generator at a
     user-selected center frequency and sample rate. Symbol rate and
     effective bandwidth of the calibration signal is determined by
     the oversampling rate in VSA. Creates a VSA instrument, which
     receives the 16-QAM signal and extracts & inverts an equalization
     filter and applies it to the user-defined waveform."""
-
 
     if osFactor not in [2, 4, 5, 10, 20]:
         raise ValueError('Oversampling factor invalid. Choose 2, 4, 5, 10, or 20.')
@@ -372,6 +371,7 @@ def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"
     vsa.write(f'ddemod:symbol:points {osFactor}')
     vsa.write('ddemod:filter "RootRaisedCosine"')
     vsa.write('ddemod:filter:abt 0.35')
+    vsa.write(f'ddemod:compensate:equalize:convergence {convergence}')
     vsa.write('ddemod:compensate:equalize 1')
 
     # Acquire data until EVM drops below a certain threshold
@@ -406,16 +406,10 @@ def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
 
+    vsa.write('*rst')
+    vsa.disconnect()
+
     iCorr = iq.real
     qCorr = iq.imag
-
-    # For testing
-    vsa.write('initiate:continuous on')
-    vsa.write('initiate:immediate')
-
-    # For production
-    # vsa.write('*rst')
-    # vsa.disconnect()
-    # inst.disconnect()
 
     return iCorr, qCorr

@@ -1,5 +1,5 @@
 """
-Example Functions for pyarbtools
+Example Functions for pyarbtools 0.0.7
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Updated: 10/18
 Provides example scripts for generic VSGs, UXG, and AWGs using
