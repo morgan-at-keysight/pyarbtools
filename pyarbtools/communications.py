@@ -14,9 +14,11 @@ from pyarbtools import error
 
 
 class SocketInstrument:
-    def __init__(self, host, port, timeout=10):
+    def __init__(self, host, port, timeout=10, noDelay=True):
         """Open socket connection with settings for instrument control."""
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if noDelay:
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.socket.setblocking(False)
         self.socket.settimeout(timeout)
         self.socket.connect((host, port))
