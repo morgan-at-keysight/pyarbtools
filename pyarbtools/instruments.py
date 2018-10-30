@@ -74,26 +74,6 @@ class M8190A(communications.SocketInstrument):
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
 
-    def check_wfm(self, wfm):
-        """Checks minimum size and granularity and returns waveform with
-        appropriate binary formatting based on the chosen DAC resolution.
-
-        See pages 273-274 in Keysight M8190A User's Guide (Edition 13.0,
-        October 2017) for more info."""
-
-        self.check_resolution()
-
-        repeats = wraparound_calc(len(wfm), self.gran)
-        wfm = np.tile(wfm, repeats)
-        rl = len(wfm)
-        if rl < self.minLen:
-            raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
-        rem = rl % self.gran
-        if rem != 0:
-            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}. Extra samples: {rem}')
-
-        return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
-
     def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
                   out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9):
         """Sets basic configuration for M8190A and populates class attributes accordingly."""
@@ -140,14 +120,6 @@ class M8190A(communications.SocketInstrument):
         self.res = self.query('trace1:dwidth?').strip().lower()
         self.check_resolution()
 
-    @staticmethod
-    def iq_wfm_combiner(i, q):
-        """Combines i and q wfms into a single interleaved wfm for download to AWG."""
-        iq = np.empty(2 * len(i), dtype=np.int16)
-        iq[0::2] = i
-        iq[1::2] = q
-        return iq
-
     def check_resolution(self):
         """Populates gran, minLen, binMult, binShift, plus intFactor &
         idleGran if using DUC."""
@@ -179,21 +151,18 @@ class M8190A(communications.SocketInstrument):
         else:
             raise error.AWGError('Invalid resolution selected.')
 
-    def download_wfm(self, wfm, ch=1, granHandling='repeat'):
-        """Defines and downloads a waveform into the segment memory."""
-        try:
-            wfm = self.check_wfm(wfm)
-        except error.GranularityError as g:
-            print(str(g))
-
+    def download_wfm(self, wfm, ch=1, name='wfm'):
+        """Defines, names, and downloads a waveform into the segment memory."""
+        wfm = self.check_wfm(wfm)
         length = len(wfm)
 
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
+        self.write(f'trace{ch}:name {segIndex},{name}')
 
-    def download_iq_wfm(self, i, q, ch=1):
-        """Defines and downloads an iq waveform into the segment memory."""
+    def download_iq_wfm(self, i, q, ch=1, name='wfm'):
+        """Defines, names, and downloads an iq waveform into the segment memory."""
         i = self.check_wfm(i)
         q = self.check_wfm(q)
 
@@ -203,6 +172,48 @@ class M8190A(communications.SocketInstrument):
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', iq)
+        self.write(f'trace{ch}:name {segIndex},{name}')
+
+    @staticmethod
+    def iq_wfm_combiner(i, q):
+        """Combines i and q wfms into a single interleaved wfm for download to AWG."""
+        iq = np.empty(2 * len(i), dtype=np.int16)
+        iq[0::2] = i
+        iq[1::2] = q
+        return iq
+
+    def check_wfm(self, wfm):
+        """Checks minimum size and granularity and returns waveform with
+        appropriate binary formatting based on the chosen DAC resolution.
+
+        See pages 273-274 in Keysight M8190A User's Guide (Edition 13.0,
+        October 2017) for more info."""
+
+        self.check_resolution()
+
+        repeats = wraparound_calc(len(wfm), self.gran)
+        wfm = np.tile(wfm, repeats)
+        rl = len(wfm)
+        if rl < self.minLen:
+            raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+        rem = rl % self.gran
+        if rem != 0:
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}. Extra samples: {rem}')
+
+        return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
+
+    def play(self, ch=1, wfm=1):
+        """Selects waveform, turns on analog output, and begins continuous playback."""
+        self.write(f'trace:select {wfm}')
+        self.write(f'output{ch}:norm on')
+        self.write('init:cont on')
+        self.write('init:imm')
+        self.query('*opc?')
+
+    def stop(self, ch=1):
+        """Turns off analog output and stops playback."""
+        self.write(f'output{ch}:norm off')
+        self.write('abort')
 
 
 class M8195A(communications.SocketInstrument):
@@ -224,31 +235,6 @@ class M8195A(communications.SocketInstrument):
         self.binMult = 127
         self.binShift = 0
 
-    def sanity_check(self):
-        """Prints out initialized values."""
-        print('Sample rate:', self.fs)
-        print('DAC Mode:', self.dacMode)
-        print('Function:', self.func)
-        print('Ref source:', self.refSrc)
-        print('Ref frequency:', self.refFreq)
-
-    def check_wfm(self, wfm):
-        """Checks minimum size and granularity and returns waveform with
-        appropriate binary formatting based on the chosen DAC resolution.
-
-        See pages 273-274 in Keysight M8195A User's Guide (Edition 13.0,
-        October 2017) for more info."""
-
-        repeats = wraparound_calc(len(wfm), self.gran)
-        wfm = np.tile(wfm, repeats)
-        rl = len(wfm)
-        if rl < self.minLen:
-            raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
-        if rl % self.gran != 0:
-            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
-
-        return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
-
     def configure(self, dacMode='single', fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
         """Sets basic configuration for M8195A and populates class attributes accordingly."""
         self.write(f'inst:dacm {dacMode}')
@@ -268,14 +254,52 @@ class M8195A(communications.SocketInstrument):
 
         self.err_check()
 
-    def download_wfm(self, wfm, ch=1):
-        """Defines and downloads a waveform into the segment memory."""
+    def sanity_check(self):
+        """Prints out initialized values."""
+        print('Sample rate:', self.fs)
+        print('DAC Mode:', self.dacMode)
+        print('Function:', self.func)
+        print('Ref source:', self.refSrc)
+        print('Ref frequency:', self.refFreq)
+
+    def download_wfm(self, wfm, ch=1, name='wfm'):
+        """Defines, names, and downloads a waveform into the segment memory."""
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
         segIndex = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segIndex}, {length}')
         self.binblockwrite(f'trace{ch}:data {segIndex}, 0, ', wfm)
+        self.write(f'trace{ch}:name {segIndex},{name}')
+
+    def check_wfm(self, wfm):
+        """Checks minimum size and granularity and returns waveform with
+        appropriate binary formatting based on the chosen DAC resolution.
+
+        See pages 273-274 in Keysight M8195A User's Guide (Edition 13.0,
+        October 2017) for more info."""
+
+        repeats = wraparound_calc(len(wfm), self.gran)
+        wfm = np.tile(wfm, repeats)
+        rl = len(wfm)
+        if rl < self.minLen:
+            raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+        if rl % self.gran != 0:
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
+
+        return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
+
+    def play(self, ch=1, wfm=1):
+        """Selects waveform, turns on analog output, and begins continuous playback."""
+        self.write(f'trace:select {wfm}')
+        self.write(f'output{ch}:norm on')
+        self.write('init:cont on')
+        self.write('init:imm')
+
+    def stop(self, ch=1):
+        """Turns off analog output and stops playback."""
+        self.write(f'output{ch}:norm off')
+        self.write('abort')
 
 
 class VSG(communications.SocketInstrument):
@@ -294,7 +318,7 @@ class VSG(communications.SocketInstrument):
         self.amp = float(self.query('power?').strip())
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
         self.refSrc = self.query('roscillator:source?').strip()
-        self.arbState = float(self.query('radio:arb:state?').strip())
+        self.arbState = self.query('radio:arb:state?').strip()
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
         if 'int' in self.refSrc.lower():
             self.refFreq = 10e6
@@ -388,6 +412,25 @@ class VSG(communications.SocketInstrument):
         else:
             return np.array(self.binMult * wfm, dtype=np.int16)
 
+    def play(self, name='wfm'):
+        """Selects waveform and activates arb mode, RF output, and modulation."""
+        self.write(f'radio:arb:waveform "WFM1:{name}"')
+        self.write('radio:arb:state on')
+        self.arbState = self.query('radio:arb:state?').strip()
+        self.write('output on')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation on')
+        self.modState = self.query('output:modulation?').strip()
+
+    def stop(self):
+        """Dectivates arb mode, RF output, and modulation."""
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
+        self.write('output off')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation off')
+        self.modState = self.query('output:modulation?').strip()
+
 
 # noinspection PyRedundantParentheses
 class UXG(communications.SocketInstrument):
@@ -403,6 +446,7 @@ class UXG(communications.SocketInstrument):
         self.host = host
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
+        self.arbState = self.query('radio:arb:state?').strip()
         self.cf = float(self.query('frequency?').strip())
         self.amp = float(self.query('power?').strip())
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
@@ -422,11 +466,13 @@ class UXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int'):
+    def configure(self, rfState=0, modState=0, arbState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int'):
         self.write(f'output {rfState}')
         self.rfState = self.query('output?').strip()
         self.write(f'output:modulation {modState}')
         self.modState = self.query('output:modulation?').strip()
+        self.write(f'radio:arb:state {arbState}')
+        self.arbState = self.query('radio:arb:state?').strip()
         self.write(f'frequency {cf}')
         self.cf = float(self.query('frequency?').strip())
         self.write(f'power {amp}')
@@ -445,6 +491,17 @@ class UXG(communications.SocketInstrument):
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
         self.err_check()
+
+    def sanity_check(self):
+        """Prints out initialized values."""
+        self.err_check()
+        print('RF State:', self.rfState)
+        print('Modulation State:', self.modState)
+        print('Center Frequency:', self.cf)
+        print('Output Amplitude:', self.amp)
+        print('Reference source:', self.refSrc)
+        print('Internal Arb Sample Rate:', self.fs)
+        print('IQ Scaling:', self.iqScale)
 
     def open_lan_stream(self):
         """Open connection to port 5033 for LAN streaming to the UXG."""
@@ -598,17 +655,6 @@ class UXG(communications.SocketInstrument):
         q = np.imag(iq).reshape(iq.shape[0])
         self.download_iq_wfm(i, q, name)
 
-    def sanity_check(self):
-        """Prints out initialized values."""
-        self.err_check()
-        print('RF State:', self.rfState)
-        print('Modulation State:', self.modState)
-        print('Center Frequency:', self.cf)
-        print('Output Amplitude:', self.amp)
-        print('Reference source:', self.refSrc)
-        print('Internal Arb Sample Rate:', self.fs)
-        print('IQ Scaling:', self.iqScale)
-
     def download_iq_wfm(self, i, q, name='wfm', assign=True):
         """Formats, downloads, and assigns an iq waveform into arb memory."""
         i = self.check_wfm(i)
@@ -647,3 +693,22 @@ class UXG(communications.SocketInstrument):
             return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()
         else:
             return np.array(self.binMult * wfm, dtype=np.uint16)
+
+    def play(self, name='wfm'):
+        """Selects waveform and activates arb mode, RF output, and modulation."""
+        self.write(f'radio:arb:waveform "WFM1:{name}"')
+        self.write('radio:arb:state on')
+        self.arbState = self.query('radio:arb:state?').strip()
+        self.write('output on')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation on')
+        self.modState = self.query('output:modulation?').strip()
+
+    def stop(self):
+        """Dectivates arb mode, RF output, and modulation."""
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
+        self.write('output off')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation off')
+        self.modState = self.query('output:modulation?').strip()
