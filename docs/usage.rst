@@ -672,6 +672,7 @@ transmit filter using PRBS data.
     * ``psk8_modulator``, generates a 8-state phase shift keyed signal.
     * ``qam16_modulator``, generates a 16-state quadrature amplitude modulated signal.
     * ``qam32_modulator``, generates a 32-state quadrature amplitude modulated signal.
+    * ``qam64_modulator``, generates a 64-state quadrature amplitude modulated signal.
 * ``fs``: Sample rate used to create the signal. Argument is a float.
 * ``symRate``: Symbol rate. Argument is a float.
 * ``prbsOrder``: Order of the pseudorandom bit sequence used for the underlying data. Arguments are integers. ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
