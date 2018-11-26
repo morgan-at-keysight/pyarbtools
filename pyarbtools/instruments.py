@@ -493,30 +493,22 @@ class UXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, arbState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int'):
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70):
         self.write(f'output {rfState}')
         self.rfState = self.query('output?').strip()
         self.write(f'output:modulation {modState}')
         self.modState = self.query('output:modulation?').strip()
-        self.write(f'radio:arb:state {arbState}')
-        self.arbState = self.query('radio:arb:state?').strip()
+        self.err_check()
         self.write(f'frequency {cf}')
         self.cf = float(self.query('frequency?').strip())
         self.write(f'power {amp}')
         self.amp = float(self.query('power?').strip())
-        self.write(f'roscillator:source {refSrc}')
-        self.refSrc = self.query('roscillator:source?').strip()
-        if 'int' in self.refSrc.lower():
-            self.refFreq = 10e6
-        elif 'ext' in self.refSrc.lower():
-            self.refFreq = float(self.query('roscillator:frequency:external?').strip())
-        elif 'bbg' in self.refSrc.lower():
-            self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
-        else:
-            raise error.VSGError('Unknown refSrc selected.')
         self.write(f'radio:arb:rscaling {iqScale}')
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
+        # Arb state can only be turned on after a waveform has been loaded/selected
+        # self.write(f'radio:arb:state {arbState}')
+        # self.arbState = self.query('radio:arb:state?').strip()
         self.err_check()
 
     def sanity_check(self):

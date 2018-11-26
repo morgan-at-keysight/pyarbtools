@@ -257,6 +257,53 @@ def qam32_modulator(data, customMap=None):
         raise ValueError('Invalid 32 QAM symbol.')
 
 
+def qam64_modulator(data, customMap=None):
+    """Converts list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for 64 QAM.
+
+    A 6-variable Karnaugh map is used to determine the default symbol
+    locations to prevent adjacent symbol errors from differing more
+    than 1 bit from the intended symbol.
+
+    customMap is a dict whos keys are strings containing the symbol's
+    binary value and whos values are the symbol's location in the
+    complex plane.
+    e.g. customMap = {'0101': 0.707 + 0.707j, ...} """
+
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) + str(d4) + str(d5) for d0, d1, d2, d3, d4, d5 in
+               zip(data[0::6], data[1::6], data[2::6], data[3::6], data[4::6], data[5::6])]
+    if customMap:
+        qamMap = customMap
+    else:
+        qamMap = {'000000': 7 + 7j, '000001': 7 + 5j, '000010': 5 + 7j,
+                  '000011': 5 + 5j, '000100': 7 + 1j, '000101': 7 + 3j,
+                  '000110': 5 + 1j, '000111': 5 + 3j, '001000': 1 + 7j,
+                  '001001': 1 + 5j, '001010': 3 + 7j, '001011': 3 + 5j,
+                  '001100': 1 + 1j, '001101': 1 + 3j, '001110': 3 + 1j,
+                  '001111': 3 + 3j, '010000': 7 - 7j, '010001': 7 - 5j,
+                  '010010': 5 - 7j, '010011': 5 - 5j, '010100': 7 - 1j,
+                  '010101': 7 - 3j, '010110': 5 - 1j, '010111': 5 - 3j,
+                  '011000': 1 - 7j, '011001': 1 - 5j, '011010': 3 - 7j,
+                  '011011': 3 - 5j, '011100': 1 - 1j, '011101': 1 - 3j,
+                  '011110': 3 - 1j, '011111': 3 - 3j,
+                  '100000': -7 + 7j, '100001': -7 + 5j, '100010': -5 + 7j,
+                  '100011': -5 + 5j, '100100': -7 + 1j, '100101': -7 + 3j,
+                  '100110': -5 + 1j, '100111': -5 + 3j, '101000': -1 + 7j,
+                  '101001': -1 + 5j, '101010': -3 + 7j, '101011': -3 + 5j,
+                  '101100': -1 + 1j, '101101': -1 + 3j, '101110': -3 + 1j,
+                  '101111': -3 + 3j, '110000': -7 - 7j, '110001': -7 - 5j,
+                  '110010': -5 - 7j, '110011': -5 - 5j, '110100': -7 - 1j,
+                  '110101': -7 - 3j, '110110': -5 - 1j, '110111': -5 - 3j,
+                  '111000': -1 - 7j, '111001': -1 - 5j, '111010': -3 - 7j,
+                  '111011': -3 - 5j, '111100': -1 - 1j, '111101': -1 - 3j,
+                  '111110': -3 - 1j, '111111': -3 - 3j}
+    try:
+        return np.array([qamMap[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid 64 QAM symbol.')
+
+
 def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35):
     """Generates a baseband modulated signal with a given modulation
     type and root raised cosine filter using PRBS data."""
@@ -280,6 +327,9 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     elif modType.lower() == 'qam32':
         bitsPerSym = 5
         modulator = qam32_modulator
+    elif modType.lower() == 'qam64':
+        bitsPerSym = 6
+        modulator = qam64_modulator
     else:
         raise ValueError('Invalid modType chosen.')
 
@@ -315,6 +365,7 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     # Apply filter and trim off zeroed samples to ensure EXACT wraparound.
     iq = np.convolve(iq, modFilter)
     iq = iq[taps-1:-taps+1]
+
     # Scale waveform data
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
@@ -322,7 +373,8 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     return np.real(iq), np.imag(iq)
 
 
-def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
+def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
+                  cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
     """Creates a 16-QAM signal from a signal generator at a
     user-selected center frequency and sample rate. Symbol rate and
     effective bandwidth of the calibration signal is determined by

@@ -78,7 +78,7 @@ def m8190a_simple_wfm_example(ipAddress):
     awg.download_wfm(wfm)
 
     # Assign segment 1 to channel 1 and start continuous playback.
-    awg.play(ch=1, wfm=1)
+    awg.play(ch=1, wfmID=1)
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
@@ -100,7 +100,7 @@ def m8190a_duc_dig_mod_example(ipAddress):
     # Define segment 1 and populate it with waveform data.
     awg.download_iq_wfm(i, q)
 
-    awg.play(ch=1, wfm=1)
+    awg.play(ch=1, wfmID=1)
     awg.err_check()
     awg.disconnect()
 
@@ -192,6 +192,28 @@ def m8195a_simple_wfm_example(ipAddress):
     awg.disconnect()
 
 
+def uxg_arb_example(ipAddress):
+    """Generates and plays 10 MHz 64 QAM signal with 0.35 alpha RRC filter
+        @ 1 GHz CF with vector UXG."""
+
+    uxg = pyarbtools.instruments.UXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg.configure(rfState=1, cf=1e9, amp=0)
+    uxg.err_check()
+
+    uxg.write('stream:state off')
+    uxg.write('radio:arb:state off')
+    modType = 'qam64'
+    fs = 250e6
+    symRate = 10e6
+    wfmName = '10M_64QAM'
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(modType, fs, symRate)
+    uxg.download_iq_wfm(i, q, name=wfmName)
+    uxg.play(wfmID=wfmName)
+
+    uxg.err_check()
+    uxg.disconnect()
+
+
 def uxg_pdw_example(ipAddress):
     """Creates and downloads a chirp waveform, defines a simple pdw csv
     file, and loads that pdw file into the UXG, and plays it out."""
@@ -211,7 +233,7 @@ def uxg_pdw_example(ipAddress):
     chirpBw = 100e6
     i, q = pyarbtools.wfmBuilder.chirp_generator(length, fs, chirpBw, zeroLast=True)
     wfmName = '1US_100MHz_CHIRP'
-    uxg.download_iq_wfm(wfmName, i, q)
+    uxg.download_iq_wfm(i, q, wfmName)
 
     # Define and generate csv pdw file
     pdwName = 'basic_chirp'
@@ -298,14 +320,18 @@ def uxg_lan_streaming_example(ipAddress):
 
 
 def main():
+    """Uncomment the example you'd like to run. For each example,
+    replace the IP address with one that is appropriate for your
+    instrument."""
+
     # m8190a_duc_dig_mod_example('141.121.210.241')
     # m8190a_duc_chirp_example('141.121.210.241')
     # m8190a_simple_wfm_example('141.121.210.241')
-    m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
+    # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
     # m8195a_simple_wfm_example('141.121.210.245')
     # vsg_dig_mod_example('10.112.180.215')
     # vsg_chirp_example('10.112.180.215')
-    # uxg_example('141.121.210.167')
+    uxg_arb_example('141.121.210.131')
     # uxg_lan_streaming_example('141.121.210.167')
 
 
