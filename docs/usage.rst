@@ -281,7 +281,7 @@ Turns off analog output and stops playback.
 -------------
 ::
 
-    VSG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', refFreq=10e6, fs=200e6)
+    VSG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', fs=200e6)
 
 Sets the basic configuration for the VSG and populates class attributes
 accordingly. It should be called any time these settings are changed
@@ -299,7 +299,6 @@ accordingly. It should be called any time these settings are changed
     * PSG ``-130`` to ``+21``
 * ``iqScale``: Sets the IQ scale factor. Argument is an integer from ``1`` to ``100``. Default is ``70``.
 * ``refSrc``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
-* ``refFreq``: Reference clock frequency. Argument is a floating point value from ``1e6`` to ``50e6``. Default is ``10e6``.
 * ``fs``: Sample rate. Argument is a floating point whose range is instrument dependent.
     * EXG/MXG ``1e3`` to ``200e6``
     * PSG ``1`` to ``100e6``
@@ -370,7 +369,7 @@ Deactivates arb mode, RF output, and modulation.
 -------------
 ::
 
-    UXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int')
+    UXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70)
 
 Sets the basic configuration for the UXG and populates class attributes
 accordingly. It should be called any time these settings are changed
@@ -383,7 +382,6 @@ accordingly. It should be called any time these settings are changed
 * ``cf``: Sets the output carrier frequency. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
 * ``amp``: Sets the output power. Argument is a floating point value from ``-120`` to ``+3``. Default is ``-120``.
 * ``iqScale``: Sets the IQ scale factor. Argument is an integer from ``1`` to ``100``. Default is ``70``.
-* ``refSrc``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
 
 **Returns**
 
@@ -684,8 +682,8 @@ transmit filter using PRBS data.
 
 **Returns**
 
-* ``i``: NumPy array of values representing the real component of the Barker pulse.
-* ``q``: NumPy array of values representing the imaginary component of the Barker pulse.
+* ``i``: NumPy array of values representing the real component of the digitally modulated signal.
+* ``q``: NumPy array of values representing the imaginary component of the digitally modulated signal.
 
 
 **iq_correction**
