@@ -623,7 +623,6 @@ class UXG(communications.SocketInstrument):
             rowString = ','.join([f'{r}' for r in row]) + '\n'
             pdwCsv += rowString
 
-        self.write(f'memory:delete "{fileName}.csv"')
         self.binblockwrite(f'memory:data "{fileName}.csv", ', pdwCsv.encode('utf-8'))
 
         """Note: memory:import:stream imports/converts csv to pdw AND
@@ -645,7 +644,6 @@ class UXG(communications.SocketInstrument):
         for i in range(len(windex['wfmNames'])):
             windexCsv += f'{i},{windex["wfmNames"][i]}\n'
 
-        self.write(f'memory:delete "{windex["fileName"]}.csv"')
         self.binblockwrite(f'memory:data "{windex["fileName"]}.csv", ', windexCsv.encode('utf-8'))
 
         """Note: memory:import:windex imports/converts csv to waveform
