@@ -752,6 +752,36 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     return np.real(iq), np.imag(iq)
 
 
+def multitone(start, stop, num, fs, phase='random'):
+    spacing = (stop - start) / num
+    print(f'Spacing: {spacing} Hz.')
+    time = 1 / spacing
+    print(f'wfmLength: {time} sec.')
+    t = np.linspace(-time / 2, time / 2, time * fs, endpoint=False)
+    rl = len(t)
+
+    if phase == 'random':
+        phase = np.random.random_sample(size=rl) * 360
+    elif phase == 'zero':
+        phase = np.zeros(num)
+    elif phase == 'increasing':
+        phase = 180 * np.linspace(-1, 1, rl, endpoint=False)
+    elif phase == 'parabolic':
+        phase = np.cumsum(180 * np.linspace(-1, 1, rl, endpoint=False))
+
+    tones = np.zeros((num, len(t)), dtype=np.complex)
+    f = start
+    for n in range(num):
+        tones[n] = np.exp(2j * np.pi * f * (t + phase[n]))
+        f += spacing
+    iq = tones.sum(axis=0)
+
+    sFactor = abs(np.amax(iq))
+    iq = iq / sFactor * 0.707
+
+    return np.real(iq), np.imag(iq)
+
+
 def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
                   cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
     """Creates a 16-QAM signal from a signal generator at a
