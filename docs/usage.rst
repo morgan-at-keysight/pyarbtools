@@ -123,7 +123,7 @@ changed (ideally *once* directly after creating the M8190A object).
 ----------------
 ::
 
-    M8190A.download_wfm(wfm, ch=1, name -> str)
+    M8190A.download_wfm(wfm, ch=1, wfmID -> str)
 
 Defines and downloads a waveform into the lowest available segment slot.
 
@@ -311,7 +311,7 @@ accordingly. It should be called any time these settings are changed
 -------------------
 ::
 
-    VSG.download_iq_wfm(i, q, name='wfm)
+    VSG.download_iq_wfm(i, q, wfmID='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -321,11 +321,11 @@ requirements.
 
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
-* ``name``: String containing the waveform name. Default is ``'wfm'``.
+* ``wfmID``: String containing the waveform name. Default is ``'wfm'``.
 
 **Returns**
 
-* ``name``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
 
 **play**
 --------
@@ -387,12 +387,29 @@ accordingly. It should be called any time these settings are changed
 
 * None
 
+**clear_memory**
+----------------
+::
+
+    UXG.clear_memory()
+
+Clears all waveform, pdw, and windex files. This function MUST be called
+prior to downloading waveforms and making changes to an existing pdw file.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
 
 **download_iq_wfm**
 -------------------
 ::
 
-    UXG.download_iq_wfm(i, q, name='wfm')
+    UXG.download_iq_wfm(i, q, wfmID='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -402,19 +419,19 @@ requirements.
 
 * ``i``: NumPy array of values representing the real component of an IQ waveform.
 * ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
-* ``name``: String containing the waveform name. Default is ``'wfm'``.
+* ``wfmID``: String containing the waveform name. Default is ``'wfm'``.
 
 **Returns**
 
-* ``name``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
 
-**play**
---------
+**arb_play**
+------------
 ::
 
-    UXG.play(wfmID='wfm')
+    UXG.arb_play(wfmID='wfm')
 
-Selects waveform and activates arb mode, RF output, and modulation.
+Selects waveform and activates RF output, modulation, and arb mode.
 
 **Arguments**
 
@@ -424,13 +441,46 @@ Selects waveform and activates arb mode, RF output, and modulation.
 
 * None
 
-**stop**
---------
+**arb_stop**
+------------
 ::
 
-    UXG.stop()
+    UXG.arb_stop()
 
-Deactivates arb mode, RF output, and modulation.
+Dectivates RF output, modulation, and arb mode.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**stream_play**
+---------------
+::
+
+    UXG.stream_play(pdwID='wfm', wIndexID=None)
+
+Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
+
+**Arguments**
+
+* ``pdwID``: Name of the PDW file to be loaded. Argument is a string. Default is ``'wfm'``.
+* ``wIndexID``: Name of the waveform index file to be loaded. Argument is a string. Default is ``None``, which loads a waveform index file with the same name as the PDW file.
+
+**Returns**
+
+* None
+
+**stream_stop**
+---------------
+::
+
+    UXG.stream_stop()
+
+Dectivates RF output, modulation, and streaming mode.
 
 **Arguments**
 
@@ -673,6 +723,8 @@ transmit filter using PRBS data.
     * ``qam16_modulator``, generates a 16-state quadrature amplitude modulated signal.
     * ``qam32_modulator``, generates a 32-state quadrature amplitude modulated signal.
     * ``qam64_modulator``, generates a 64-state quadrature amplitude modulated signal.
+    * ``qam128_modulator``, generates a 128-state quadrature amplitude modulated signal.
+    * ``qam256_modulator``, generates a 256-state quadrature amplitude modulated signal.
 * ``fs``: Sample rate used to create the signal. Argument is a float.
 * ``symRate``: Symbol rate. Argument is a float.
 * ``prbsOrder``: Order of the pseudorandom bit sequence used for the underlying data. Arguments are integers. ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
@@ -687,8 +739,31 @@ transmit filter using PRBS data.
 * ``q``: NumPy array of values representing the imaginary component of the digitally modulated signal.
 
 
+**multitone**
+-------------
+::
+
+    multitone(start, stop, num, fs, phase='random')
+
+Generates a multitone signal with given start/stop frequencies, number of tones, sample rate, and phase relationship.
+
+
+**Arguments**
+
+* ``start``: Start frequency, the first tone is at this freqency. Argument is a float. Must be < ``stop``.
+* ``stop``: Stop frequency, the last tone is at this frequency. Argument is a float. Must be > ``start``.
+* ``num``: Number of tones. Argument is an integer. Large values will slow down generation due to closer frequency spacing and resulting longer time requirements, use caution.
+* ``fs``: Sample rate used to create the signal. Argument is a float.
+* ``phase``: Phase relationship between tones. Arguments are ``'random'`` (default), ``'zero'``, ``'increasing'``, or ``'parabolic'``.
+
+**Returns**
+
+* ``i``: NumPy array of values representing the real component of the multitone signal.
+* ``q``: NumPy array of values representing the imaginary component of the multitone signal.
+
+
 **iq_correction**
--------------------------
+-----------------
 ::
 
     iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):

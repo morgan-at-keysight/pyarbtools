@@ -1,11 +1,9 @@
 """
-Example Functions for pyarbtools 0.0.7
+pyarbtools 0.0.10
+examples
 Author: Morgan Allison, Keysight RF/uW Application Engineer
-Updated: 10/18
 Provides example scripts for generic VSGs, UXG, and AWGs using
 instrument classes from pyarbtools.
-Python 3.6.4
-NumPy 1.14.2
 Tested on N5182B, M8190A
 """
 

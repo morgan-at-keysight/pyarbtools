@@ -1,14 +1,11 @@
 """
-pyarbtools 0.0.7
-Instrument Control Classes
+pyarbtools 0.0.10
+instruments
 Author: Morgan Allison, Keysight RF/uW Application Engineer
-Updated: 10/18
 Builds instrument specific classes for each signal generator.
 The classes include minimum waveform length/granularity checks, binary
 waveform formatting, sequencer length/granularity checks, sample rate
 checks, etc. per instrument.
-Uses communications.py for instrument communication.
-Python 3.6.4
 Tested on M8190A, M8195A, N5194A, N5182B, E8257D
 """
 
@@ -394,7 +391,7 @@ class VSG(communications.SocketInstrument):
         print('Internal Arb Sample Rate:', self.fs)
         print('IQ Scaling:', self.iqScale)
 
-    def download_iq_wfm(self, i, q, name='wfm'):
+    def download_iq_wfm(self, i, q, wfmID='wfm'):
         """Defines and downloads a waveform into the waveform memory.
         Returns useful waveform identifier."""
 
@@ -404,8 +401,8 @@ class VSG(communications.SocketInstrument):
         q = self.check_wfm(q)
         iq = self.iq_wfm_combiner(i, q)
 
-        self.binblockwrite(f'mmemory:data "wfm1:{name}", ', iq)
-        # self.write(f'radio:arb:waveform "WFM1:{name}"')
+        self.binblockwrite(f'mmemory:data "wfm1:{wfmID}", ', iq)
+        # self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
         return name
 
@@ -705,7 +702,7 @@ class UXG(communications.SocketInstrument):
         q = np.imag(iq).reshape(iq.shape[0])
         self.download_iq_wfm(i, q, name)
 
-    def download_iq_wfm(self, i, q, name='wfm'):
+    def download_iq_wfm(self, i, q, wfmID='wfm'):
         """Defines and downloads a waveform into the waveform memory.
         Returns useful waveform identifier."""
 
@@ -714,7 +711,7 @@ class UXG(communications.SocketInstrument):
         i = self.check_wfm(i)
         q = self.check_wfm(q)
         iq = self.iq_wfm_combiner(i, q)
-        self.binblockwrite(f'memory:data "WFM1:{name}", ', iq)
+        self.binblockwrite(f'memory:data "WFM1:{wfmID}", ', iq)
 
         return name
 
@@ -793,7 +790,7 @@ class UXG(communications.SocketInstrument):
         self.err_check()
 
     def stream_stop(self):
-        """Deactivates RF output, modulation, and streaming."""
+        """Deactivates RF output, modulation, and streaming mode."""
         self.write('output off')
         self.rfState = self.query('output?').strip()
         self.write('output:modulation off')

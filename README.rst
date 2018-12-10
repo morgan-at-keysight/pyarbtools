@@ -13,6 +13,13 @@ pyarbtools is a collection of Python classes and functions that provide basic si
 It is loosely based on Keysight's `IQ Tools <https://www.keysight.com/main/techSupport.jspx?cc=US&lc=eng&nid=-33319.972199&pid=1969138&pageMode=DS>`_, a Matlab-based toolkit that accomplishes similar things.
 pyarbtools was built to satisfy the needs of signal generator users who can't/don't want to use Matlab and to improve code readability and documentation.
 
-pyarbtools currently uses Python's socket module under the hood to communicate with signal generators. This is sufficient for *most* situations, although there are certain instruments that do not support socket communication.
+**Features**
 
-*pyarbtools was written for Python and is not currently compatible with legacy Python 2.*
+* Supports M8190A and M8195A arbitrary waveform generators, N5182B MXG/N5172B EXG/E8267D PSG vector signal generators, and N5193A + N5194A UXG agile waveform generator pair.
+* Connect to and configure instruments, download IQ waveforms, control playback, and load or stream PDWs (for UXG), all using individual functions rather than a list of SCPI commands.
+* Calibrate waveforms with digital predistortion using Keysight's 89600 VSA software.
+* For custom use cases, communicate with instruments using SCPI commands.
+* All instrument control uses raw socket protocol, no VISA required.
+
+
+*pyarbtools was written for Python and is not currently compatible with legacy Python 2.x*

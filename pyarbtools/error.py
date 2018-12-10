@@ -1,8 +1,7 @@
 """
-pyarbtools 0.1.0
+pyarbtools 0.0.10
 error
 Author: Morgan Allison, Keysight RF/uW Application Engineer
-Updated: 10/18
 Custom error classes for pyarbtools.
 """
 
