@@ -464,16 +464,20 @@ class UXG(communications.SocketInstrument):
     """Generic class for controlling the N5194A + N5193A (Vector + Analog)
     UXG agile signal generators."""
 
-    def __init__(self, host, port=5025, timeout=5, reset=False):
+    def __init__(self, host, port=5025, timeout=5, reset=False, clearMemory=False):
         super().__init__(host, port, timeout)
         print(self.instId)
         if reset:
             self.write('*rst')
             self.query('*opc?')
+        # Clear all waveform, pdw, and windex files
+        if clearMemory:
+            self.clear_memory()
         self.host = host
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.arbState = self.query('radio:arb:state?').strip()
+        self.streamState = self.query('stream:state?').strip()
         self.cf = float(self.query('frequency?').strip())
         self.amp = float(self.query('power?').strip())
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
@@ -494,11 +498,15 @@ class UXG(communications.SocketInstrument):
         # self.lanStream.connect((host, 5033))
 
     def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70):
+        """Sets the basic configuration for the UXG and populates class
+        attributes accordingly. It should be called any time these
+        settings are changed (ideally once directly after creating the
+        UXG object)."""
+
         self.write(f'output {rfState}')
         self.rfState = self.query('output?').strip()
         self.write(f'output:modulation {modState}')
         self.modState = self.query('output:modulation?').strip()
-        self.err_check()
         self.write(f'frequency {cf}')
         self.cf = float(self.query('frequency?').strip())
         self.write(f'power {amp}')
@@ -506,14 +514,18 @@ class UXG(communications.SocketInstrument):
         self.write(f'radio:arb:rscaling {iqScale}')
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
-        # Arb state can only be turned on after a waveform has been loaded/selected
-        # self.write(f'radio:arb:state {arbState}')
-        # self.arbState = self.query('radio:arb:state?').strip()
+        # Arb state can only be turned on after a waveform has been loaded/selected.
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
+
+        # Stream state should be turned off until streaming is needed.
+        self.write('stream:state off')
+        self.streamState = self.query('stream:state?').strip()
+
         self.err_check()
 
     def sanity_check(self):
         """Prints out initialized values."""
-        self.err_check()
         print('RF State:', self.rfState)
         print('Modulation State:', self.modState)
         print('Center Frequency:', self.cf)
@@ -521,6 +533,19 @@ class UXG(communications.SocketInstrument):
         print('Reference source:', self.refSrc)
         print('Internal Arb Sample Rate:', self.fs)
         print('IQ Scaling:', self.iqScale)
+        self.err_check()
+
+    def clear_memory(self):
+        """Clears all waveform, pdw, and windex files. This function
+        MUST be called prior to downloading waveforms and making
+        changes to an existing pdw file."""
+
+        self.write('stream:state off')
+        self.write('radio:arb:state off')
+        self.write('memory:delete:binary')
+        self.write('mmemory:delete:wfm')
+        self.query('*opc?')
+        self.err_check()
 
     def open_lan_stream(self):
         """Open connection to port 5033 for LAN streaming to the UXG."""
@@ -607,8 +632,7 @@ class UXG(communications.SocketInstrument):
         # Convert arrays of data to a single byte-type variable
         pdwFile = b''.join(pdwFile)
 
-        with open('C:\\Users\\moalliso\\Desktop\\pdwtest', 'wb') as f:
-            f.write(pdwFile)
+        self.err_check()
 
         return pdwFile
 
@@ -623,6 +647,13 @@ class UXG(communications.SocketInstrument):
             rowString = ','.join([f'{r}' for r in row]) + '\n'
             pdwCsv += rowString
 
+        # Delete pdw csv file if already exists, continue script if it doesn't
+        try:
+            self.write('stream:state off')
+            self.write(f'memory:delete "{fileName}.csv"')
+            self.err_check()
+        except error.SockInstError:
+            pass
         self.binblockwrite(f'memory:data "{fileName}.csv", ', pdwCsv.encode('utf-8'))
 
         """Note: memory:import:stream imports/converts csv to pdw AND
@@ -633,6 +664,7 @@ class UXG(communications.SocketInstrument):
 
         self.write(f'memory:import:stream "{fileName}.csv", "{fileName}"')
         self.query('*opc?')
+        self.err_check()
 
     def csv_windex_file_download(self, windex):
         """Write header fields separated by commas and terminated with \n
@@ -652,6 +684,7 @@ class UXG(communications.SocketInstrument):
         command because it is sent implicitly by memory:import:windex."""
         self.write(f'memory:import:windex "{windex["fileName"]}.csv", "{windex["fileName"]}"')
         self.query('*opc?')
+        self.err_check()
 
     def download_matlab_wfm(self, fileName, zeroLast=False):
         """Imports a .mat file built in iqtools and formats it
@@ -715,8 +748,8 @@ class UXG(communications.SocketInstrument):
         else:
             return np.array(self.binMult * wfm, dtype=np.uint16)
 
-    def play(self, wfmID='wfm'):
-        """Selects waveform and activates arb mode, RF output, and modulation."""
+    def arb_play(self, wfmID='wfm'):
+        """Selects waveform and activates RF output, modulation, and arb mode."""
         self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
         self.write('radio:arb:state on')
         self.arbState = self.query('radio:arb:state?').strip()
@@ -724,12 +757,48 @@ class UXG(communications.SocketInstrument):
         self.rfState = self.query('output?').strip()
         self.write('output:modulation on')
         self.modState = self.query('output:modulation?').strip()
+        self.err_check()
 
-    def stop(self):
-        """Dectivates arb mode, RF output, and modulation."""
-        self.write('radio:arb:state off')
-        self.arbState = self.query('radio:arb:state?').strip()
+    def arb_stop(self):
+        """Dectivates RF output, modulation, and arb mode."""
         self.write('output off')
         self.rfState = self.query('output?').strip()
         self.write('output:modulation off')
         self.modState = self.query('output:modulation?').strip()
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
+        self.err_check()
+
+    def stream_play(self, pdwID='pdw', wIndexID=None):
+        """Assigns pdw/windex, activates RF output, modulation, and
+        streaming mode, and triggers streaming output."""
+
+        self.write('stream:source file')
+        self.write(f'stream:source:file:name "{pdwID}"')
+
+        # If wIndexID is unspecified, use the same name as the pdw file.
+        if wIndexID == None:
+            self.write(f'stream:windex:select "{pdwID}"')
+        else:
+            self.write(f'stream:windex:select "{wIndexID}"')
+
+        # Turn on output, activate streaming, and send trigger command.
+        self.write('output on')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation on')
+        self.modState = self.query('output:modulation?').strip()
+        self.write('stream:state on')
+        self.streamState = self.query('stream:state?').strip()
+        self.write('stream:trigger:play:immediate')
+        self.err_check()
+
+    def stream_stop(self):
+        """Deactivates RF output, modulation, and streaming."""
+        self.write('output off')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation off')
+        self.modState = self.query('output:modulation?').strip()
+        self.write('stream:state off')
+        self.streamState = self.query('stream:state?').strip()
+        self.err_check()
+
