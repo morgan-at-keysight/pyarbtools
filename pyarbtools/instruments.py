@@ -404,7 +404,7 @@ class VSG(communications.SocketInstrument):
         self.binblockwrite(f'mmemory:data "wfm1:{wfmID}", ', iq)
         # self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
-        return name
+        return wfmID
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -713,7 +713,7 @@ class UXG(communications.SocketInstrument):
         iq = self.iq_wfm_combiner(i, q)
         self.binblockwrite(f'memory:data "WFM1:{wfmID}", ', iq)
 
-        return name
+        return wfmID
 
     @staticmethod
     def iq_wfm_combiner(i, q):

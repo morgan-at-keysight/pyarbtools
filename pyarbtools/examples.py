@@ -205,7 +205,7 @@ def uxg_arb_example(ipAddress):
     symRate = 10e6
     wfmName = '10M_64QAM'
     i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(modType, fs, symRate)
-    uxg.download_iq_wfm(i, q, name=wfmName)
+    uxg.download_iq_wfm(i, q, wfmID=wfmName)
     uxg.arb_play(wfmID=wfmName)
 
     uxg.err_check()
@@ -330,11 +330,11 @@ def main():
     # m8190a_simple_wfm_example('141.121.210.241')
     # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
     # m8195a_simple_wfm_example('141.121.210.245')
-    # vsg_dig_mod_example('10.112.180.215')
-    vsg_chirp_example('141.121.210.122')
+    # vsg_dig_mod_example('141.121.210.122')
+    # vsg_chirp_example('141.121.210.122')
     # uxg_arb_example('141.121.210.131')
     # uxg_pdw_example('141.121.210.131')
-    # uxg_lan_streaming_example('141.121.210.131')
+    uxg_lan_streaming_example('141.121.210.131')
 
 
 if __name__ == '__main__':
