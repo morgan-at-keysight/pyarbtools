@@ -1,8 +1,7 @@
 """
-pyarbtools 0.0.7
+pyarbtools 0.0.10
 communications
 Author: Morgan Allison, Keysight RF/uW Application Engineer
-Updated: 10/18
 This program provides a socket interface to Keysight test equipment.
 It handles sending commands, receiving query results, and
 reading/writing binary block data.

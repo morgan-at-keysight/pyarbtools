@@ -1,9 +1,8 @@
 """
-pyarbtools 0.0.7
+pyarbtools 0.0.10
 wfmBuilder
-Author: Morgan Allison
-Updated: 10/18
-Provides generic waveform creation capabilities for pyarbtools.
+Author: Morgan Allison, Keysight RF/uW Application Engineer
+Generic waveform creation capabilities for pyarbtools.
 """
 
 import os
@@ -753,6 +752,11 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
 
 
 def multitone(start, stop, num, fs, phase='random'):
+    """Generates a multitone signal with given start/stop frequencies,
+    number of tones, sample rate, and phase relationship."""
+
+    if start >= stop or stop <= start:
+        raise ValueError('Start frequency must be < stop frequency.')
     spacing = (stop - start) / num
     print(f'Spacing: {spacing} Hz.')
     time = 1 / spacing
