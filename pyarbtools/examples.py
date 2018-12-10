@@ -194,7 +194,7 @@ def m8195a_simple_wfm_example(ipAddress):
 
 def uxg_arb_example(ipAddress):
     """Generates and plays 10 MHz 64 QAM signal with 0.35 alpha RRC filter
-        @ 1 GHz CF with vector UXG."""
+    @ 1 GHz CF with vector UXG."""
 
     uxg = pyarbtools.instruments.UXG(ipAddress, port=5025, timeout=10, reset=True)
     uxg.configure(rfState=1, cf=1e9, amp=0)
@@ -208,7 +208,7 @@ def uxg_arb_example(ipAddress):
     wfmName = '10M_64QAM'
     i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(modType, fs, symRate)
     uxg.download_iq_wfm(i, q, name=wfmName)
-    uxg.play(wfmID=wfmName)
+    uxg.arb_play(wfmID=wfmName)
 
     uxg.err_check()
     uxg.disconnect()
@@ -218,32 +218,35 @@ def uxg_pdw_example(ipAddress):
     """Creates and downloads a chirp waveform, defines a simple pdw csv
     file, and loads that pdw file into the UXG, and plays it out."""
 
-    """NOTE: trigger settings may need to be adjusted for continuous
-    output. This will be fixed in a future release."""
-
     uxg = pyarbtools.instruments.UXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg.configure()
     uxg.err_check()
 
-    uxg.write('stream:state off')
-    uxg.write('radio:arb:state off')
+    """Configure pdw markers. These commands will assign a TTL pulse 
+    at the beginning of each PDW. The trigger 2 output will only be 
+    active if the Marker field for a given PDW is specified as '0x1'"""
+    uxg.write('stream:markers:pdw1:mode stime')
+    uxg.write('route:trigger2:output pmarker1')
 
     # Create IQ waveform
     length = 1e-6
     fs = 250e6
     chirpBw = 100e6
-    i, q = pyarbtools.wfmBuilder.chirp_generator(length, fs, chirpBw, zeroLast=True)
-    wfmName = '1US_100MHz_CHIRP'
+    i, q = pyarbtools.wfmBuilder.chirp_generator(length=length, fs=fs, chirpBw=chirpBw, zeroLast=True)
+
+    wfmName = 'CHIRP'
     uxg.download_iq_wfm(i, q, wfmName)
 
     # Define and generate csv pdw file
     pdwName = 'basic_chirp'
-    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name']
-    data = [[1, 0, 1e9, 'Hold', '0x1', wfmName],
-            [2, 10e-6, 1e9, 'Hold', '0x0', wfmName]]
+    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name',]
+    data = ([1, 0, 1e9, 'Hold', '0x1', wfmName],
+            [2, 10e-6, 1e9, 'Hold', '0x0', wfmName])
 
     uxg.csv_pdw_file_download(pdwName, fields, data)
-    uxg.write('stream:state on')
-    uxg.write('stream:trigger:play:immediate')
+
+    uxg.stream_play(pdwID=pdwName)
+
     uxg.err_check()
     uxg.disconnect()
 
@@ -261,7 +264,7 @@ def uxg_lan_streaming_example(ipAddress):
     wfmNames = []
     for l in lengths:
         i, q = pyarbtools.wfmBuilder.chirp_generator(l, fs=250e6, chirpBw=100e6, zeroLast=True)
-        uxg.download_iq_wfm(f'{l}_100MHz_CHIRP', i, q)
+        uxg.download_iq_wfm(i, q, f'{l}_100MHz_CHIRP')
         wfmNames.append(f'{l}_100MHz_CHIRP')
 
     # Create/download waveform index file
@@ -272,7 +275,7 @@ def uxg_lan_streaming_example(ipAddress):
     # operation, freq, phase, startTimeSec, power, markers,
     # phaseControl, rfOff, wIndex, wfmMkrMask
     rawPdw = [[1, 1e9, 0, 0,      0, 1, 0, 0, 0, 0xF],
-              [0, 1e9, 0, 20e-6, 0, 0, 0, 0, 1, 0xF],
+              [0, 1e9, 0, 20e-6,  0, 0, 0, 0, 1, 0xF],
               [0, 1e9, 0, 120e-6, 0, 0, 0, 0, 2, 0xF],
               [2, 1e9, 0, 300e-6, 0, 0, 0, 0, 2, 0xF]]
 
@@ -322,7 +325,7 @@ def uxg_lan_streaming_example(ipAddress):
 def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
-    instrument."""
+    instrument(s)."""
 
     # m8190a_duc_dig_mod_example('141.121.210.241')
     # m8190a_duc_chirp_example('141.121.210.241')
@@ -330,9 +333,10 @@ def main():
     # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
     # m8195a_simple_wfm_example('141.121.210.245')
     # vsg_dig_mod_example('10.112.180.215')
-    # vsg_chirp_example('10.112.180.215')
-    uxg_arb_example('141.121.210.131')
-    # uxg_lan_streaming_example('141.121.210.167')
+    vsg_chirp_example('141.121.210.122')
+    # uxg_arb_example('141.121.210.131')
+    # uxg_pdw_example('141.121.210.131')
+    # uxg_lan_streaming_example('141.121.210.131')
 
 
 if __name__ == '__main__':
