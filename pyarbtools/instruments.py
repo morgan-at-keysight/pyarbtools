@@ -320,6 +320,118 @@ class M8195A(communications.SocketInstrument):
         self.write('abort')
 
 
+class M8196A(communications.SocketInstrument):
+    """Generic class for controlling Keysight M8196A AWG."""
+
+    def __init__(self, host, port=5025, timeout=3, reset=False):
+        super().__init__(host, port, timeout)
+        print(self.instId)
+        if reset:
+            self.write('*rst')
+            self.query('*opc?')
+        self.dacMode = self.query('inst:dacm?').strip()
+        self.fs = float(self.query('frequency:raster?').strip())
+        self.amp = float(self.query('voltage?').strip())
+        self.refSrc = self.query('roscillator:source?').strip()
+        self.refFreq = float(self.query('roscillator:frequency?').strip())
+        self.gran = 128
+        self.minLen = 128
+        self.maxLen = 524288
+        self.binMult = 127
+        self.binShift = 0
+
+    def configure(self, dacMode='single', fs=92e9, refSrc='axi', refFreq=100e6):
+        """Sets basic configuration for M8196A and populates class attributes accordingly."""
+        # Built-in type and range checking for dacMode, fs, and amplitude
+        self.write(f'inst:dacm {dacMode}')
+        self.dacMode = self.query('inst:dacm?').strip().lower()
+
+        self.write(f'frequency:raster {fs}')
+        self.fs = float(self.query('frequency:raster?').strip())
+
+        # Check for valid refSrc arguments and assign
+        if refSrc.lower() not in ['int', 'ext', 'axi']:
+            raise error.AWGError('Invalid reference source selection.')
+        self.write(f'roscillator:source {refSrc}')
+        self.refSrc = self.query('roscillator:source?').strip().lower()
+
+        # Check for presence of external ref signal
+        srcAvailable = self.query(f'roscillator:source:check? {refSrc}').strip()
+        if not srcAvailable:
+            raise error.AWGError('No signal at selected reference source.')
+
+        # Only set ref frequency if using ext ref, int/axi is always 100 MHz
+        if self.refSrc == 'ext':
+            # Seamlessly manage external clock range selection based on ref freq.
+            # Precision clock source
+            if 2.3125e9 <= refFreq <= 3e9:
+                self.write('roscillator:range rang3')
+            # Standard external clock source
+            elif 10e6 <= refFreq <= 300e6:
+                self.write('roscillator:range rang1')
+            # Wide external clock source
+            elif 162e6 <= refFreq <= 17e9:
+                self.write('roscillator:range rang2')
+            else:
+                raise error.AWGError('Selected reference clock frequency outside allowable range.')
+            self.write(f'roscillator:frequency {refFreq}')
+        self.refFreq = float(self.query('roscillator:frequency?').strip())
+
+        self.err_check()
+
+    def sanity_check(self):
+        """Prints out initialized values."""
+        print('Sample rate:', self.fs)
+        print('DAC Mode:', self.dacMode)
+        print('Ref source:', self.refSrc)
+        print('Ref frequency:', self.refFreq)
+
+    def download_wfm(self, wfm, ch=1, **kwargs):
+        """Defines and downloads a waveform into the segment memory.
+        Optionally defines a name for the waveform. The M8196A can
+        only store one waveform segment per channel, so there's no
+        need to return a useful waveform identifier."""
+
+        self.write('abort')
+        wfm = self.check_wfm(wfm)
+        length = len(wfm)
+
+        self.write(f'trace{ch}:def 1, {length}')
+        self.binblockwrite(f'trace{ch}:data 1, 0, ', wfm)
+        if 'name' in kwargs.keys():
+            self.write(f'trace{ch}:name "{name}"')
+
+    def check_wfm(self, wfm):
+        """Checks minimum size and granularity and returns waveform with
+        appropriate binary formatting based on the chosen DAC resolution.
+
+        See page 132 in Keysight M8196A User's Guide (Edition 2.2,
+        March 2018) for more info."""
+
+        repeats = wraparound_calc(len(wfm), self.gran)
+        wfm = np.tile(wfm, repeats)
+        rl = len(wfm)
+        if rl < self.minLen:
+            raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+        if rl > self.maxLen:
+            raise error.AWGError(f'Waveform length: {rl}, must be shorter than {self.maxLen}.')
+        if rl % self.gran != 0:
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
+
+        return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
+
+    def play(self, ch=1):
+        """Selects waveform, activates analog output, and begins continuous playback."""
+        self.write(f'output{ch}:state on')
+        self.write('init:cont on')
+        self.write('init:imm')
+
+    def stop(self, ch=1):
+        """Turns off analog output and stops playback."""
+        self.write('abort')
+        self.write(f'output{ch}:state off')
+
+
 class VSG(communications.SocketInstrument):
     def __init__(self, host, port=5025, timeout=5, reset=False):
         """Generic class for controlling the EXG, MXG, and PSG family
@@ -798,4 +910,3 @@ class UXG(communications.SocketInstrument):
         self.write('stream:state off')
         self.streamState = self.query('stream:state?').strip()
         self.err_check()
-

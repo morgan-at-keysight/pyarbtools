@@ -190,6 +190,36 @@ def m8195a_simple_wfm_example(ipAddress):
     awg.disconnect()
 
 
+def m8196a_simple_wfm_example(ipAddress):
+    """Sets up the M8196A and creates, downloads, and plays a simple
+    sine waveform at channel 4."""
+
+    # User-defined sample rate and sine frequency.
+    ############################################################################
+    fs = 90e9
+    cf = 4.5e9
+    dacMode = 'dual'
+    ############################################################################
+
+    awg = pyarbtools.instruments.M8196A(ipAddress, reset=True)
+    awg.configure(dacMode=dacMode, fs=fs, refSrc='axi')
+
+    # Define a waveform, ensuring min length and granularity requirements are met
+    rl = fs / cf * awg.gran
+    t = np.linspace(0, rl / fs, rl, endpoint=False)
+    wfm = awg.check_wfm(np.sin(2 * np.pi * cf * t))
+
+    # Define segment, populate it with waveform data, and download to channel 4.
+    awg.download_wfm(wfm, ch=4)
+
+    # Start continuous playback on channel 4.
+    awg.play(ch=4)
+
+    # Check for errors and gracefully disconnect.
+    awg.err_check()
+    awg.disconnect()
+
+
 def uxg_arb_example(ipAddress):
     """Generates and plays 10 MHz 64 QAM signal with 0.35 alpha RRC filter
     @ 1 GHz CF with vector UXG."""
@@ -330,11 +360,12 @@ def main():
     # m8190a_simple_wfm_example('141.121.210.241')
     # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
     # m8195a_simple_wfm_example('141.121.210.245')
+    m8196a_simple_wfm_example('141.121.210.205')
     # vsg_dig_mod_example('141.121.210.122')
     # vsg_chirp_example('141.121.210.122')
     # uxg_arb_example('141.121.210.131')
     # uxg_pdw_example('141.121.210.131')
-    uxg_lan_streaming_example('141.121.210.131')
+    # uxg_lan_streaming_example('141.121.210.131')
 
 
 if __name__ == '__main__':
