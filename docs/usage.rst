@@ -15,6 +15,7 @@ Supported instruments include:
 
 * :ref:`M8190A` AWG
 * :ref:`M8195A` AWG
+* :ref:`M8196A` AWG
 * :ref:`VSG`
     * E8267D PSG
     * N5182B MXG
@@ -260,6 +261,83 @@ Selects waveform, turns on analog output, and begins continuous playback.
 ::
 
     M8195A.stop(ch=1)
+
+Turns off analog output and stops playback.
+
+**Arguments**
+
+* ``ch``: Channel to be stopped. Default is ``1``.
+
+**Returns**
+
+* None
+
+.. _M8196A:
+
+==========
+**M8196A**
+==========
+
+**configure**
+-------------
+::
+
+    M8196A.configure(dacMode='single', fs=92e9, refSrc='axi', refFreq=100e6)
+
+Sets the basic configuration for the M8196A and populates class
+attributes accordingly. It should be called any time these settings are
+changed (ideally *once* directly after creating the M8196A object).
+
+**Arguments**
+
+* ``dacMode``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, or ``'dcmarker'``.
+* ``fs``: Sample rate. Argument is a floating point value from ``82.24e9`` to ``93.4e9``.
+* ``refSrc``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
+* ``refFreq``: Reference clock frequency. Argument is a floating point value from ``10e6`` to ``17e9``. Default is ``100e6``.
+
+**Returns**
+
+* None
+
+**download_wfm**
+----------------
+::
+
+    M8196A.download_wfm(wfm, ch=1, name -> str)
+
+Defines and downloads a waveform into the lowest available segment slot.
+
+**Arguments**
+
+* ``wfm``: NumPy array containing real waveform samples (not IQ).
+* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
+* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
+
+**Returns**
+
+* None
+
+**play**
+--------
+::
+
+    M8196A.play(ch=1)
+
+Selects waveform, turns on analog output, and begins continuous playback.
+
+**Arguments**
+
+* ``ch``: Channel to be used for playback. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+
+**Returns**
+
+* None
+
+**stop**
+--------
+::
+
+    M8196A.stop(ch=1)
 
 Turns off analog output and stops playback.
 
