@@ -286,7 +286,8 @@ class M8195A(communications.SocketInstrument):
         wfmID = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {wfmID}, {length}')
         self.binblockwrite(f'trace{ch}:data {wfmID}, 0, ', wfm)
-        self.write(f'trace{ch}:name {wfmID},"{name}"')
+        if 'name' in kwargs.keys():
+            self.write(f'trace{ch}:name {wfmID},"{name}"')
 
         return wfmID
 
@@ -886,7 +887,7 @@ class UXG(communications.SocketInstrument):
         self.write(f'stream:source:file:name "{pdwID}"')
 
         # If wIndexID is unspecified, use the same name as the pdw file.
-        if wIndexID == None:
+        if wIndexID is None:
             self.write(f'stream:windex:select "{pdwID}"')
         else:
             self.write(f'stream:windex:select "{wIndexID}"')
