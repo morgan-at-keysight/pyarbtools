@@ -9,10 +9,17 @@ import os
 import numpy as np
 from scipy.signal import max_len_seq
 from pyarbtools import communications
+from pyarbtools import error
 
 
-def am_generator(amDepth=50, amType='linear', modRate=100e3, fs=50e6):
+def am_generator(amDepth=50, modRate=100e3, fs=50e6):
     """Generates a sinusoidal AM signal."""
+
+    if 0 < amDepth > 100:
+        raise error.WfmBuilderError('AM Depth out of range, must be 0 - 100.')
+    if modRate > fs / 2:
+        raise error.WfmBuilderError('Modulation rate violates Nyquist.')
+
     time = 1 / modRate
     t = np.linspace(-time / 2, time / 2, time * fs, endpoint=False)
 
@@ -28,6 +35,9 @@ def am_generator(amDepth=50, amType='linear', modRate=100e3, fs=50e6):
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
     is determined by the sign of chirpBw (pos=up chirp, neg=down chirp)."""
+
+    if chirpBw > fs / 2:
+        raise error.WfmBuilderError('Chirp Bandwidth violates Nyquist.')
 
     """Define baseband iq waveform. Create a time vector that goes from
     -1/2 to 1/2 instead of 0 to 1. This ensures that the chirp will be
@@ -690,6 +700,9 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     """Generates a baseband modulated signal with a given modulation
     type and root raised cosine filter using PRBS data."""
 
+    if symRate < fs / 2:
+        raise error.WfmBuilderError('Symbol Rate violates Nyquist.')
+
     saPerSym = int(fs / symRate)
     filterSymbolLength = 10
 
@@ -767,6 +780,9 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
 def multitone(spacing, num, fs, phase='random'):
     """Generates a multitone signal with given tone spacing, number of
     tones, sample rate, and phase relationship."""
+
+    if spacing * num > fs / 2:
+        raise error.WfmBuilderError('Multitone spacing and number of tones violates Nyquist.')
 
     # Determine start frequency based on parity of the number of tones
     if num % 2 != 0:

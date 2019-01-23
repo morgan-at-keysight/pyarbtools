@@ -28,8 +28,9 @@ Supported instruments include:
 **instruments**
 ===============
 
-To use/control a signal generator, reate a class with the signal
-generator type and the instrument's IP address::
+To use/control a signal generator, create a class of the signal
+generator's instrument type and enter the instrument's IP address
+as the first argument::
 
     m8190a = pyarbtools.instruments.M8910A('192.168.1.12')
     n5182b = pyarbtools.instruments.VSG('192.168.1.13')
@@ -106,14 +107,14 @@ changed (ideally *once* directly after creating the M8190A object).
 
 **Arguments**
 
-* ``res``: AWG resolution. Arguments are ``'wpr'``, ``'wsp'`` (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'``.
+* ``res``: AWG resolution. Arguments are ``'wpr'`` (14 bit), ``'wsp'`` (12 bit) (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'`` (intx resolutions are all 15 bit).
 * ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default) or ``'ext'``.
-* ``fs``: Sample rate. Argument is a floating point value from ``125e6`` to ``12e9``. Default is ``7.2e9``.
+* ``fs``: Sample rate in Hz. Argument is a floating point value from ``125e6`` to ``12e9``. Default is ``7.2e9``.
 * ``refSrc``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
-* ``refFreq``: Reference clock frequency. Argument is a floating point value from ``1e6`` to ``200e6`` in steps of ``1e6``. Default is ``100e6``.
+* ``refFreq``: Reference clock frequency in Hz. Argument is a floating point value from ``1e6`` to ``200e6`` in steps of ``1e6``. Default is ``100e6``.
 * ``out1``, ``out2``: Output signal path for channel 1 and 2 respectively. Arguments are ``'dac'`` (default), ``'dc'``, ``'ac'``.
 * ``func1``, ``func2``: Function of channel 1 and 2 respectively. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
-* ``cf1``, ``cf2``: Carrier frequency of channel 1 and 2 respectively. This setting is only applicable if the digital upconverter is being used (``res`` arguments of ``'intx<#>'``). Arguments are floating point values between ``0`` and ``12e9``.
+* ``cf1``, ``cf2``: Carrier frequency in Hz of channel 1 and 2 respectively. This setting is only applicable if the digital upconverter is being used (``res`` arguments of ``'intx<#>'``). Arguments are floating point values between ``0`` and ``12e9``.
 
 **Returns**
 
@@ -135,7 +136,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-* ``wfmID```: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
 
 **download_iq_wfm**
 -------------------
@@ -211,9 +212,9 @@ changed (ideally *once* directly after creating the M8195A object).
 
 * ``dacMode``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
 * ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default), ``'ext'``, ``'sclk1'``, or ``'sclk2'``.
-* ``fs``: Sample rate. Argument is a floating point value from ``53.76e9`` to ``65e9``.
+* ``fs``: Sample rate in Hz. Argument is a floating point value from ``53.76e9`` to ``65e9``.
 * ``refSrc``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
-* ``refFreq``: Reference clock frequency. Argument is a floating point value from ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
+* ``refFreq``: Reference clock frequency in Hz. Argument is a floating point value from ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
 * ``func``: Function of channels. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
 
 **Returns**
@@ -291,15 +292,15 @@ accordingly. It should be called any time these settings are changed
 
 * ``rfState``: Turns the RF output state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
 * ``modState``: Turns the modulation state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
-* ``cf``: Sets the output carrier frequency. Argument is a floating point value whose range is instrument dependent. Default is ``1e9``.
+* ``cf``: Output carrier frequency in Hz. Argument is a floating point value whose range is instrument dependent. Default is ``1e9``.
     * EXG/MXG ``9e3`` to ``6e9``
     * PSG ``100e3`` to ``44e9``
-* ``amp``: Sets the output power. Argument is a floating point value whose range is instrument dependent. Default is ``-130``.
+* ``amp``: Output power in dBm. Argument is a floating point value whose range is instrument dependent. Default is ``-130``.
     * EXG/MXG ``-144`` to ``+26``
     * PSG ``-130`` to ``+21``
-* ``iqScale``: Sets the IQ scale factor. Argument is an integer from ``1`` to ``100``. Default is ``70``.
+* ``iqScale``: IQ scale factor in %. Argument is an integer from ``1`` to ``100``. Default is ``70``.
 * ``refSrc``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
-* ``fs``: Sample rate. Argument is a floating point whose range is instrument dependent.
+* ``fs``: Sample rate in Hz. Argument is a floating point whose range is instrument dependent.
     * EXG/MXG ``1e3`` to ``200e6``
     * PSG ``1`` to ``100e6``
 
@@ -379,9 +380,9 @@ accordingly. It should be called any time these settings are changed
 
 * ``rfState``: Turns the RF output state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
 * ``modState``: Turns the modulation state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
-* ``cf``: Sets the output carrier frequency. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
-* ``amp``: Sets the output power. Argument is a floating point value from ``-120`` to ``+3``. Default is ``-120``.
-* ``iqScale``: Sets the IQ scale factor. Argument is an integer from ``1`` to ``100``. Default is ``70``.
+* ``cf``: Output carrier frequency in Hz. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
+* ``amp``: Output power in dBm. Argument is a floating point value from ``-120`` to ``+3``. Default is ``-120``.
+* ``iqScale``: IQ scale factor in %. Argument is an integer from ``1`` to ``100``. Default is ``70``.
 
 **Returns**
 
@@ -435,7 +436,7 @@ Selects waveform and activates RF output, modulation, and arb mode.
 
 **Arguments**
 
-* ``wfmID``: Name of the waveform to be loaded. Default is ``'wfm'``.
+* ``wfmID``: String containing the waveform name. Default is ``'wfm'``.
 
 **Returns**
 
@@ -542,9 +543,9 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series 
 * ``pdwList``: A list of PDWs. Argument is a tuple of lists where each list contains a single pulse descriptor word.
     * PDW Fields:
         * ``operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-        * ``freq``: CW frequency/chirp start frequency. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
-        * ``phase``: Phase of carrier. Argument is an integer between ``0`` and ``360``.
-        * ``startTimeSec``: Pulse start time. Argument is a float between ``0 ps`` and ``213.504 days`` in seconds with a resolution of ``1 ps``.
+        * ``freq``: CW frequency/chirp start frequency in Hz. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
+        * ``phase``: Phase of carrier in degrees. Argument is an integer between ``0`` and ``360``.
+        * ``startTimeSec``: Pulse start time in seconds. Argument is a float between ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
         * ``power``: Power in dBm. Argument is a float between ``-140`` and ``+23.835``.
         * ``markers``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
         * ``phaseControl``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
@@ -657,6 +658,27 @@ them as generic signals for DSP work::
     i, q = digmod_prbs_generator(qpsk_modulator, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
 
 
+
+**am_generator**
+-------------------
+::
+
+    am_generator(amDepth=50, modRate=100e3, fs=50e6):
+
+Generates a linear sinusoidal AM signal of specified depth and modulation rate.
+
+**Arguments**
+
+* ``amDepth``: Depth of AM in %. Argument is an integer. Argument range is ``0`` to ``100``. Default is ``50``.
+* ``modRate``: AM rate in Hz. Argument is a float. Argument range is ``0`` to ``fs/2``. Default is ``100e3``.
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``50e6``.
+
+**Returns**
+
+* ``i``: NumPy array of values representing the real component of the AM waveform.
+* ``q``: NumPy array of values representing the imaginary component of the AM waveform.
+
+
 **chirp_generator**
 -------------------
 ::
@@ -669,8 +691,8 @@ at baseband. Chirp direction is determined by the sign of chirpBw
 
 **Arguments**
 
-* ``length``: Length of the chirp. Argument is a float in units of seconds. Default is ``100e-6``.
-* ``fs``: Sample rate used to create the signal. Argument is a float. Default is ``100e6``.
+* ``length``: Length of the chirp in seconds. Argument is a float. Default is ``100e-6``.
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
 * ``chirpBw``: Total bandwidth of the chirp. Frequency range of resulting signal is ``-chirpBw/2`` to ``chirpBw/2``. Default is ``20e6``.
 * ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
@@ -693,8 +715,8 @@ more information on Barker coding.
 
 **Arguments**
 
-* ``length``: Length of the pulse. Argument is a float in units of seconds. Default is ``100e-6``.
-* ``fs``: Sample rate used to create the signal. Argument is a float. Default is ``100e6``.
+* ``length``: Length of the pulse in seconds. Argument is a float. Default is ``100e-6``.
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
 * ``code``: Barker code order. Argument is a string containing ``'b2'`` (default), ``'b3'``, ``'b41'``, ``'b42'``, ``'b5'``, ``'b7'``, ``'b11'``, or ``'b13'``.
 * ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
@@ -725,8 +747,8 @@ transmit filter using PRBS data.
     * ``qam64_modulator``, generates a 64-state quadrature amplitude modulated signal.
     * ``qam128_modulator``, generates a 128-state quadrature amplitude modulated signal.
     * ``qam256_modulator``, generates a 256-state quadrature amplitude modulated signal.
-* ``fs``: Sample rate used to create the signal. Argument is a float.
-* ``symRate``: Symbol rate. Argument is a float.
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float.
+* ``symRate``: Symbol rate in Hz. Argument is a float.
 * ``prbsOrder``: Order of the pseudorandom bit sequence used for the underlying data. Arguments are integers. ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
 * ``filt``: Reference filter type. Argument is a ``_filter`` function.
     * ``rc_filter``: Creates the impulse response of a `raised cosine filter <https://en.wikipedia.org/wiki/Raised-cosine_filter>`_.
@@ -743,17 +765,15 @@ transmit filter using PRBS data.
 -------------
 ::
 
-    multitone(start, stop, num, fs, phase='random')
+    multitone(spacing, num, fs, phase='random')
 
-Generates a multitone signal with given start/stop frequencies, number of tones, sample rate, and phase relationship.
-
+Generates a multitone signal with given tone spacing, number of tones, sample rate, and phase relationship.
 
 **Arguments**
 
-* ``start``: Start frequency, the first tone is at this freqency. Argument is a float. Must be < ``stop``.
-* ``stop``: Stop frequency, the last tone is at this frequency. Argument is a float. Must be > ``start``.
-* ``num``: Number of tones. Argument is an integer. Large values will slow down generation due to closer frequency spacing and resulting longer time requirements, use caution.
-* ``fs``: Sample rate used to create the signal. Argument is a float.
+* ``spacing``: Tone spacing in Hz. Argument is a float. There is currently no limit to ``spacing``, so beware of the compilation time for small spacings and beware of aliasing for large spacings.
+* ``num``: Number of tones. Argument is an integer. There is currently no limit to ``num``, so beware of long compilation times for large number of tones.
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float.
 * ``phase``: Phase relationship between tones. Arguments are ``'random'`` (default), ``'zero'``, ``'increasing'``, or ``'parabolic'``.
 
 **Returns**

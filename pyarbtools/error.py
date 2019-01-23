@@ -5,6 +5,9 @@ Author: Morgan Allison, Keysight RF/uW Application Engineer
 Custom error classes for pyarbtools.
 """
 
+class WfmBuilderError(Exception):
+    """Waveform Builder Exception class"""
+
 
 class GranularityError(Exception):
     """Waveform Granularity Exception class"""
