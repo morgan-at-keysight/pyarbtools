@@ -52,6 +52,42 @@ def vsg_dig_mod_example(ipAddress):
     vsg.disconnect()
 
 
+def vsg_am_example(ipAddress):
+    """Generates an AM tone with the IQ modulator in a generic VSG."""
+    amRate = 10e3
+    amDepth = 75
+    fs = 100e6
+
+    vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
+    vsg.configure(cf=1e9, amp=0, fs=fs, iqScale=70, refSrc='ext')
+
+    i, q = pyarbtools.wfmBuilder.am_generator(amDepth, modRate=amRate, fs=fs)
+
+    vsg.download_iq_wfm(i, q, wfmID='custom_am')
+    vsg.play('custom_am')
+
+    vsg.err_check()
+    vsg.disconnect()
+
+
+def vsg_mtone_example(ipAddress):
+    """Generates a mutlitone signal on a generic VSG."""
+    numTones = 41
+    toneSpacing = 750e3
+    fs = 100e6
+
+    vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
+    vsg.configure(cf=1e9, amp=0, fs=fs, refSrc='ext')
+
+    i, q = pyarbtools.wfmBuilder.multitone(toneSpacing, numTones, fs)
+
+    vsg.download_iq_wfm(i, q, wfmID='mtone')
+    vsg.play('mtone')
+
+    vsg.err_check()
+    vsg.disconnect()
+
+
 def m8190a_simple_wfm_example(ipAddress):
     """Sets up the M8190A and creates, downloads, assigns, and plays
     out a simple sine waveform from the AC output port."""
@@ -332,9 +368,11 @@ def main():
     # m8195a_simple_wfm_example('141.121.210.245')
     # vsg_dig_mod_example('141.121.210.122')
     # vsg_chirp_example('141.121.210.122')
+    # vsg_am_example('141.121.210.122')
+    vsg_mtone_example('141.121.210.122')
     # uxg_arb_example('141.121.210.131')
     # uxg_pdw_example('141.121.210.131')
-    uxg_lan_streaming_example('141.121.210.131')
+    # uxg_lan_streaming_example('141.121.210.131')
 
 
 if __name__ == '__main__':

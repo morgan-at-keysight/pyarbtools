@@ -9,7 +9,20 @@ import os
 import numpy as np
 from scipy.signal import max_len_seq
 from pyarbtools import communications
-from pyarbtools import instruments
+
+
+def am_generator(amDepth=50, amType='linear', modRate=100e3, fs=50e6):
+    """Generates a sinusoidal AM signal."""
+    time = 1 / modRate
+    t = np.linspace(-time / 2, time / 2, time * fs, endpoint=False)
+
+    mod = (amDepth / 100) * np.sin(2 * np.pi * modRate * t) + 1
+
+    iq = mod * np.exp(1j * t)
+    i = np.real(iq)
+    q = np.imag(iq)
+
+    return i, q
 
 
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
@@ -751,19 +764,25 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     return np.real(iq), np.imag(iq)
 
 
-def multitone(start, stop, num, fs, phase='random'):
-    """Generates a multitone signal with given start/stop frequencies,
-    number of tones, sample rate, and phase relationship."""
+def multitone(spacing, num, fs, phase='random'):
+    """Generates a multitone signal with given tone spacing, number of
+    tones, sample rate, and phase relationship."""
 
-    if start >= stop or stop <= start:
-        raise ValueError('Start frequency must be < stop frequency.')
-    spacing = (stop - start) / num
-    print(f'Spacing: {spacing} Hz.')
-    time = 1 / spacing
-    print(f'wfmLength: {time} sec.')
+    # Determine start frequency based on parity of the number of tones
+    if num % 2 != 0:
+        # Freq offset is integer mult of spacing, so time can be 1/spacing
+        f = - (num - 1) * spacing / 2
+        time = 1 / spacing
+    else:
+        # Freq offset is integer mult of spacing/2, so time must be 2/spacing
+        f = - (num) * spacing / 2 + spacing / 2
+        time = 2 / spacing
+
+    # Create time vector and record length
     t = np.linspace(-time / 2, time / 2, time * fs, endpoint=False)
     rl = len(t)
 
+    # Define phase relationship
     if phase == 'random':
         phase = np.random.random_sample(size=rl) * 360
     elif phase == 'zero':
@@ -773,13 +792,16 @@ def multitone(start, stop, num, fs, phase='random'):
     elif phase == 'parabolic':
         phase = np.cumsum(180 * np.linspace(-1, 1, rl, endpoint=False))
 
+    # Preallocate 2D array for tones
     tones = np.zeros((num, len(t)), dtype=np.complex)
-    f = start
+
+    # Create tones at each frequency and sum all together
     for n in range(num):
         tones[n] = np.exp(2j * np.pi * f * (t + phase[n]))
         f += spacing
     iq = tones.sum(axis=0)
 
+    # Normalize and return values
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
 
