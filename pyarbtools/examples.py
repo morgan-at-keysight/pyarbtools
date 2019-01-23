@@ -395,7 +395,7 @@ def main():
     # m8190a_simple_wfm_example('141.121.210.241')
     # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
     # m8195a_simple_wfm_example('141.121.210.245')
-    m8196a_simple_wfm_example('141.121.210.205')
+    # m8196a_simple_wfm_example('141.121.210.205')
     # vsg_dig_mod_example('141.121.210.122')
     # vsg_chirp_example('141.121.210.122')
     # vsg_am_example('141.121.210.122')

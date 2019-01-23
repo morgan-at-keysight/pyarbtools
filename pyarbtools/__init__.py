@@ -4,7 +4,7 @@
 
 __author__ = """Morgan Allison"""
 __email__ = 'morgan.j.allison@gmail.com'
-__version__ = '0.0.11'
+__version__ = '0.0.12'
 
 from . import communications
 from . import instruments
