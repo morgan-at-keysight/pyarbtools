@@ -1,5 +1,4 @@
 """
-pyarbtools 0.0.10
 wfmBuilder
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Generic waveform creation capabilities for pyarbtools.
@@ -9,12 +8,38 @@ import os
 import numpy as np
 from scipy.signal import max_len_seq
 from pyarbtools import communications
-from pyarbtools import instruments
+from pyarbtools import error
+
+
+def am_generator(amDepth=50, modRate=100e3, fs=50e6):
+    """Generates a sinusoidal AM signal."""
+
+    if 0 < amDepth > 100:
+        raise error.WfmBuilderError('AM Depth out of range, must be 0 - 100.')
+    if modRate > fs:
+        raise error.WfmBuilderError('Modulation rate violates Nyquist.')
+
+    time = 1 / modRate
+    t = np.linspace(-time / 2, time / 2, time * fs, endpoint=False)
+
+    mod = (amDepth / 100) * np.sin(2 * np.pi * modRate * t) + 1
+
+    iq = mod * np.exp(1j * t)
+    sFactor = abs(np.amax(iq))
+    iq = iq / sFactor * 0.707
+
+    i = np.real(iq)
+    q = np.imag(iq)
+
+    return i, q
 
 
 def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
     is determined by the sign of chirpBw (pos=up chirp, neg=down chirp)."""
+
+    if chirpBw > fs:
+        raise error.WfmBuilderError('Chirp Bandwidth violates Nyquist.')
 
     """Define baseband iq waveform. Create a time vector that goes from
     -1/2 to 1/2 instead of 0 to 1. This ensures that the chirp will be
@@ -677,6 +702,9 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     """Generates a baseband modulated signal with a given modulation
     type and root raised cosine filter using PRBS data."""
 
+    if symRate > fs:
+        raise error.WfmBuilderError('Symbol Rate violates Nyquist.')
+
     saPerSym = int(fs / symRate)
     filterSymbolLength = 10
 
@@ -751,19 +779,28 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     return np.real(iq), np.imag(iq)
 
 
-def multitone(start, stop, num, fs, phase='random'):
-    """Generates a multitone signal with given start/stop frequencies,
-    number of tones, sample rate, and phase relationship."""
+def multitone(spacing, num, fs, phase='random'):
+    """Generates a multitone signal with given tone spacing, number of
+    tones, sample rate, and phase relationship."""
 
-    if start >= stop or stop <= start:
-        raise ValueError('Start frequency must be < stop frequency.')
-    spacing = (stop - start) / num
-    print(f'Spacing: {spacing} Hz.')
-    time = 1 / spacing
-    print(f'wfmLength: {time} sec.')
+    if spacing * num > fs:
+        raise error.WfmBuilderError('Multitone spacing and number of tones violates Nyquist.')
+
+    # Determine start frequency based on parity of the number of tones
+    if num % 2 != 0:
+        # Freq offset is integer mult of spacing, so time can be 1/spacing
+        f = - (num - 1) * spacing / 2
+        time = 1 / spacing
+    else:
+        # Freq offset is integer mult of spacing/2, so time must be 2/spacing
+        f = - (num) * spacing / 2 + spacing / 2
+        time = 2 / spacing
+
+    # Create time vector and record length
     t = np.linspace(-time / 2, time / 2, time * fs, endpoint=False)
     rl = len(t)
 
+    # Define phase relationship
     if phase == 'random':
         phase = np.random.random_sample(size=rl) * 360
     elif phase == 'zero':
@@ -773,13 +810,16 @@ def multitone(start, stop, num, fs, phase='random'):
     elif phase == 'parabolic':
         phase = np.cumsum(180 * np.linspace(-1, 1, rl, endpoint=False))
 
+    # Preallocate 2D array for tones
     tones = np.zeros((num, len(t)), dtype=np.complex)
-    f = start
+
+    # Create tones at each frequency and sum all together
     for n in range(num):
         tones[n] = np.exp(2j * np.pi * f * (t + phase[n]))
         f += spacing
     iq = tones.sum(axis=0)
 
+    # Normalize and return values
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
 

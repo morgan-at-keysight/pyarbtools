@@ -1,12 +1,12 @@
 """
-pyarbtools 0.0.10
 instruments
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Builds instrument specific classes for each signal generator.
 The classes include minimum waveform length/granularity checks, binary
 waveform formatting, sequencer length/granularity checks, sample rate
 checks, etc. per instrument.
-Tested on M8190A, M8195A, N5194A, N5182B, E8257D
+Tested on M8190A, M8195A, M8196A,
+N5194A, N5182B, E8257D, N5193A + N5149A
 """
 
 import numpy as np
@@ -15,17 +15,15 @@ from pyarbtools import communications
 from pyarbtools import error
 
 
-def wraparound_calc(length, gran):
+def wraparound_calc(length, gran, minLen):
     """Computes the number of times to repeat a waveform based on
     generator granularity requirements."""
 
     repeats = 1
     temp = length
-    while temp % gran != 0:
+    while temp % gran != 0 or temp < minLen:
         temp += length
         repeats += 1
-        # print(repeats)
-    # print(f'Final Length: {temp}\nRepeats: {repeats}')
     return repeats
 
 
@@ -203,7 +201,7 @@ class M8190A(communications.SocketInstrument):
 
         self.check_resolution()
 
-        repeats = wraparound_calc(len(wfm), self.gran)
+        repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
@@ -298,7 +296,7 @@ class M8195A(communications.SocketInstrument):
         See pages 273-274 in Keysight M8195A User's Guide (Edition 13.0,
         October 2017) for more info."""
 
-        repeats = wraparound_calc(len(wfm), self.gran)
+        repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
@@ -535,7 +533,7 @@ class VSG(communications.SocketInstrument):
         See pages 205-256 in Keysight X-Series Signal Generators Programming
         Guide (November 2014 Edition) for more info."""
 
-        repeats = wraparound_calc(len(wfm), self.gran)
+        repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
@@ -844,7 +842,7 @@ class UXG(communications.SocketInstrument):
         See pages 205-256 in Keysight X-Series Signal Generators Programming
         Guide (November 2014 Edition) for more info."""
 
-        repeats = wraparound_calc(len(wfm), self.gran)
+        repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
 

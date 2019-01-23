@@ -21,3 +21,8 @@ History
 -------------------
 
 * Added multitone generator. Added 128-QAM and 256-QAM. Streamlined UXG instrument class, split play()/stop into stream_play() and arb_play()/stream_stop() and arb_stop(). Updated index to include a better intro to the project.
+
+0.0.11 (2019-01-23)
+-------------------
+
+* Fixed bugs with multitone generator. Added AM modulator.

@@ -1,9 +1,11 @@
 """
-pyarbtools 0.0.10
 error
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Custom error classes for pyarbtools.
 """
+
+class WfmBuilderError(Exception):
+    """Waveform Builder Exception class"""
 
 
 class GranularityError(Exception):
