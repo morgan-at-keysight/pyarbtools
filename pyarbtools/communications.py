@@ -1,5 +1,4 @@
 """
-pyarbtools 0.0.10
 communications
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 This program provides a socket interface to Keysight test equipment.
