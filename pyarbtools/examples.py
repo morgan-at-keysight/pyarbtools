@@ -53,7 +53,7 @@ def vsg_dig_mod_example(ipAddress):
 
 def vsg_am_example(ipAddress):
     """Generates an AM tone with the IQ modulator in a generic VSG."""
-    amRate = 10e3
+    amRate = 100e3
     amDepth = 75
     fs = 100e6
 

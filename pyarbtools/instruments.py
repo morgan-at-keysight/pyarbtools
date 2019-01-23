@@ -24,8 +24,6 @@ def wraparound_calc(length, gran, minLen):
     while temp % gran != 0 or temp < minLen:
         temp += length
         repeats += 1
-        # print(repeats)
-    print(f'Final Length: {temp}\nRepeats: {repeats}')
     return repeats
 
 

@@ -16,7 +16,7 @@ def am_generator(amDepth=50, modRate=100e3, fs=50e6):
 
     if 0 < amDepth > 100:
         raise error.WfmBuilderError('AM Depth out of range, must be 0 - 100.')
-    if modRate > fs / 2:
+    if modRate > fs:
         raise error.WfmBuilderError('Modulation rate violates Nyquist.')
 
     time = 1 / modRate
@@ -25,6 +25,9 @@ def am_generator(amDepth=50, modRate=100e3, fs=50e6):
     mod = (amDepth / 100) * np.sin(2 * np.pi * modRate * t) + 1
 
     iq = mod * np.exp(1j * t)
+    sFactor = abs(np.amax(iq))
+    iq = iq / sFactor * 0.707
+
     i = np.real(iq)
     q = np.imag(iq)
 
@@ -35,7 +38,7 @@ def chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
     """Generates a symmetrical linear chirp at baseband. Chirp direction
     is determined by the sign of chirpBw (pos=up chirp, neg=down chirp)."""
 
-    if chirpBw > fs / 2:
+    if chirpBw > fs:
         raise error.WfmBuilderError('Chirp Bandwidth violates Nyquist.')
 
     """Define baseband iq waveform. Create a time vector that goes from
@@ -699,7 +702,7 @@ def digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, al
     """Generates a baseband modulated signal with a given modulation
     type and root raised cosine filter using PRBS data."""
 
-    if symRate < fs / 2:
+    if symRate > fs:
         raise error.WfmBuilderError('Symbol Rate violates Nyquist.')
 
     saPerSym = int(fs / symRate)
@@ -780,7 +783,7 @@ def multitone(spacing, num, fs, phase='random'):
     """Generates a multitone signal with given tone spacing, number of
     tones, sample rate, and phase relationship."""
 
-    if spacing * num > fs / 2:
+    if spacing * num > fs:
         raise error.WfmBuilderError('Multitone spacing and number of tones violates Nyquist.')
 
     # Determine start frequency based on parity of the number of tones
