@@ -738,7 +738,7 @@ them as generic signals for DSP work::
 
 
 **am_generator**
--------------------
+----------------
 ::
 
     am_generator(amDepth=50, modRate=100e3, fs=50e6):
