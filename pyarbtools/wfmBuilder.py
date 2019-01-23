@@ -1,5 +1,4 @@
 """
-pyarbtools 0.0.10
 wfmBuilder
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Generic waveform creation capabilities for pyarbtools.

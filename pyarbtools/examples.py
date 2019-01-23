@@ -1,5 +1,4 @@
 """
-pyarbtools 0.0.10
 examples
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Provides example scripts for generic VSGs, UXG, and AWGs using

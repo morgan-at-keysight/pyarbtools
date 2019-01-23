@@ -1,5 +1,4 @@
 """
-pyarbtools 0.0.10
 instruments
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Builds instrument specific classes for each signal generator.
