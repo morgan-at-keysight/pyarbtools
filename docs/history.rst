@@ -26,3 +26,8 @@ History
 -------------------
 
 * Fixed bugs with multitone generator. Added AM modulator.
+
+0.0.12 (2019-02-20)
+-------------------
+
+* Removed UXG class and replaced it with two classes, AnalogUXG and VectorUXG. Expanded VSG class to include M9381A and M9383A without changing public API.
