@@ -371,8 +371,8 @@ accordingly. It should be called any time these settings are changed
 
 **Arguments**
 
-* ``rfState``: Turns the RF output state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
-* ``modState``: Turns the modulation state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
+* ``rfState``: Turns the RF output state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
+* ``modState``: Turns the modulation state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
 * ``cf``: Output carrier frequency in Hz. Argument is a floating point value whose range is instrument dependent. Default is ``1e9``.
     * EXG/MXG ``9e3`` to ``6e9``
     * PSG ``100e3`` to ``44e9``
