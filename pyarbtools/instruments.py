@@ -6,11 +6,11 @@ The classes include minimum waveform length/granularity checks, binary
 waveform formatting, sequencer length/granularity checks, sample rate
 checks, etc. per instrument.
 Tested on M8190A, M8195A, M8196A,
-N5194A, N5182B, E8257D, N5193A + N5149A
+N5182B, E8257D, M9383A, N5193A, N5149A
 """
 
 import numpy as np
-from scipy.io import loadmat
+import math
 from pyarbtools import communications
 from pyarbtools import error
 
@@ -333,32 +333,43 @@ class VSG(communications.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
         self.cf = float(self.query('frequency?').strip())
         self.amp = float(self.query('power?').strip())
-        self.iqScale = float(self.query('radio:arb:rscaling?').strip())
+        self.alcState = self.query('power:alc?')
         self.refSrc = self.query('roscillator:source?').strip()
         self.arbState = self.query('radio:arb:state?').strip()
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
+
         if 'int' in self.refSrc.lower():
             self.refFreq = 10e6
         elif 'ext' in self.refSrc.lower():
             self.refFreq = float(self.query('roscillator:frequency:external?').strip())
         elif 'bbg' in self.refSrc.lower():
-            self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
+            if 'M938' not in self.instId:
+                self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
+            else:
+                raise error.VSGError('Invalid reference source chosen, select \'int\' or \'ext\'.')
         else:
             raise error.VSGError('Unknown refSrc selected.')
-        self.gran = 2
+
         self.minLen = 60
         self.binMult = 32767
+        if 'M938' not in self.instId:
+            self.iqScale = float(self.query('radio:arb:rscaling?').strip())
+            self.gran = 2
+        else:
+            self.gran = 4
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', fs=200e6):
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
         """Sets basic configuration for VSG and populates class attributes accordingly."""
         self.write(f'output {rfState}')
-        self.rfState = self.query('output?').strip()
+        self.rfState = int(self.query('output?').strip())
         self.write(f'output:modulation {modState}')
-        self.modState = self.query('output:modulation?').strip()
+        self.modState = int(self.query('output:modulation?').strip())
         self.write(f'frequency {cf}')
         self.cf = float(self.query('frequency?').strip())
         self.write(f'power {amp}')
         self.amp = float(self.query('power?').strip())
+        self.write(f'power:alc {alcState}')
+        self.alcState = int(self.query('power:alc?').strip())
         self.write(f'roscillator:source {refSrc}')
         self.refSrc = self.query('roscillator:source?').strip()
         if 'int' in self.refSrc.lower():
@@ -371,12 +382,16 @@ class VSG(communications.SocketInstrument):
             raise error.VSGError('Unknown refSrc selected.')
         self.write(f'radio:arb:sclock:rate {fs}')
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
-        self.write(f'radio:arb:rscaling {iqScale}')
-        self.iqScale = float(self.query('radio:arb:rscaling?').strip())
+
+        # M9381/3A don't have an IQ scaling command
+        if 'M938' not in self.instId:
+            self.write(f'radio:arb:rscaling {iqScale}')
+            self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
         # Arb state can only be turned on after a waveform has been loaded/selected
         # self.write(f'radio:arb:state {arbState}')
         # self.arbState = self.query('radio:arb:state?').strip()
+
         self.err_check()
 
     def sanity_check(self):
@@ -385,23 +400,48 @@ class VSG(communications.SocketInstrument):
         print('Modulation State:', self.modState)
         print('Center Frequency:', self.cf)
         print('Output Amplitude:', self.amp)
+        print('ALC state:', self.alcState)
         print('Reference Source:', self.refSrc)
         print('Internal Arb State:', self.arbState)
         print('Internal Arb Sample Rate:', self.fs)
-        print('IQ Scaling:', self.iqScale)
+        if 'M938' not in self.instId:
+            print('IQ Scaling:', self.iqScale)
 
     def download_iq_wfm(self, i, q, wfmID='wfm'):
         """Defines and downloads a waveform into the waveform memory.
         Returns useful waveform identifier."""
 
+        # Adjust endianness for M9381/3A
+        if 'M938' in self.instId:
+            bigEndian = False
+        else:
+            bigEndian = True
+
         self.write('radio:arb:state off')
+        self.write('modulation:state off')
         self.arbState = self.query('radio:arb:state?').strip()
-        i = self.check_wfm(i)
-        q = self.check_wfm(q)
+
+        i = self.check_wfm(i, bigEndian=bigEndian)
+        q = self.check_wfm(q, bigEndian=bigEndian)
         iq = self.iq_wfm_combiner(i, q)
 
-        self.binblockwrite(f'mmemory:data "wfm1:{wfmID}", ', iq)
-        # self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
+        # M9381/3A Download Procedure
+        if 'M938' in self.instId:
+            try:
+                self.write(f'memory:delete "{wfmID}"')
+                self.query('*opc?')
+                self.write(f'mmemory:delete "C:\\Temp\\{wfmID}"')
+                self.query('*opc?')
+                self.err_check()
+            except error.SockInstError:
+                # print('Waveform doesn\'t exist, skipping delete operation.')
+                pass
+            self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}",', iq)
+            self.write(f'memory:copy "C:\\Temp\\{wfmID}","{wfmID}"')
+        # EXG/MXG/PSG Download Procedure
+        else:
+            self.binblockwrite(f'mmemory:data "WFM1:{wfmID}", ', iq)
+            self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
         return wfmID
 
@@ -427,7 +467,6 @@ class VSG(communications.SocketInstrument):
         if rl < self.minLen:
             raise error.VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
         if rl % self.gran != 0:
-            # vsg.query('*opc?')
             raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
         if bigEndian:
@@ -437,13 +476,18 @@ class VSG(communications.SocketInstrument):
 
     def play(self, wfmID='wfm'):
         """Selects waveform and activates arb mode, RF output, and modulation."""
-        self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
+        if 'M938' in self.instId:
+            self.write(f'radio:arb:waveform "{wfmID}"')
+        else:
+            self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
+
         self.write('radio:arb:state on')
         self.arbState = self.query('radio:arb:state?').strip()
         self.write('output on')
         self.rfState = self.query('output?').strip()
         self.write('output:modulation on')
         self.modState = self.query('output:modulation?').strip()
+        self.err_check()
 
     def stop(self):
         """Dectivates arb mode, RF output, and modulation."""
@@ -455,8 +499,7 @@ class VSG(communications.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
 
 
-# noinspection PyRedundantParentheses
-class UXG(communications.SocketInstrument):
+class VectorUXG(communications.SocketInstrument):
     """Generic class for controlling the N5194A + N5193A (Vector + Analog)
     UXG agile signal generators."""
 
@@ -493,7 +536,7 @@ class UXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70):
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-120, iqScale=70):
         """Sets the basic configuration for the UXG and populates class
         attributes accordingly. It should be called any time these
         settings are changed (ideally once directly after creating the
@@ -584,6 +627,7 @@ class UXG(communications.SocketInstrument):
 
         return pdw
 
+    # noinspection PyRedundantParentheses
     def bin_pdw_file_builder(self, pdwList):
         """Builds a binary PDW file with a padding block to ensure the
         PDW section begins at an offset of 4096 bytes (required by UXG).
@@ -682,25 +726,6 @@ class UXG(communications.SocketInstrument):
         self.query('*opc?')
         self.err_check()
 
-    def download_matlab_wfm(self, fileName, zeroLast=False):
-        """Imports a .mat file built in iqtools and formats it
-        appropriately for transfer to UXG."""
-
-        # Extract the file name from the full path and remove .mat extension
-        name = fileName.split('\\')[-1].replace('.mat', '')
-
-        # Load the iqdata member of the .mat structure
-        iq = loadmat(fileName)['iqdata']
-
-        # Zero the last sample to ensure 'Hold' pdw field behaves well
-        if zeroLast:
-            iq[-1] = 0
-
-        # Split I and Q and download waveform
-        i = np.real(iq).reshape(iq.shape[0])
-        q = np.imag(iq).reshape(iq.shape[0])
-        self.download_iq_wfm(i, q, name)
-
     def download_iq_wfm(self, i, q, wfmID='wfm'):
         """Defines and downloads a waveform into the waveform memory.
         Returns useful waveform identifier."""
@@ -787,6 +812,326 @@ class UXG(communications.SocketInstrument):
         self.streamState = self.query('stream:state?').strip()
         self.write('stream:trigger:play:immediate')
         self.err_check()
+
+    def stream_stop(self):
+        """Deactivates RF output, modulation, and streaming mode."""
+        self.write('output off')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation off')
+        self.modState = self.query('output:modulation?').strip()
+        self.write('stream:state off')
+        self.streamState = self.query('stream:state?').strip()
+        self.err_check()
+
+
+class AnalogUXG(communications.SocketInstrument):
+    """Generic class for controlling the N5193A Analog UXG agile signal generators."""
+
+    def __init__(self, host, port=5025, timeout=5, reset=False, clearMemory=False):
+        super().__init__(host, port, timeout)
+        print(self.instId)
+        if reset:
+            self.write('*rst')
+            self.query('*opc?')
+        # Clear all files
+        if clearMemory:
+            self.clear_memory()
+        self.host = host
+        self.rfState = self.query('output?').strip()
+        self.modState = self.query('output:modulation?').strip()
+        self.streamState = self.query('stream:state?').strip()
+        self.cf = float(self.query('frequency?').strip())
+        self.amp = float(self.query('power?').strip())
+        self.refSrc = self.query('roscillator:source?').strip()
+        self.refFreq = 10e6
+        self.mode = self.query('instrument?').strip()
+        self.binMult = 32767
+
+        # Set up separate socket for LAN PDW streaming
+        self.lanStream = communications.socket.socket(
+            communications.socket.AF_INET, communications.socket.SOCK_STREAM)
+        self.lanStream.setblocking(False)
+        self.lanStream.settimeout(timeout)
+        # Can't connect until LAN streaming is turned on
+        # self.lanStream.connect((host, 5033))
+
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, mode='streaming'):
+        """Sets the basic configuration for the UXG and populates class
+        attributes accordingly. It should be called any time these
+        settings are changed (ideally once directly after creating the
+        UXG object)."""
+
+        self.write(f'output {rfState}')
+        self.rfState = self.query('output?').strip()
+        self.write(f'output:modulation {modState}')
+        self.modState = self.query('output:modulation?').strip()
+        self.write(f'frequency {cf}')
+        self.cf = float(self.query('frequency?').strip())
+        self.write(f'power {amp}')
+        self.amp = float(self.query('power?').strip())
+
+        self.write(f'instrument {mode}')
+        self.mode = self.query('instrument?').strip()
+
+        # Stream state should be turned off until streaming is needed.
+        self.write('stream:state off')
+        self.streamState = self.query('stream:state?').strip()
+
+        self.err_check()
+
+    def sanity_check(self):
+        """Prints out initialized values."""
+        print('RF State:', self.rfState)
+        print('Modulation State:', self.modState)
+        print('Center Frequency:', self.cf)
+        print('Output Amplitude:', self.amp)
+        print('Reference source:', self.refSrc)
+        print('Instrument mode:', self.mode)
+        self.err_check()
+
+    def open_lan_stream(self):
+        """Open connection to port 5033 for LAN streaming to the UXG."""
+        self.lanStream.connect((self.host, 5033))
+
+    def close_lan_stream(self):
+        """Close LAN streaming port."""
+        self.lanStream.shutdown(communications.socket.SHUT_RDWR)
+        self.lanStream.close()
+
+    @staticmethod
+    def convert_to_floating_point(inputVal, exponentOffset, mantissaBits, exponentBits):
+        """
+        Description:    Computes modified floating point value represented
+                        by specified floating point parameters
+                        fp = gain * mantissa^mantissaExponent * 2^exponentOffset
+        :param inputVal:
+        :param exponentOffset:
+        :param mantissaBits:
+        :param exponentBits:
+        :return floating point value corresponding to passed parameters:
+        """
+
+        # Error check largest number that can be represented in specified number of bits
+        maxExponent = int((1 << exponentBits) - 1)
+        maxMantissa = np.uint32(((1 << mantissaBits) - 1))
+
+        exponent = int(math.floor(((math.log(inputVal) / math.log(2)) - exponentOffset)))
+        # mantissa = 0
+
+        if exponent > maxExponent:
+            # Too big to represent
+            exponent = maxExponent
+            mantissa = maxMantissa
+        elif exponent >= 0:
+            mantissaScale = int((1 << mantissaBits))
+            effectiveExponent = int(exponentOffset + exponent)
+            # ldexp(X, Y) is the same as matlab pow2(X, Y) = > X * 2 ^ Y
+            mantissa = np.uint32((((math.ldexp(inputVal, - effectiveExponent) - 1) * mantissaScale) + 0.5))
+            if mantissa > maxMantissa:
+                # Handle case where rounding causes the mantissa to overflow
+                if exponent < maxExponent:
+                    # Still representable
+                    mantissa = 0
+                    exponent += 1
+                else:
+                    # Handle slightly-too-big to represent case
+                    mantissa = maxMantissa
+        else:
+            # Too small to represent
+            mantissa = 0
+            exponent = 0
+        return ((np.uint32(exponent)) << mantissaBits) | mantissa
+
+    @staticmethod
+    def closest_m_2_n(inputVal, mantissaBits, exponent_bits):
+        """
+        Converts the specified value to the hardware representation in Mantissa*2^Exponent form
+        Description:    Convert the specified value to the hardware
+                        representation in Mantissa*2^Exponent form
+        :param inputVal:
+        :param mantissaBits:
+        :param exponent_bits:
+        :return:
+        """
+
+        success = True
+        # exponent = 0
+        # mantissa = 0
+        maxMantissa = np.uint32((1 << mantissaBits) - 1)
+        # inputVal <= mantissa max inputVal have exponent=0
+        if inputVal < (maxMantissa + 0.5):
+            exponent = 0
+            mantissa = np.uint32((inputVal + 0.5))
+            if mantissa > maxMantissa:
+                mantissa = maxMantissa
+        else:  # exponent > 0 (for value_ins that will have exponent>0 after rounding)
+            # find exponent
+            mantissaOut, possibleExponent = math.frexp(inputVal)
+            possibleExponent -= mantissaBits
+            # determine mantissa
+            fracMantissa = float(inputVal / (1 << possibleExponent))
+            # round to next N if that is closer
+            if fracMantissa > (maxMantissa + 0.5 - 1e-9):
+                mantissa = 1 << (mantissaBits - 1)
+                possibleExponent += 1
+            else:  # round mantissa to nearest
+                mantissa = np.uint32((fracMantissa + 0.5))
+                # do not exceed maximum mantissa
+                if mantissa > maxMantissa:
+                    mantissa = maxMantissa
+            exponent = np.uint32(possibleExponent)
+
+        return success, exponent, mantissa
+
+    def chirp_closest_m_2_n(self, chirpRate, chirpRateRes=21.822):
+        """
+        Convert the specified value to the hardware representation in Mantissa*2^Exponent form for Chirp parameters
+                Description:    Convert the specified value to the hardware
+                                representation in Mantissa*2^Exponent form for Chirp
+                                parameters
+                :param chirpRate:
+                :param chirpRateRes:
+                :return:
+        NOTE: I am not sure why the conversion factor of 21.82 needs to be there, but the math works out perfectly
+        """
+
+        output = np.uint32(0)
+        mantissaBits = 13
+        exponentBits = 4
+
+        mantissaMask = np.uint32((1 << mantissaBits) - 1)
+        # convert to clocks
+        chirpValue = float(chirpRate) / float(chirpRateRes)
+        success, exponent, mantissa = self.closest_m_2_n(chirpValue, mantissaBits, exponentBits)
+        # compensate for exponent being multiplied by 2
+        if exponent & 0x01:
+            exponent += 1
+            exponent >>= 1
+            mantissa = np.uint32(mantissa / 2)
+        else:
+            exponent >>= 1
+        if success:
+            # print(exponent)
+            # print(mantissaBits)
+            # print(mantissa)
+            # print(mantissaMask)
+            output = np.uint32((exponent << mantissaBits) | (mantissa & mantissaMask))
+
+        return output
+
+
+    def bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, width=0, power=0, markers=0,
+                        pulseMode=0, phaseControl=0, bandAdjust=0, chirpControl=0, code=0,
+                        chirpRate=0, freqMap=0):
+        """This function builds a single format-1 PDW from a list of parameters.
+
+        See User's Guide>Streaming Use>PDW Definitions section of
+        Keysight UXG X-Series Agile Vector Adapter Online Documentation
+        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm"""
+
+        pdwFormat = 1
+        _freq = int(freq * 1024 + 0.5)
+        if 180 < phase <= 360:
+            phase -= 360
+        _phase = int(phase * 4096 / 360 + 0.5)
+        _startTimePs = int(startTimeSec * 1e12)
+        _widthNs = int(width * 1e9)
+        _power = self.convert_to_floating_point(math.pow(10, power / 20), -26, 10, 5)
+        _chirpRate = self.chirp_closest_m_2_n(chirpRate)
+
+        # Build PDW
+        pdw = np.zeros(7, dtype=np.uint32)
+        # Word 0: Mask pdw format (3 bits), operation (2 bits), and the lower 27 bits of freq
+        pdw[0] = (pdwFormat | operation << 3 | _freq << 5) & 0xFFFFFFFF
+        # Word 1: Mask the upper 20 bits (47 - 27) of freq and phase (12 bits)
+        pdw[1] = (_freq >> 27 | _phase << 20) & 0xFFFFFFFF
+        # Word 2: Lower 32 bits of startTimePs
+        pdw[2] = _startTimePs & 0xFFFFFFFF
+        # Word 3: Upper 32 bits of startTimePS
+        pdw[3] = (_startTimePs & 0xFFFFFFFF00000000) >> 32
+        # Word 4: Pulse Width (32 bits)
+        pdw[4] = _widthNs
+        # Word 5: Mask power (15 bits), markers (12 bits), pulseMode (2 bits), phaseControl (1 bit), and bandAdjust (2 bits)
+        pdw[5] = _power | markers << 15 | pulseMode << 27 | phaseControl << 29 | bandAdjust << 30
+        # Word 6: Mask wIndex (16 bits), 12 reserved bits, and wfmMkrMask (4 bits)
+        pdw[6] = chirpControl | code << 3 | _chirpRate << 12 | freqMap << 29
+
+        return pdw
+
+    # noinspection PyRedundantParentheses
+    def bin_pdw_file_builder(self, pdwList):
+        """Builds a binary PDW file with a padding block to ensure the
+        PDW section begins at an offset of 4096 bytes (required by UXG).
+
+        pdwList is a list of lists. Each inner list contains a single
+        pulse descriptor word.
+
+        See User's Guide>Streaming Use>PDW File Format section of
+        Keysight UXG X-Series Agile Vector Adapter Online Documentation
+        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm"""
+
+        # Header section, all fixed values
+        fileId = b'STRM'
+        version = (1).to_bytes(4, byteorder='little')
+        # No reason to have > one 4096 byte offset to PDW data.
+        offset = ((1 << 1) & 0x3fffff).to_bytes(4, byteorder='little')
+        magic = b'KEYS'
+        res0 = (0).to_bytes(16, byteorder='little')
+        flags = (0).to_bytes(4, byteorder='little')
+        uniqueId = (0).to_bytes(4, byteorder='little')
+        dataId = (16).to_bytes(4, byteorder='little')
+        res1 = (0).to_bytes(4, byteorder='little')
+        header = [fileId, version, offset, magic, res0, flags, uniqueId, dataId, res1]
+
+        # Padding block, all fixed values
+        padBlockId = (1).to_bytes(4, byteorder='little')
+        res3 = (0).to_bytes(4, byteorder='little')
+        size = (4016).to_bytes(8, byteorder='little')
+        # 4016 bytes of padding ensures that the first PDw begins @ byte 4097
+        padData = (0).to_bytes(4016, byteorder='little')
+        padding = [padBlockId, res3, size, padData]
+
+        # PDW block
+        pdwBlockId = (16).to_bytes(4, byteorder='little')
+        res4 = (0).to_bytes(4, byteorder='little')
+        pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
+        pdwBlock = [pdwBlockId, res4, pdwSize]
+
+        # Build PDW file from header, padBlock, pdwBlock, and PDWs
+        pdwFile = header + padding + pdwBlock
+        pdwFile += [self.bin_pdw_builder(*p) for p in pdwList]
+        pdwFile += [(0).to_bytes(24, byteorder='little')]
+        # Convert arrays of data to a single byte-type variable
+        pdwFile = b''.join(pdwFile)
+
+        self.err_check()
+
+        return pdwFile
+
+    def download_bin_pdw_file(self, pdwFile, pdwName='wfm'):
+        """Downloads binary PDW file to PDW directory in UXG."""
+        self.binblockwrite(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
+        self.err_check()
+
+    def stream_play(self, pdwID='pdw'):
+        """Assigns pdw/windex, activates RF output, modulation, and
+        streaming mode, and triggers streaming output."""
+
+        self.write('stream:source file')
+        self.write(f'stream:source:file:name "{pdwID}"')
+        self.err_check()
+
+        # Turn on output, activate streaming, and send trigger command.
+        self.write('output on')
+        self.rfState = self.query('output?').strip()
+        self.err_check()
+        self.write('output:modulation on')
+        self.modState = self.query('output:modulation?').strip()
+        self.write('source:stream:state on')
+        self.err_check()
+        self.streamState = self.query('stream:state?').strip()
+        self.err_check()
+        self.write('stream:trigger:play:immediate')
 
     def stream_stop(self):
         """Deactivates RF output, modulation, and streaming mode."""

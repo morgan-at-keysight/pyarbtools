@@ -19,8 +19,11 @@ Supported instruments include:
     * E8267D PSG
     * N5182B MXG
     * N5172B EXG
-* :ref:`UXG`
-    * N5193A + N5194A combination
+    * M9381A/M9383A
+* :ref:`VectorUXG`
+    * N5194A
+* :ref:`AnalogUXG`
+    * N5193A
 
 .. _instruments:
 
@@ -360,17 +363,17 @@ Deactivates arb mode, RF output, and modulation.
 
 * None
 
-.. _UXG:
+.. _VectorUXG:
 
-=======
-**UXG**
-=======
+=============
+**VectorUXG**
+=============
 
 **configure**
 -------------
 ::
 
-    UXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70)
+    VectorUXG.configure(rfState=0, modState=0, cf=1e9, amp=-120, iqScale=70)
 
 Sets the basic configuration for the UXG and populates class attributes
 accordingly. It should be called any time these settings are changed
@@ -378,8 +381,8 @@ accordingly. It should be called any time these settings are changed
 
 **Arguments**
 
-* ``rfState``: Turns the RF output state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
-* ``modState``: Turns the modulation state on or off. Arguments are ``0``/``'off'`` (default) or ``1``/``'on'``.
+* ``rfState``: Turns the RF output state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
+* ``modState``: Turns the modulation state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
 * ``cf``: Output carrier frequency in Hz. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
 * ``amp``: Output power in dBm. Argument is a floating point value from ``-120`` to ``+3``. Default is ``-120``.
 * ``iqScale``: IQ scale factor in %. Argument is an integer from ``1`` to ``100``. Default is ``70``.
@@ -392,10 +395,10 @@ accordingly. It should be called any time these settings are changed
 ----------------
 ::
 
-    UXG.clear_memory()
+    VectorUXG.clear_memory()
 
 Clears all waveform, pdw, and windex files. This function MUST be called
-prior to downloading waveforms and making changes to an existing pdw file.
+prior to downloading waveforms or making changes to an existing pdw file.
 
 **Arguments**
 
@@ -410,7 +413,7 @@ prior to downloading waveforms and making changes to an existing pdw file.
 -------------------
 ::
 
-    UXG.download_iq_wfm(i, q, wfmID='wfm')
+   VectorUXG.download_iq_wfm(i, q, wfmID='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -430,7 +433,7 @@ requirements.
 ------------
 ::
 
-    UXG.arb_play(wfmID='wfm')
+    VectorUXG.arb_play(wfmID='wfm')
 
 Selects waveform and activates RF output, modulation, and arb mode.
 
@@ -446,7 +449,7 @@ Selects waveform and activates RF output, modulation, and arb mode.
 ------------
 ::
 
-    UXG.arb_stop()
+    VectorUXG.arb_stop()
 
 Dectivates RF output, modulation, and arb mode.
 
@@ -462,7 +465,7 @@ Dectivates RF output, modulation, and arb mode.
 ---------------
 ::
 
-    UXG.stream_play(pdwID='wfm', wIndexID=None)
+    VectorUXG.stream_play(pdwID='wfm', wIndexID=None)
 
 Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
 
@@ -479,7 +482,7 @@ Assigns pdw/windex, activates RF output, modulation, and streaming mode, and tri
 ---------------
 ::
 
-    UXG.stream_stop()
+    VectorUXG.stream_stop()
 
 Dectivates RF output, modulation, and streaming mode.
 
@@ -495,7 +498,7 @@ Dectivates RF output, modulation, and streaming mode.
 -------------------
 ::
 
-    UXG.open_lan_stream()
+    VectorUXG.open_lan_stream()
 
 Open connection to port 5033 for LAN streaming to the UXG. Use this
 directly prior to starting streaming control.
@@ -513,7 +516,7 @@ directly prior to starting streaming control.
 --------------------
 ::
 
-    UXG.close_lan_stream()
+    VectorUXG.close_lan_stream()
 
 Close connection to port 5033 for LAN streaming on the UXG. Use this
 after streaming is complete.
@@ -531,7 +534,7 @@ after streaming is complete.
 ------------------------
 ::
 
-    UXG.bin_pdw_file_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0, phaseControl=0, rfOff=0, wIndex=0, wfmMkrMask=0)
+    VectorUXG.bin_pdw_file_builder(pdwList)
 
 Builds a binary PDW file with a padding block to ensure the PDW section
 begins at an offset of 4096 bytes (required by UXG).
@@ -543,7 +546,7 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series 
 * ``pdwList``: A list of PDWs. Argument is a tuple of lists where each list contains a single pulse descriptor word.
     * PDW Fields:
         * ``operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-        * ``freq``: CW frequency/chirp start frequency in Hz. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
+        * ``freq``: CW frequency/chirp start frequency in Hz. Argument is a floating point value from ``50e6`` to ``20e9``.
         * ``phase``: Phase of carrier in degrees. Argument is an integer between ``0`` and ``360``.
         * ``startTimeSec``: Pulse start time in seconds. Argument is a float between ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
         * ``power``: Power in dBm. Argument is a float between ``-140`` and ``+23.835``.
@@ -562,16 +565,16 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series 
 
 **Returns**
 
-* ``pdwFile``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``UXG``.\ *lanStream*\ .\ **send**
+* ``pdwFile``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``VectorUXG.lanStream.send()``
 
 
 **csv_windex_file_download**
 ----------------------------
 ::
 
-    UXG.csv_windex_file_download(windex)
+    VectorUXG.csv_windex_file_download(windex)
 
-Write header fields separated by commas and terminated with \n
+Write header fields separated by commas and terminated with ``\n``
 
 **Arguments**
 
@@ -586,7 +589,7 @@ Write header fields separated by commas and terminated with \n
 -------------------------
 ::
 
-    UXG.csv_pdw_file_download(fileName, fields=('Operation', 'Time'), data=([1, 0], [2, 100e-6]))
+    VectorUXG.csv_pdw_file_download(fileName, fields=('Operation', 'Time'), data=([1, 0], [2, 100e-6]))
 
 Builds a CSV PDW file, sends it into the UXG, and converts it to a
 binary PDW file. There are *a lot* of fields to choose from, but *you
@@ -634,12 +637,168 @@ Documentation.
     fields = ('Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name')
     data = ([1, 0    , 1e9, 'Hold', '0x1', 'waveform1'],
             [2, 10e-6, 1e9, 'Hold', '0x0', 'waveform2'])
-    UXG.csv_pdw_file_download(fileName, fields, data)
+    VectorUXG.csv_pdw_file_download(fileName, fields, data)
 
 
 **Returns**
 
 * None
+
+
+.. _AnalogUXG:
+
+=============
+**AnalogUXG**
+=============
+
+**configure**
+-------------
+::
+
+    AnalogUXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, mode='streaming')
+
+
+Sets the basic configuration for the UXG and populates class attributes
+accordingly. It should be called any time these settings are changed
+(ideally *once* directly after creating the UXG object).
+
+**Arguments**
+
+* ``rfState``: Turns the RF output state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
+* ``modState``: Turns the modulation state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
+* ``cf``: Output carrier frequency in Hz. Argument is a floating point value from ``10e6`` to ``40e9``. Default is ``1e9``.
+* ``amp``: Output power in dBm. Argument is a floating point value from ``-130`` to ``+10``. Default is ``-130``.
+* ``mode``: Instrument mode. Argument is a string, either ``'streaming'`` (default), ``'normal'``, ``'list'``, ``'fcwswitching'``, ``'vlo'``
+
+**Returns**
+
+* None
+
+**stream_play**
+---------------
+::
+
+    AnalogUXG.stream_play(pdwID='wfm')
+
+Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
+
+**Arguments**
+
+* ``pdwID``: Name of the PDW file to be loaded. Argument is a string. Default is ``'wfm'``.
+
+**Returns**
+
+* None
+
+**stream_stop**
+---------------
+::
+
+    AnalogUXG.stream_stop()
+
+Dectivates RF output, modulation, and streaming mode.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**open_lan_stream**
+-------------------
+::
+
+    AnalogUXG.open_lan_stream()
+
+Open connection to port 5033 for LAN streaming to the UXG. Use this
+directly prior to starting streaming control.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+
+**close_lan_stream**
+--------------------
+::
+
+    AnalogUXG.close_lan_stream()
+
+Close connection to port 5033 for LAN streaming on the UXG. Use this
+after streaming is complete.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**download_bin_pdw_file**
+-------------------------
+::
+
+    AnalogUXG.download_bin_pdw_file(pdwFile, pdwName='wfm')
+
+
+Downloads binary PDW file to PDW directory in UXG.
+
+**Arguments**
+
+* ``pdwFile``: A binary PDW file, ideally generated and returned by ``AnalogUXG.bin_pdw_file_builder()``.
+* ``pdwName``: The name of the PDW file. Argument is a string.
+
+**Returns**
+
+* None
+
+**bin_pdw_file_builder**
+------------------------
+::
+
+    AnalogUXG.bin_pdw_file_builder(pdwList)
+
+Builds a binary PDW file with a padding block to ensure the PDW section
+begins at an offset of 4096 bytes (required by UXG).
+
+See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator Online Documentation.
+
+**Arguments**
+
+* ``pdwList``: A list of PDWs. Argument is a tuple of lists where each list contains a single pulse descriptor word.
+    * PDW Fields:
+        * ``operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+        * ``freq``: CW frequency/chirp start frequency in Hz. Argument is a floating point value from ``10e6`` to ``40e9``.
+        * ``phase``: Phase of carrier in degrees. Argument is an integer between ``0`` and ``360``.
+        * ``startTimeSec``: Pulse start time in seconds. Argument is a float between ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
+        * ``width``: Pulse width in seconds. Argument is a float between ``4 ns`` and ``4.295 sec``.
+        * ``relativePower``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
+        * ``markers``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
+        * ``pulseMode``: Pulse mode. Argument is an int. ``1`` (RF Off) or ``2`` (Enabled) <-- (use this one).
+        * ``phaseControl``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+        * ``bandAdjust``: Controls how the frequency bands are selected. Argument is an int. ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
+        * ``chirpControl``: Controls the shape of the chirp. Argument is an int. ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
+        * ``phaseCode``: Will be implemented in future release. Enter a ``0`` until then.
+        * ``chirpRate``: Chirp rate in Hz/us. Argument is an int.
+
+::
+
+    pdwName = 'pdw'
+    pdwList = [[1, 980e6, 0, 0, 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
+               [2, 1e9, 0, 20e-6, 1e-6, 1, 0, 2, 0, 0, 0, 0, 0, 0]]
+    pdwFile = uxg.bin_pdw_file_builder(pdwList)
+    uxg.download_bin_pdw_file(pdwFile, pdwName=pdwName)
+
+**Returns**
+
+* ``pdwFile``: A binary file that can be sent directly to the UXG memory using ``AnalogUXG.bin_pdw_file_builder()`` method or sent to the LAN streaming port using ``AnalogUXG.lanStream.send()``
 
 
 .. _wfmBuilder:
