@@ -40,7 +40,6 @@ class M8190A(communications.SocketInstrument):
 
     def __init__(self, host, port=5025, timeout=3, reset=False):
         super().__init__(host, port, timeout)
-        print(self.instId)
         if reset:
             self.write('*rst')
             self.query('*opc?')
@@ -80,12 +79,13 @@ class M8190A(communications.SocketInstrument):
     def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
                   out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9):
         """Sets basic configuration for M8190A and populates class attributes accordingly."""
-        if fs <= 0:
-            raise error.SockInstError('Sample rate must be non-negative.')
-        if cf1 <= 0 or cf2 <= 0:
-            raise error.SockInstError('Carrier frequencies must be non-negative.')
-        if refFreq <= 0:
-            raise error.SockInstError('Reference frequency must be non-negative.')
+
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
+        if not isinstance(refFreq, float) or refFreq <= 0:
+            raise ValueError('Reference frequency must be a positive floating point value.')
+        if not isinstance(cf1, float) or cf1 <= 0 or not isinstance(cf2, float) or cf2 <= 0:
+            raise error.SockInstError('Carrier frequencies must be positive floating point values.')
 
         self.set_resolution(res)
 
@@ -246,7 +246,6 @@ class M8195A(communications.SocketInstrument):
 
     def __init__(self, host, port=5025, timeout=3, reset=False):
         super().__init__(host, port, timeout)
-        print(self.instId)
         if reset:
             self.write('*rst')
             self.query('*opc?')
@@ -262,10 +261,11 @@ class M8195A(communications.SocketInstrument):
 
     def configure(self, dacMode='single', fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
         """Sets basic configuration for M8195A and populates class attributes accordingly."""
-        if fs <= 0:
-            raise error.SockInstError('Sample rate must be non-negative.')
-        if refFreq <= 0:
-            raise error.SockInstError('Reference frequency must be non-negative.')
+
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
+        if not isinstance(refFreq, float) or refFreq <= 0:
+            raise ValueError('Reference frequency must be a positive floating point value.')
 
         self.write(f'inst:dacm {dacMode}')
         self.dacMode = self.query('inst:dacm?').strip().lower()
@@ -344,7 +344,6 @@ class M8196A(communications.SocketInstrument):
 
     def __init__(self, host, port=5025, timeout=3, reset=False):
         super().__init__(host, port, timeout)
-        print(self.instId)
         if reset:
             self.write('*rst')
             self.query('*opc?')
@@ -363,10 +362,10 @@ class M8196A(communications.SocketInstrument):
         """Sets basic configuration for M8196A and populates class attributes accordingly."""
         # Built-in type and range checking for dacMode, fs, and amplitude
 
-        if fs <= 0:
-            raise error.SockInstError('Sample rate must be non-negative.')
-        if refFreq <= 0:
-            raise error.SockInstError('Reference frequency must be non-negative.')
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
+        if not isinstance(refFreq, float) or refFreq <= 0:
+            raise ValueError('Reference frequency must be a positive floating point value.')
 
         self.write(f'inst:dacm {dacMode}')
         self.dacMode = self.query('inst:dacm?').strip().lower()
@@ -463,7 +462,6 @@ class VSG(communications.SocketInstrument):
         signal generators."""
 
         super().__init__(host, port, timeout)
-        print(self.instId)
         if reset:
             self.write('*rst')
             self.query('*opc?')
@@ -498,10 +496,14 @@ class VSG(communications.SocketInstrument):
 
     def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
         """Sets basic configuration for VSG and populates class attributes accordingly."""
-        if fs <= 0:
-            raise error.SockInstError('Sample rate must be non-negative.')
-        if cf <= 0:
-            raise error.SockInstError('Carrier frequency must be non-negative.')
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
+        if not isinstance(cf, float) or cf <= 0:
+            raise ValueError('Carrier frequency must be a positive floating point value.')
+        if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
+            raise ValueError('iqScale argument must be an integer between 1 and 100.')
+        if not isinstance(amp, int):
+            raise ValueError('Amp argument must be an integer.')
 
         self.write(f'output {rfState}')
         self.rfState = int(self.query('output?').strip())
@@ -647,7 +649,6 @@ class AnalogUXG(communications.SocketInstrument):
 
     def __init__(self, host, port=5025, timeout=5, reset=False, clearMemory=False):
         super().__init__(host, port, timeout)
-        print(self.instId)
         if reset:
             self.write('*rst')
             self.query('*opc?')
@@ -679,8 +680,10 @@ class AnalogUXG(communications.SocketInstrument):
         settings are changed (ideally once directly after creating the
         UXG object)."""
 
-        if cf <= 0:
-            raise error.SockInstError('Carrier frequency must be non-negative.')
+        if not isinstance(cf, float) or cf <= 0:
+            raise ValueError('Carrier frequency must be a positive floating point value.')
+        if not isinstance(amp, int):
+            raise ValueError('Amp argument must be an integer.')
 
         self.write(f'output {rfState}')
         self.rfState = self.query('output?').strip()
@@ -694,9 +697,11 @@ class AnalogUXG(communications.SocketInstrument):
         self.write(f'instrument {mode}')
         self.mode = self.query('instrument?').strip()
 
-        # Stream state should be turned off until streaming is needed.
-        self.write('stream:state off')
-        self.streamState = self.query('stream:state?').strip()
+        print(self.mode.lower())
+        if self.mode.lower() == 'str':
+            # Stream state should be turned off until streaming is needed.
+            self.write('stream:state off')
+            self.streamState = self.query('stream:state?').strip()
 
         self.err_check()
 
@@ -971,7 +976,6 @@ class VectorUXG(communications.SocketInstrument):
 
     def __init__(self, host, port=5025, timeout=5, reset=False, clearMemory=False):
         super().__init__(host, port, timeout)
-        print(self.instId)
         if reset:
             self.write('*rst')
             self.query('*opc?')
@@ -1008,8 +1012,12 @@ class VectorUXG(communications.SocketInstrument):
         settings are changed (ideally once directly after creating the
         UXG object)."""
 
-        if cf <= 0:
-            raise error.SockInstError('Carrier frequency must be non-negative.')
+        if not isinstance(cf, float) or cf <= 0:
+            raise ValueError('Carrier frequency must be a positive floating point value.')
+        if not isinstance(amp, int):
+            raise ValueError('Amp argument must be an integer.')
+        if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
+            raise ValueError('iqScale argument must be an integer between 1 and 100.')
 
         self.write(f'output {rfState}')
         self.rfState = self.query('output?').strip()
