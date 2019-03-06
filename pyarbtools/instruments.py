@@ -259,7 +259,7 @@ class M8195A(communications.SocketInstrument):
         self.binMult = 127
         self.binShift = 0
 
-    def configure(self, dacMode='single', fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
+    def configure(self, dacMode='single', memDiv=1, fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
         """Sets basic configuration for M8195A and populates class attributes accordingly."""
 
         if not isinstance(fs, float) or fs <= 0:
@@ -269,6 +269,9 @@ class M8195A(communications.SocketInstrument):
 
         self.write(f'inst:dacm {dacMode}')
         self.dacMode = self.query('inst:dacm?').strip().lower()
+
+        self.write(f'instrument:memory:extended:rdivider div{memDiv}')
+        self.memDiv = self.query('instrument:memory:extended:rdivider?').strip()
 
         self.write(f'frequency:raster {fs}')
         self.fs = float(self.query('frequency:raster?').strip())
@@ -329,13 +332,13 @@ class M8195A(communications.SocketInstrument):
     def play(self, wfmID=1, ch=1):
         """Selects waveform, turns on analog output, and begins continuous playback."""
         self.write(f'trace:select {wfmID}')
-        self.write(f'output{ch}:norm on')
+        self.write(f'output{ch} on')
         self.write('init:cont on')
         self.write('init:imm')
 
     def stop(self, ch=1):
         """Turns off analog output and stops playback."""
-        self.write(f'output{ch}:norm off')
+        self.write(f'output{ch} off')
         self.write('abort')
 
 
@@ -697,7 +700,6 @@ class AnalogUXG(communications.SocketInstrument):
         self.write(f'instrument {mode}')
         self.mode = self.query('instrument?').strip()
 
-        print(self.mode.lower())
         if self.mode.lower() == 'str':
             # Stream state should be turned off until streaming is needed.
             self.write('stream:state off')

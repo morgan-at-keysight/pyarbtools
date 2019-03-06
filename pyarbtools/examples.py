@@ -19,9 +19,9 @@ def vsg_chirp_example(ipAddress):
     vsg.sanity_check()
 
     name = 'chirp'
-    length = 100e-6
+    pWidth = 100e-6
     bw = 40e6
-    i, q = pyarbtools.wfmBuilder.chirp_generator(length=length, fs=vsg.fs, chirpBw=bw)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=vsg.fs, pWidth=pWidth, chirpBw=bw)
 
     i = np.append(i, np.zeros(5000))
     q = np.append(q, np.zeros(5000))
@@ -43,7 +43,7 @@ def vsg_dig_mod_example(ipAddress):
 
     name = '1MHZ_16QAM'
     symRate = 1e6
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam16', vsg.fs, symRate)
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
 
     vsg.write('mmemory:delete:wfm')
     vsg.download_iq_wfm(i, q, name)
@@ -61,7 +61,7 @@ def vsg_am_example(ipAddress):
     vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
     vsg.configure(cf=1e9, amp=0, fs=fs, iqScale=70, refSrc='ext')
 
-    i, q = pyarbtools.wfmBuilder.am_generator(amDepth, modRate=amRate, fs=fs)
+    i, q = pyarbtools.wfmBuilder.am_generator(fs=fs, amDepth=amDepth, modRate=amRate)
 
     vsg.download_iq_wfm(i, q, wfmID='custom_am')
     vsg.play('custom_am')
@@ -79,7 +79,7 @@ def vsg_mtone_example(ipAddress):
     vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
     vsg.configure(cf=1e9, amp=0, fs=fs, refSrc='ext')
 
-    i, q = pyarbtools.wfmBuilder.multitone(toneSpacing, numTones, fs)
+    i, q = pyarbtools.wfmBuilder.multitone(fs=fs, spacing=toneSpacing, num=numTones)
 
     vsg.download_iq_wfm(i, q, wfmID='mtone')
     vsg.play('mtone')
@@ -129,7 +129,7 @@ def m8190a_duc_dig_mod_example(ipAddress):
 
     # Create 16 QAM signal.
     symRate = 20e6
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam16', awg.bbfs, symRate)
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam16', symRate=symRate)
 
     # Define segment 1 and populate it with waveform data.
     awg.download_iq_wfm(i, q)
@@ -155,13 +155,10 @@ def m8190a_duc_chirp_example(ipAddress):
 
     awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
     awg.configure(res=res, fs=fs, out1='ac', cf1=cf)
-    bbfs = fs / awg.intFactor
 
     # Create chirp and append dead time to waveform.
-    i, q = pyarbtools.wfmBuilder.chirp_generator(pw, bbfs, bw)
-    deadTime = np.zeros(int(bbfs * (pri - pw)))
-    i = np.append(i, deadTime)
-    q = np.append(q, deadTime)
+    # i, q = pyarbtools.wfmBuilder.chirp_generator(pw, bbfs, bw)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=awg.bbfs, pWidth=pw, pri=pri, chirpBw=bw)
 
     # Interleave i and q into a single waveform and download to segment 1.
     wfmID = awg.download_iq_wfm(i, q, ch=1, name=name)
@@ -180,7 +177,7 @@ def m8190a_iq_correction_example(instIPAddress, vsaIPAddress, vsaHardware):
     awg = pyarbtools.instruments.M8190A(instIPAddress, reset=True)
     awg.configure('intx3', fs=7.2e9, out1='ac', cf1=1e9)
 
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator('qam32', awg.bbfs, 40e6)
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam32', symRate=40e6)
 
     iCorr, qCorr = pyarbtools.wfmBuilder.iq_correction(
         i, q, awg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20)
@@ -240,7 +237,7 @@ def vector_uxg_arb_example(ipAddress):
     fs = 250e6
     symRate = 10e6
     wfmName = '10M_64QAM'
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(modType, fs, symRate)
+    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=fs, modType=modType, symRate=symRate)
 
     uxg.download_iq_wfm(i, q, wfmID=wfmName)
     uxg.arb_play(wfmID=wfmName)
@@ -264,10 +261,10 @@ def vector_uxg_pdw_example(ipAddress):
     uxg.write('route:trigger2:output pmarker1')
 
     # Create IQ waveform
-    length = 1e-6
+    pWidth = 1e-6
     fs = 250e6
     chirpBw = 100e6
-    i, q = pyarbtools.wfmBuilder.chirp_generator(length=length, fs=fs, chirpBw=chirpBw, zeroLast=True)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=fs, pWidth=pWidth, pri=pWidth, chirpBw=chirpBw, zeroLast=True)
 
     wfmName = 'CHIRP'
     uxg.download_iq_wfm(i, q, wfmName)
@@ -298,7 +295,7 @@ def vector_uxg_lan_streaming_example(ipAddress):
     lengths = [10e-6, 50e-6, 100e-6]
     wfmNames = []
     for l in lengths:
-        i, q = pyarbtools.wfmBuilder.chirp_generator(l, fs=250e6, chirpBw=100e6, zeroLast=True)
+        i, q = pyarbtools.wfmBuilder.chirp_generator(fs=250e6, pWidth=l, pri=l, chirpBw=100e6)
         uxg.download_iq_wfm(i, q, f'{l}_100MHz_CHIRP')
         wfmNames.append(f'{l}_100MHz_CHIRP')
 
@@ -385,7 +382,7 @@ def main():
     replace the IP address with one that is appropriate for your
     instrument(s)."""
 
-    # m8190a_duc_dig_mod_example('141.121.210.241')
+    m8190a_duc_dig_mod_example('141.121.210.248')
     # m8190a_duc_chirp_example('141.121.210.241')
     # m8190a_simple_wfm_example('141.121.210.241')
     # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
@@ -398,7 +395,7 @@ def main():
     # vector_uxg_pdw_example('141.121.210.131')
     # vector_uxg_pdw_example('141.121.210.211')
     # vector_uxg_lan_streaming_example('141.121.210.131')
-    analog_uxg_pdw_example('141.121.210.201')
+    # analog_uxg_pdw_example('141.121.210.201')
 
 
 if __name__ == '__main__':
