@@ -6,7 +6,7 @@ The classes include minimum waveform length/granularity checks, binary
 waveform formatting, sequencer length/granularity checks, sample rate
 checks, etc. per instrument.
 Tested on M8190A, M8195A, M8196A,
-N5182B, E8257D, M9383A, N5193A, N5149A
+N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
 """
@@ -15,6 +15,9 @@ TODO:
     instrument is connected
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
+* Add a check for PDW length (600k limit?)
+* Add a multi-binblockwrite feature for download_wfm in the case of 
+    waveform size > 1 GB
 """
 
 import numpy as np
@@ -162,24 +165,22 @@ class M8190A(communications.SocketInstrument):
         else:
             raise error.AWGError('Invalid resolution selected.')
 
-    def download_wfm(self, wfm, ch=1, **kwargs):
+    def download_wfm(self, wfm, ch=1, name='wfm'):
         """Defines and downloads a waveform into the segment memory.
-        Optionally defines a waveform name. Returns useful waveform
-        identifier."""
+        Assigns a waveform name to the segment. Returns segment number."""
 
         self.write('abort')
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
-        wfmID = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
-        self.write(f'trace{ch}:def {wfmID}, {length}')
-        self.binblockwrite(f'trace{ch}:data {wfmID}, 0, ', wfm)
-        if 'name' in kwargs.keys():
-            self.write(f'trace{ch}:name {wfmID},"{name}"')
+        segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        self.write(f'trace{ch}:def {segment}, {length}')
+        self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
+        self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
-        return wfmID
+        return segment
 
-    def download_iq_wfm(self, i, q, ch=1, **kwargs):
+    def download_iq_wfm(self, i, q, ch=1, name='wfm'):
         """Defines and downloads an IQ waveform into the segment memory.
         Optionally defines a waveform name. Returns useful waveform
         identifier."""
@@ -191,13 +192,12 @@ class M8190A(communications.SocketInstrument):
         iq = self.iq_wfm_combiner(i, q)
         length = len(iq) / 2
 
-        wfmID = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
-        self.write(f'trace{ch}:def {wfmID}, {length}')
-        self.binblockwrite(f'trace{ch}:data {wfmID}, 0, ', iq)
-        if 'name' in kwargs.keys():
-            self.write(f'trace{ch}:name {wfmID},"{name}"')
+        segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        self.write(f'trace{ch}:def {segment}, {length}')
+        self.binblockwrite(f'trace{ch}:data {segment}, 0, ', iq)
+        self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
-        return wfmID
+        return segment
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -295,22 +295,20 @@ class M8195A(communications.SocketInstrument):
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
 
-    def download_wfm(self, wfm, ch=1, **kwargs):
+    def download_wfm(self, wfm, ch=1, name='wfm'):
         """Defines and downloads a waveform into the segment memory.
-        Optionally defines a name for the waveform. Returns useful
-        waveform identifier."""
+        Assigns a waveform name to the segment. Returns segment number."""
 
         self.write('abort')
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
-        wfmID = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
-        self.write(f'trace{ch}:def {wfmID}, {length}')
-        self.binblockwrite(f'trace{ch}:data {wfmID}, 0, ', wfm)
-        if 'name' in kwargs.keys():
-            self.write(f'trace{ch}:name {wfmID},"{name}"')
+        segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        self.write(f'trace{ch}:def {segment}, {length}')
+        self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
+        self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
-        return wfmID
+        return segment
 
     def check_wfm(self, wfm):
         """Checks minimum size and granularity and returns waveform with
@@ -413,20 +411,20 @@ class M8196A(communications.SocketInstrument):
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
 
-    def download_wfm(self, wfm, ch=1, **kwargs):
+    def download_wfm(self, wfm, ch=1, name='wfm'):
         """Defines and downloads a waveform into the segment memory.
-        Optionally defines a name for the waveform. The M8196A can
-        only store one waveform segment per channel, so there's no
-        need to return a useful waveform identifier."""
+        Assigns a waveform name to the segment. Returns segment number."""
 
         self.write('abort')
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
-        self.write(f'trace{ch}:def 1, {length}')
-        self.binblockwrite(f'trace{ch}:data 1, 0, ', wfm)
-        if 'name' in kwargs.keys():
-            self.write(f'trace{ch}:name "{name}"')
+        segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        self.write(f'trace{ch}:def {segment}, {length}')
+        self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
+        self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
+
+        return segment
 
     def check_wfm(self, wfm):
         """Checks minimum size and granularity and returns waveform with

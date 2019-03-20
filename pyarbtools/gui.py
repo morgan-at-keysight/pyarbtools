@@ -4,9 +4,18 @@ Author: Morgan Allison, Keysight RF/uW Application Engineer
 A much-needed GUI for pyarbtools.
 """
 
+"""
+TODO
+* Color code waveform list downloaded/undownloaded
+            OR
+* Tie arb memory to wfm list
+* Disable wfmlist buttons when list is empty
+"""
+
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import messagebox
 import ipaddress
 import pyarbtools
 
@@ -22,7 +31,7 @@ class PyarbtoolsGUI:
 
         # Variables
         # self.ipAddress = '127.0.0.1'
-        self.ipAddress = '141.121.210.122'
+        self.ipAddress = '141.121.210.107'
         self.inst = None
 
         """Master Frame Setup"""
@@ -44,11 +53,11 @@ class PyarbtoolsGUI:
         self.wfmTypeSelectFrame.grid(row=r, column=1, sticky=N)
         self.interactFrame.grid(row=r, column=2, sticky=N, rowspan=2)
         r += 1
-        self.configFrame.grid(row=r, column=0)
+        self.configFrame.grid(row=r, column=0, rowspan=2)
         self.wfmFrame.grid(row=r, column=1)
         r += 1
         placeHolder.grid(row=r, column=1)
-        self.wfmListFrame.grid(row=r, column=1)
+        self.wfmListFrame.grid(row=r, column=1, sticky=N)
         r += 1
         statusBarFrame.grid(row=r, column=0, columnspan=4)
 
@@ -137,43 +146,60 @@ class PyarbtoolsGUI:
         self.open_wfm_builder()
 
         """wfmListFrame"""
+        self.wfmList = []
+
         # wfmListFrame Widgets
         lblWfmList = Label(self.wfmListFrame, text='Waveform List')
-        lblSegment = Label(self.wfmListFrame, text='Segment:')
         lblNameHdr = Label(self.wfmListFrame, text='Name:')
-        self.lblName = Label(self.wfmListFrame, text='Test')
         lblLengthHdr = Label(self.wfmListFrame, text='Length:')
-        self.lblLength = Label(self.wfmListFrame, text='1024')
         lblFormatHdr = Label(self.wfmListFrame, text='Format:')
-        self.lblFormat = Label(self.wfmListFrame, text='IQ')
-        self.wfmList = Listbox(self.wfmListFrame, selectmode='single', width=8)
-
-        self.wfmList.insert(END, '0')
+        self.btnWfmDownload = Button(self.wfmListFrame, text='Download', command=self.download_wfm, width=btnWidth)
+        self.btnWfmDownload.configure(state=DISABLED)
+        self.btnWfmPlay = Button(self.wfmListFrame, text='Play', command=self.play_wfm, width=btnWidth)
+        self.btnWfmPlay.configure(state=DISABLED)
+        self.btnWfmDelete = Button(self.wfmListFrame, text='Delete', command=self.delete_wfm, width=btnWidth)
+        self.btnWfmDelete.configure(state=DISABLED)
+        self.btnWfmClearAll = Button(self.wfmListFrame, text='Clear All', command=self.clear_all_wfm, width=btnWidth)
+        self.btnWfmClearAll.configure(state=DISABLED)
+        lblChannel = Label(self.wfmListFrame, text='Ch')
+        self.cbChannel = ttk.Combobox(self.wfmListFrame, width=4)
+        self.cbChannel.configure(state=DISABLED)
+        self.lblName = Label(self.wfmListFrame)
+        self.lblLength = Label(self.wfmListFrame)
+        self.lblFormat = Label(self.wfmListFrame)
+        self.lbWfmList = Listbox(self.wfmListFrame, selectmode='single', width=25)
+        self.lbWfmList.bind("<<ListboxSelect>>", self.select_wfm)
 
         # wfmListFrame Geometry
+        listLength = 10
         r = 0
         lblWfmList.grid(row=r, columnspan=2)
         r += 1
-        lblSegment.grid(row=r, sticky=W)
+        self.lbWfmList.grid(row=r, sticky=W, rowspan=listLength, columnspan=2)
+        lblNameHdr.grid(row=r, column=2, columnspan=2)
         r += 1
-        self.wfmList.grid(row=r, sticky=W, rowspan=10)
-        lblNameHdr.grid(row=r, column=1)
+        self.lblName.grid(row=r, column=2, columnspan=2)
         r += 1
-        self.lblName.grid(row=r, column=1)
+        lblLengthHdr.grid(row=r, column=2, columnspan=2)
         r += 1
-        lblLengthHdr.grid(row=r, column=1)
+        self.lblLength.grid(row=r, column=2, columnspan=2)
         r += 1
-        self.lblLength.grid(row=r, column=1)
+        lblFormatHdr.grid(row=r, column=2, columnspan=2)
         r += 1
-        lblFormatHdr.grid(row=r, column=1)
+        self.lblFormat.grid(row=r, column=2, columnspan=2)
+        r += 1 + listLength
+        self.btnWfmDownload.grid(row=r, column=0, sticky=E)
+        self.btnWfmPlay.grid(row=r, column=1, sticky=W)
+        lblChannel.grid(row=r, column=2)
+        self.cbChannel.grid(row=r, column=3)
         r += 1
-        self.lblFormat.grid(row=r, column=1)
+        self.btnWfmClearAll.grid(row=r, column=0, sticky=E)
+        self.btnWfmDelete.grid(row=r, column=1, sticky=W)
 
         """statusBarFrame"""
         # statusBarFrame Widgets
         self.statusBar = Label(statusBarFrame, text='Welcome', width=130, relief=SUNKEN)
         self.statusBar.grid(row=0, sticky=N+S+E+W)
-
 
 
     def open_wfm_builder(self, event=None):
@@ -299,7 +325,6 @@ class PyarbtoolsGUI:
 
             # Barker Geometry
             r = 0
-
             lblFs.grid(row=r, column=0, sticky=E)
             self.eFs.grid(row=r, column=1, sticky=W)
 
@@ -359,6 +384,7 @@ class PyarbtoolsGUI:
             self.eFiltAlpha = Entry(self.wfmFrame, textvariable=filtAlphaVar)
             filtAlphaVar.set('0.35')
 
+            # Digital Modulation Geometry
             r = 0
             lblFs.grid(row=r, column=0, sticky=E)
             self.eFs.grid(row=r, column=1, sticky=W)
@@ -407,6 +433,7 @@ class PyarbtoolsGUI:
             self.cbPhase = ttk.Combobox(self.wfmFrame, state='readonly', values=phaseList)
             self.cbPhase.current(0)
 
+            # Multitone Geometry
             r = 0
             lblFs.grid(row=r, column=0, sticky=E)
             self.eFs.grid(row=r, column=1, sticky=W)
@@ -426,8 +453,15 @@ class PyarbtoolsGUI:
         else:
             raise ValueError('Invalid wfmType selected, this should never happen.')
 
+        lblWfmName = Label(self.wfmFrame, text='Name')
+        wfmNameVar = StringVar()
+        self.eWfmName = Entry(self.wfmFrame, textvariable=wfmNameVar)
+        wfmNameVar.set('wfm')
         self.btnCreateWfm = Button(self.wfmFrame, text='Create Waveform', command=self.create_wfm)
 
+        r += 1
+        lblWfmName.grid(row=r, column=0, sticky=E)
+        self.eWfmName.grid(row=r, column=1, sticky=W)
         r += 1
         self.btnCreateWfm.grid(row=r, columnspan=2)
 
@@ -472,7 +506,100 @@ class PyarbtoolsGUI:
             i, q = pyarbtools.wfmBuilder.multitone(*wfmArgs)
         else:
             raise ValueError('Invalid selection chosen, this should never happen.')
+        name = self.eWfmName.get()
 
+        names = [w['name'] for w in self.wfmList]
+        try:
+            if name in names:
+                idx = names.index(name)
+                ans = messagebox.askyesno(title='Overwrite?', message=f'"{name}" already exists in waveform list. Would you like to overwrite it?')
+                if ans == False:
+                    raise pyarbtools.error.WfmBuilderError()
+                else:
+                    del(self.wfmList[idx])
+            if 'i' in locals() and 'q' in locals():
+                self.wfmList.append({'name': name, 'length': len(i), 'type': 'iq', 'i': i, 'q': q})
+            elif 'real' in locals():
+                self.wfmList.append({'name': name, 'length': len(real), 'type': 'real', 'real': real})
+            else:
+                raise ValueError('Neither iq nor real format chosen. This should never happen.')
+            self.lbWfmList.delete(0, END)
+            for w in self.wfmList:
+                self.lbWfmList.insert(END, w['name'])
+        except pyarbtools.error.WfmBuilderError:
+            self.statusBar.configure(text=f'"{name}" already exists in waveform list. Please select an unused waveform name.')
+
+    def download_wfm(self, event=None):
+        index = self.lbWfmList.curselection()[0]
+        wfmData = self.wfmList[index]
+        print(wfmData)
+        try:
+            if wfmData['type'] == 'real':
+                if 'M819' not in self.inst.instId:
+                    self.statusBar.configure(text='Invalid waveform type for VSG. Select a waveform with "IQ" type.')
+                else:
+                    segment = self.inst.download_wfm(wfmData['real'], ch=1, name=wfmData['name'])
+                    self.wfmList[index]['segment'] = segment
+                    print(self.wfmList[index])
+            # elif wfmData['type'] == 'iq':
+            else:
+                if 'M819' in self.inst.instId:
+                    segment = self.inst.download_iq_wfm(wfmData['i'], wfmData['q'], ch=1, name=wfmData['name'])
+                    self.wfmList[index]['segment'] = segment
+                    print(self.wfmList[index])
+                    self.statusBar.configure(text=f'"{wfmData["name"]}" at segment {wfmData["segment"]} downloaded to instrument.')
+                else:
+                    print(type(self.inst))
+                    self.inst.download_iq_wfm(wfmData['i'], wfmData['q'], wfmData['name'])
+                    self.statusBar.configure(text=f'"{wfmData["name"]}" downloaded to instrument.')
+        except:
+            self.statusBar.configure('something real bad happened.')
+
+    def play_wfm(self):
+        index = self.lbWfmList.curselection()[0]
+        wfmData = self.wfmList[index]
+
+        try:
+            if 'M819' in self.inst.instId:
+                self.inst.play(wfmData['segment'], ch=int(self.cbChannel.get()))
+                self.statusBar.configure(text=f'"{wfmData["name"]}" playing out of channel {int(self.cbChannel.get())}')
+
+            else:
+                self.inst.play(wfmData['name'])
+                self.statusBar.configure(text=f'"{wfmData["name"]}" playing.')
+        except pyarbtools.error.SockInstError as e:
+            self.statusBar.configure(str(e))
+
+    def delete_wfm(self):
+        """Deletes one waveform from the waveform list."""
+        try:
+            index = self.lbWfmList.curselection()[0]
+            del(self.wfmList[index])
+            self.lbWfmList.delete(index)
+        except IndexError:
+            pass
+
+    def clear_all_wfm(self):
+        """Clears all waveforms from waveform list."""
+        self.wfmList = []
+        self.lbWfmList.delete(0, END)
+
+    def select_wfm(self, event=None):
+        try:
+            index = self.lbWfmList.curselection()[0]
+            wfmData = self.wfmList[index]
+            self.lblName.configure(text=wfmData['name'])
+            self.lblLength.configure(text=wfmData['length'])
+            self.lblFormat.configure(text=wfmData['type'])
+            self.btnWfmDelete.configure(state=ACTIVE)
+            self.btnWfmClearAll.configure(state=ACTIVE)
+            if self.inst:
+                self.btnWfmDownload.configure(state=ACTIVE)
+                self.btnWfmPlay.configure(state=ACTIVE)
+            self.statusBar.configure(text='')
+        except IndexError:
+            """THIS NEEDS WORK"""
+            self.statusBar.configure(text='No waveforms have been defined yet.')
 
     def inst_write(self):
         self.inst.write(self.eScpi.get())
@@ -494,7 +621,7 @@ class PyarbtoolsGUI:
         self.inst.query('*opc?')
         self.lblReadout.configure(text='Instrument preset complete')
 
-    def instrument_connect(self):
+    def instrument_connect(self, debug=False):
         """Selects the appropriate instrument class based on combobox selection."""
         self.ipAddress = self.eInstIPAddress.get()
         try:
@@ -505,10 +632,11 @@ class PyarbtoolsGUI:
         self.instKey = self.cbInstruments.get()
         try:
             # Connect to instrument
-            # self.inst = self.instClasses[self.instKey](self.ipAddress)
+            if not debug:
+                self.inst = self.instClasses[self.instKey](self.ipAddress)
+                self.statusBar.configure(text=f'Connected to {self.inst.instId}')
 
             self.lblInstStatus.configure(text='Connected', bg='green')
-            # self.statusBar.configure(text=f'Connected to {self.inst.instId}')
             self.open_inst_config()
             self.btnWrite.configure(state=ACTIVE)
             self.btnQuery.configure(state=ACTIVE)
@@ -534,7 +662,7 @@ class PyarbtoolsGUI:
 
         # Reset instrument config frame
         self.configFrame.destroy()
-        self.configFrame = Frame(self.master, bd=5)
+        self.configFrame = Frame(self.master, bd=5, rowspan=2)
         self.configFrame.grid(row=1, column=0)
 
     def instrument_configure(self):
@@ -596,7 +724,7 @@ class PyarbtoolsGUI:
         """Creates a new frame with instrument-specific configuration fields."""
         self.configFrame.destroy()
         self.configFrame = Frame(self.master, bd=5)
-        self.configFrame.grid(row=1, column=0)
+        self.configFrame.grid(row=1, column=0, rowspan=2, sticky=N)
 
         configBtn = Button(self.configFrame, text='Configure', command=self.instrument_configure)
 
@@ -701,6 +829,10 @@ class PyarbtoolsGUI:
             self.eCf2.grid(row=r, column=1, sticky=W)
             r += 1
 
+            # Special
+            self.cbChannel.configure(values=[1, 2], state=ACTIVE)
+            self.cbChannel.current(0)
+
         elif self.instKey == 'M8195A':
             dacModeLabel = Label(self.configFrame, text='DAC Mode')
             self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
@@ -755,6 +887,10 @@ class PyarbtoolsGUI:
             self.cbFunc.grid(row=r, column=1, sticky=W)
             r += 1
 
+            # Special
+            self.cbChannel.configure(values=[1, 2], state=ACTIVE)
+            self.cbChannel.current(0)
+
         elif self.instKey == 'M8196A':
             dacModeLabel = Label(self.configFrame, text='DAC Mode')
             self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
@@ -798,6 +934,10 @@ class PyarbtoolsGUI:
             refFreqLabel.grid(row=r, column=0, sticky=E)
             self.eRefFreq.grid(row=r, column=1, sticky=W)
             r += 1
+
+            # Special
+            self.cbChannel.configure(values=[1, 2], state=ACTIVE)
+            self.cbChannel.current(0)
 
         elif self.instKey == 'VSG':
             rfStateLabel = Label(self.configFrame, text='RF State')

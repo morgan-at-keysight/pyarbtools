@@ -11,6 +11,41 @@ from pyarbtools import communications
 from pyarbtools import error
 
 
+def sine_generator(fs=100e6, freq=0, phase=0, zeroLast=False):
+    """Generates a baseband sine wave with optional
+    frequency offset and initial phase."""
+
+    if abs(freq) > fs / 2:
+        raise error.WfmBuilderError('Frequency violates Nyquist.')
+
+    if freq:
+        time = 1 / freq
+    else:
+        time = 10000 / fs
+
+    t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
+    iq = np.exp(2 * np.pi * freq * 1j * t) + phase
+    if zeroLast:
+        iq[-1] = 0 + 1j*0
+
+    return iq.real, iq.imag
+
+
+def sine_generator_real(fs=100e6, freq=1e6, phase=0):
+    """Generates a baseband sine wave with optional
+    frequency offset and initial phase."""
+
+    if freq < 0:
+        raise error.WfmBuilderError('Frequency must be positive.')
+    if freq > fs / 2:
+        raise error.WfmBuilderError('Frequency violates Nyquist.')
+
+    t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
+    real = np.sin(2 * np.pi * freq * t + phase)
+
+    return real
+
+
 def am_generator(fs=100e6, amDepth=50, modRate=100e3):
     """Generates a sinusoidal AM signal."""
 
@@ -40,15 +75,14 @@ def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, zeroLast=F
 
     if chirpBw > fs:
         raise error.WfmBuilderError('Chirp Bandwidth violates Nyquist.')
-    if pWidth > pri:
-        raise error.WfmBuilderError('Pulse width is greater than pulse repetition interval.')
+    # if pri <= pWidth:
+    #     raise error.WfmBuilderError('Pulse repetition interval is shorter than pulse width.')
 
     """Define baseband iq waveform. Create a time vector that goes from
     -1/2 to 1/2 instead of 0 to 1. This ensures that the chirp will be
     symmetrical around the carrier."""
 
     rl = int(fs * pWidth)
-    deadTime = np.zeros(int(fs * pri - rl))
     chirpRate = chirpBw / pWidth
     t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
 
@@ -64,8 +98,13 @@ def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, zeroLast=F
     iq = np.exp(1j * mod)
     if zeroLast:
         iq[-1] = 0 + 1j*0
-    i = np.append(np.real(iq), deadTime)
-    q = np.append(np.imag(iq), deadTime)
+    if pri <= pWidth:
+        i = np.real(iq)
+        q = np.imag(iq)
+    else:
+        deadTime = np.zeros(int(fs * pri - rl))
+        i = np.append(np.real(iq), deadTime)
+        q = np.append(np.imag(iq), deadTime)
 
     return i, q
 
@@ -84,7 +123,6 @@ def chirp_generator_real(fs=32e9, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9
     symmetrical around the carrier."""
 
     rl = int(fs * pWidth)
-    deadTime = np.zeros(int(fs * pri - rl))
     chirpRate = chirpBw / pWidth
     t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
 
@@ -97,15 +135,19 @@ def chirp_generator_real(fs=32e9, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9
     exponential function and you're off to the races."""
 
     mod = np.pi * chirpRate * t**2
-    real = np.append(np.cos(2 * np.pi * cf * t + mod), deadTime)
+    if pri <= pWidth:
+        real = np.cos(2 * np.pi * cf * t + mod)
+    else:
+        deadTime = np.zeros(int(fs * pri - rl))
+        real = np.append(np.cos(2 * np.pi * cf * t + mod), deadTime)
 
     return real
 
 
 def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', zeroLast=False):
     """Generates a Barker phase coded signal at baseband."""
-    if pWidth > pri:
-        raise error.WfmBuilderError('Pulse width is greater than pulse repetition interval.')
+    # if pWidth > pri:
+    #     raise error.WfmBuilderError('Pulse width is greater than pulse repetition interval.')
 
     # Codes taken from https://en.wikipedia.org/wiki/Barker_code
     barkerCodes = {'b2': [1, -1], 'b3': [1, 1, -1],
@@ -122,14 +164,18 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', zeroLast=Fal
         temp = np.full((codeSamples,), p)
         barker = np.concatenate([barker, temp])
 
-    deadTime = np.zeros(int(fs * pri - rl))
     mod = np.pi / 2 * barker
     iq = np.exp(1j * mod)
 
     if zeroLast:
         iq[-1] = 0 + 0j
-    i = np.real((iq, deadTime))
-    q = np.imag((iq, deadTime))
+    if pri <= pWidth:
+        i = np.real(iq)
+        q = np.imag(iq)
+    else:
+        deadTime = np.zeros(int(fs * pri - rl))
+        i = np.append(np.real(iq), deadTime)
+        q = np.append(np.imag(iq), deadTime)
 
     return i, q
 
@@ -155,10 +201,13 @@ def barker_generator_real(fs=32e9, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9):
         barker = np.concatenate([barker, temp])
 
     t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
-    deadTime = np.zeros(int(fs * pri - rl))
 
     mod = np.pi / 2 * barker
-    real = np.append(np.cos(2 * np.pi * cf * t + mod), deadTime)
+    if pri <= pWidth:
+        real = np.cos(2 * np.pi * cf * t + mod)
+    else:
+        deadTime = np.zeros(int(fs * pri - rl))
+        real = np.append(np.cos(2 * np.pi * cf * t + mod), deadTime)
 
     return real
 
@@ -766,7 +815,7 @@ def qam256_modulator(data, customMap=None):
         raise ValueError('Invalid 256 QAM symbol.')
 
 
-def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35):
+def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, zeroLast=False):
     """Generates a baseband modulated signal with a given modulation
     type and root raised cosine filter using PRBS data."""
 
@@ -843,6 +892,9 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     # Scale waveform data
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
+
+    if zeroLast:
+        iq[-1] = 0 + 1j*0
 
     return np.real(iq), np.imag(iq)
 
