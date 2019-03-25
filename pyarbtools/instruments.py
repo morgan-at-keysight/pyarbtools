@@ -620,6 +620,23 @@ class VSG(communications.SocketInstrument):
         else:
             return np.array(self.binMult * wfm, dtype=np.int16)
 
+    def delete(self, wfmID):
+        """Deletes specified waveform."""
+        if 'M938' in self.instId:
+            self.write(f'memory:delete "{wfmID}"')
+        else:
+            self.write(f'memory:delete "WFM1:{wfmID}"')
+
+    def clear_all(self):
+        """Deletes all iq waveforms."""
+        if 'M938' in self.instId:
+
+            """UNTESTED PLEASE TEST"""
+
+            self.write('memory:delete:all')
+        else:
+            self.write('mmemory:delete:wfm')
+
     def play(self, wfmID='wfm'):
         """Selects waveform and activates arb mode, RF output, and modulation."""
         if 'M938' in self.instId:

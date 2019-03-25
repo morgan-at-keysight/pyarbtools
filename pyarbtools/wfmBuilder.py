@@ -49,7 +49,7 @@ def sine_generator_real(fs=100e6, freq=1e6, phase=0):
 def am_generator(fs=100e6, amDepth=50, modRate=100e3):
     """Generates a sinusoidal AM signal."""
 
-    if 0 < amDepth > 100:
+    if amDepth <= 0 or amDepth > 100:
         raise error.WfmBuilderError('AM Depth out of range, must be 0 - 100.')
     if modRate > fs:
         raise error.WfmBuilderError('Modulation rate violates Nyquist.')
@@ -75,8 +75,10 @@ def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, zeroLast=F
 
     if chirpBw > fs:
         raise error.WfmBuilderError('Chirp Bandwidth violates Nyquist.')
-    # if pri <= pWidth:
-    #     raise error.WfmBuilderError('Pulse repetition interval is shorter than pulse width.')
+    if chirpBw <= 0:
+        raise error.WfmBuilderError('Chirp Bandwidth must be a positive value.')
+    if pWidth <= 0 or pri <= 0:
+        raise error.WfmBuilderError('Pulse width and PRI must be positive values.')
 
     """Define baseband iq waveform. Create a time vector that goes from
     -1/2 to 1/2 instead of 0 to 1. This ensures that the chirp will be
@@ -115,8 +117,10 @@ def chirp_generator_real(fs=32e9, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9
 
     if (cf + (chirpBw / 2)) > (fs / 2):
         raise error.WfmBuilderError('Carrier Freq + Chirp Bandwidth combination violates Nyquist.')
-    if pWidth > pri:
-        raise error.WfmBuilderError('Pulse width is greater than pulse repetition interval.')
+    if chirpBw <= 0:
+        raise error.WfmBuilderError('Chirp Bandwidth must be a positive value.')
+    if pWidth <= 0 or pri <= 0:
+        raise error.WfmBuilderError('Pulse width and PRI must be positive values.')
 
     """Define baseband iq waveform. Create a time vector that goes from
     -1/2 to 1/2 instead of 0 to 1. This ensures that the chirp will be
@@ -146,8 +150,8 @@ def chirp_generator_real(fs=32e9, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9
 
 def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', zeroLast=False):
     """Generates a Barker phase coded signal at baseband."""
-    # if pWidth > pri:
-    #     raise error.WfmBuilderError('Pulse width is greater than pulse repetition interval.')
+    if pWidth <= 0 or pri <= 0:
+        raise error.WfmBuilderError('Pulse width and PRI must be positive values.')
 
     # Codes taken from https://en.wikipedia.org/wiki/Barker_code
     barkerCodes = {'b2': [1, -1], 'b3': [1, 1, -1],
@@ -182,8 +186,10 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', zeroLast=Fal
 
 def barker_generator_real(fs=32e9, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9):
     """Generates a Barker phase coded signal at RF."""
-    if pWidth > pri:
-        raise error.WfmBuilderError('Pulse width is greater than pulse repetition interval.')
+    if pWidth <= 0 or pri <= 0:
+        raise error.WfmBuilderError('Pulse width and PRI must be positive values.')
+    # if pWidth > pri:
+    #     raise error.WfmBuilderError('Pulse width is greater than pulse repetition interval.')
 
     # Codes taken from https://en.wikipedia.org/wiki/Barker_code
     barkerCodes = {'b2': [1, -1], 'b3': [1, 1, -1],

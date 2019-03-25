@@ -6,10 +6,10 @@ A much-needed GUI for pyarbtools.
 
 """
 TODO
-* Color code waveform list downloaded/undownloaded
-            OR
-* Tie arb memory to wfm list
-* Disable wfmlist buttons when list is empty
+* Tie arb memory to wfm list (THIS IS DONE FOR THE VSG)
+* Test M8190 and UXG
+* BUGFIX: when waveform is in wfm list without connected hw, Download/Play 
+    buttons don't auto-turn on
 """
 
 from tkinter import *
@@ -18,6 +18,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 import ipaddress
 import pyarbtools
+
 
 class PyarbtoolsGUI:
     def __init__(self, master):
@@ -31,7 +32,7 @@ class PyarbtoolsGUI:
 
         # Variables
         # self.ipAddress = '127.0.0.1'
-        self.ipAddress = '141.121.210.107'
+        self.ipAddress = '141.121.210.122'
         self.inst = None
 
         """Master Frame Setup"""
@@ -101,6 +102,7 @@ class PyarbtoolsGUI:
         self.btnQuery = Button(self.interactFrame, text='Query', command=self.inst_query, width=btnWidth, state=DISABLED)
         self.btnErrCheck = Button(self.interactFrame, text='Err Check', command=self.inst_err_check, width=btnWidth, state=DISABLED)
         self.btnPreset = Button(self.interactFrame, text='Preset', command=self.inst_preset, width=btnWidth, state=DISABLED)
+        self.btnFlush = Button(self.interactFrame, text='Flush', command=self.inst_flush, width=btnWidth, state=DISABLED)
 
         lblReadoutTitle = Label(self.interactFrame, text='SCPI Readout', width=40)
         self.lblReadout = Label(self.interactFrame, text='Connect to instrument', width=40, relief='sunken')
@@ -115,6 +117,8 @@ class PyarbtoolsGUI:
         self.btnErrCheck.grid(row=r, column=1)
         self.btnQuery.grid(row=r, column=2)
         self.btnPreset.grid(row=r, column=3)
+        r += 1
+        self.btnFlush.grid(row=r, column=0)
         r += 1
         lblReadoutTitle.grid(row=r, columnspan=4)
         r += 1
@@ -167,7 +171,7 @@ class PyarbtoolsGUI:
         self.lblName = Label(self.wfmListFrame)
         self.lblLength = Label(self.wfmListFrame)
         self.lblFormat = Label(self.wfmListFrame)
-        self.lbWfmList = Listbox(self.wfmListFrame, selectmode='single', width=25)
+        self.lbWfmList = Listbox(self.wfmListFrame, selectmode='single', width=25, exportselection=0)
         self.lbWfmList.bind("<<ListboxSelect>>", self.select_wfm)
 
         # wfmListFrame Geometry
@@ -198,7 +202,7 @@ class PyarbtoolsGUI:
 
         """statusBarFrame"""
         # statusBarFrame Widgets
-        self.statusBar = Label(statusBarFrame, text='Welcome', width=130, relief=SUNKEN)
+        self.statusBar = Label(statusBarFrame, text='Welcome', width=130, relief=SUNKEN, bg='white')
         self.statusBar.grid(row=0, sticky=N+S+E+W)
 
 
@@ -246,7 +250,6 @@ class PyarbtoolsGUI:
             r += 1
             lblModRate.grid(row=r, column=0, sticky=E)
             self.eModRate.grid(row=r, column=1, sticky=W)
-
 
         elif self.wfmType == 'Chirp':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
@@ -468,92 +471,105 @@ class PyarbtoolsGUI:
     def create_wfm(self):
         """Calls the function to create the selected type of waveform
         and stores it in the waveform list."""
-
-        if self.wfmType == 'AM':
-            wfmArgs = [float(self.eFs.get()), int(self.eAmDepth.get()), float(self.eModRate.get())]
-            i, q = pyarbtools.wfmBuilder.am_generator(*wfmArgs)
-        elif self.wfmType == 'Chirp':
-            wfmArgs = [float(self.eFs.get()), float(self.ePulseWidth.get()),
-                       float(self.ePri.get()), float(self.eChirpBw.get())]
-            if self.genMode == 'IQ':
-                i, q = pyarbtools.wfmBuilder.chirp_generator(*wfmArgs)
-            else:
-                wfmArgs.append(float(self.eCf.get()))
-                real = pyarbtools.wfmBuilder.chirp_generator_real(*wfmArgs)
-        elif self.wfmType == 'Barker Code':
-            wfmArgs = [float(self.eFs.get()), float(self.ePulseWidth.get()),
-                       float(self.ePri.get()), self.cbCode.get()]
-            if self.genMode == 'IQ':
-                i, q = pyarbtools.wfmBuilder.barker_generator(*wfmArgs)
-            else:
-                wfmArgs.append(float(self.eCf.get()))
-                real = pyarbtools.wfmBuilder.barker_generator_real(*wfmArgs)
-        elif self.wfmType == 'Digital Modulation':
-            filtArg = self.cbFiltType.get()
-            if  filtArg == 'Root Raised Cosine':
-                filtType = pyarbtools.wfmBuilder.rrc_filter
-            elif filtArg == 'Raised Cosine':
-                filtType = pyarbtools.wfmBuilder.rc_filter
-            else:
-                raise ValueError('Invalid filter type chosen, this should never happen.')
-            wfmArgs = [float(self.eFs.get()), self.cbModType.get(),
-                       float(self.eSymrate.get()), int(self.cbPrbsOrder.get()),
-                       filtType, float(self.eFiltAlpha.get())]
-            i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(*wfmArgs)
-        elif self.wfmType == 'Multitone':
-            wfmArgs = [float(self.eFs.get()), float(self.eSpacing.get()),
-                       int(self.eNumTones.get()), self.cbPhase.get()]
-            i, q = pyarbtools.wfmBuilder.multitone(*wfmArgs)
-        else:
-            raise ValueError('Invalid selection chosen, this should never happen.')
-        name = self.eWfmName.get()
-
-        names = [w['name'] for w in self.wfmList]
         try:
-            if name in names:
-                idx = names.index(name)
-                ans = messagebox.askyesno(title='Overwrite?', message=f'"{name}" already exists in waveform list. Would you like to overwrite it?')
-                if ans == False:
-                    raise pyarbtools.error.WfmBuilderError()
+            if self.wfmType == 'AM':
+                wfmArgs = [float(self.eFs.get()), int(self.eAmDepth.get()), float(self.eModRate.get())]
+                i, q = pyarbtools.wfmBuilder.am_generator(*wfmArgs)
+            elif self.wfmType == 'Chirp':
+                wfmArgs = [float(self.eFs.get()), float(self.ePulseWidth.get()),
+                           float(self.ePri.get()), float(self.eChirpBw.get())]
+                if self.genMode == 'IQ':
+                    i, q = pyarbtools.wfmBuilder.chirp_generator(*wfmArgs)
                 else:
-                    del(self.wfmList[idx])
-            if 'i' in locals() and 'q' in locals():
-                self.wfmList.append({'name': name, 'length': len(i), 'type': 'iq', 'i': i, 'q': q})
-            elif 'real' in locals():
-                self.wfmList.append({'name': name, 'length': len(real), 'type': 'real', 'real': real})
+                    wfmArgs.append(float(self.eCf.get()))
+                    real = pyarbtools.wfmBuilder.chirp_generator_real(*wfmArgs)
+            elif self.wfmType == 'Barker Code':
+                wfmArgs = [float(self.eFs.get()), float(self.ePulseWidth.get()),
+                           float(self.ePri.get()), self.cbCode.get()]
+                if self.genMode == 'IQ':
+                    i, q = pyarbtools.wfmBuilder.barker_generator(*wfmArgs)
+                else:
+                    wfmArgs.append(float(self.eCf.get()))
+                    real = pyarbtools.wfmBuilder.barker_generator_real(*wfmArgs)
+            elif self.wfmType == 'Digital Modulation':
+                filtArg = self.cbFiltType.get()
+                if  filtArg == 'Root Raised Cosine':
+                    filtType = pyarbtools.wfmBuilder.rrc_filter
+                elif filtArg == 'Raised Cosine':
+                    filtType = pyarbtools.wfmBuilder.rc_filter
+                else:
+                    raise ValueError('Invalid filter type chosen, this should never happen.')
+                wfmArgs = [float(self.eFs.get()), self.cbModType.get(),
+                           float(self.eSymrate.get()), int(self.cbPrbsOrder.get()),
+                           filtType, float(self.eFiltAlpha.get())]
+                i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(*wfmArgs)
+            elif self.wfmType == 'Multitone':
+                wfmArgs = [float(self.eFs.get()), float(self.eSpacing.get()),
+                           int(self.eNumTones.get()), self.cbPhase.get()]
+                i, q = pyarbtools.wfmBuilder.multitone(*wfmArgs)
             else:
-                raise ValueError('Neither iq nor real format chosen. This should never happen.')
-            self.lbWfmList.delete(0, END)
-            for w in self.wfmList:
-                self.lbWfmList.insert(END, w['name'])
-        except pyarbtools.error.WfmBuilderError:
-            self.statusBar.configure(text=f'"{name}" already exists in waveform list. Please select an unused waveform name.')
+                raise ValueError('Invalid selection chosen, this should never happen.')
+            name = self.eWfmName.get()
+
+            names = [w['name'] for w in self.wfmList]
+            try:
+                if name in names:
+                    idx = names.index(name)
+                    ans = messagebox.askyesno(title='Overwrite?', message=f'"{name}" already exists in waveform list. Would you like to overwrite it?')
+                    if ans == False:
+                        raise pyarbtools.error.WfmBuilderError()
+                    else:
+                        del(self.wfmList[idx])
+                        self.lblName.configure(text='')
+                        self.lblLength.configure(text='')
+                        self.lblFormat.configure(text='')
+                        self.btnWfmPlay.configure(state=DISABLED)
+                        self.btnWfmDownload.configure(state=DISABLED)
+                if 'i' in locals() and 'q' in locals():
+                    self.wfmList.append({'name': name, 'length': len(i), 'type': 'iq', 'i': i, 'q': q, 'dl': False})
+                elif 'real' in locals():
+                    self.wfmList.append({'name': name, 'length': len(real), 'type': 'real', 'real': real, 'dl': False})
+                else:
+                    raise ValueError('Neither iq nor real format chosen. This should never happen.')
+                self.lbWfmList.delete(0, END)
+                for w in self.wfmList:
+                    self.lbWfmList.insert(END, w['name'])
+                self.lbWfmList.selection_set(END)
+                self.lbWfmList.event_generate("<<ListboxSelect>>")
+
+            except pyarbtools.error.WfmBuilderError:
+                self.statusBar.configure(text=f'"{name}" already exists in waveform list. Please select an unused waveform name.', bg='red')
+            self.statusBar.configure(text=f'"{name}" created.', bg='white')
+        except Exception as e:
+            self.statusBar.configure(text=str(e), bg='red')
 
     def download_wfm(self, event=None):
         index = self.lbWfmList.curselection()[0]
         wfmData = self.wfmList[index]
-        print(wfmData)
         try:
             if wfmData['type'] == 'real':
                 if 'M819' not in self.inst.instId:
-                    self.statusBar.configure(text='Invalid waveform type for VSG. Select a waveform with "IQ" type.')
+                    self.statusBar.configure(text='Invalid waveform type for VSG. Select a waveform with "IQ" type.', bg='red')
                 else:
                     segment = self.inst.download_wfm(wfmData['real'], ch=1, name=wfmData['name'])
                     self.wfmList[index]['segment'] = segment
-                    print(self.wfmList[index])
+                    self.wfmList[index]['dl'] = True
+                    self.btnWfmPlay.configure(state=ACTIVE)
             # elif wfmData['type'] == 'iq':
             else:
                 if 'M819' in self.inst.instId:
                     segment = self.inst.download_iq_wfm(wfmData['i'], wfmData['q'], ch=1, name=wfmData['name'])
                     self.wfmList[index]['segment'] = segment
-                    print(self.wfmList[index])
-                    self.statusBar.configure(text=f'"{wfmData["name"]}" at segment {wfmData["segment"]} downloaded to instrument.')
+                    self.wfmList[index]['dl'] = True
+                    self.btnWfmPlay.configure(state=ACTIVE)
+                    self.statusBar.configure(text=f'"{wfmData["name"]}" at segment {wfmData["segment"]} downloaded to instrument.', bg='white')
                 else:
-                    print(type(self.inst))
                     self.inst.download_iq_wfm(wfmData['i'], wfmData['q'], wfmData['name'])
-                    self.statusBar.configure(text=f'"{wfmData["name"]}" downloaded to instrument.')
-        except:
-            self.statusBar.configure('something real bad happened.')
+                    self.wfmList[index]['dl'] = True
+                    self.btnWfmPlay.configure(state=ACTIVE)
+                    self.statusBar.configure(text=f'"{wfmData["name"]}" downloaded to instrument.', bg='white')
+        except Exception as e:
+            self.statusBar.configure(text=str(e), bg='red')
 
     def play_wfm(self):
         index = self.lbWfmList.curselection()[0]
@@ -562,27 +578,42 @@ class PyarbtoolsGUI:
         try:
             if 'M819' in self.inst.instId:
                 self.inst.play(wfmData['segment'], ch=int(self.cbChannel.get()))
-                self.statusBar.configure(text=f'"{wfmData["name"]}" playing out of channel {int(self.cbChannel.get())}')
+                self.statusBar.configure(text=f'"{wfmData["name"]}" playing out of channel {int(self.cbChannel.get())}', bg='white')
 
             else:
                 self.inst.play(wfmData['name'])
-                self.statusBar.configure(text=f'"{wfmData["name"]}" playing.')
+                self.statusBar.configure(text=f'"{wfmData["name"]}" playing.', bg='white')
         except pyarbtools.error.SockInstError as e:
-            self.statusBar.configure(str(e))
+            self.statusBar.configure(str(e), bg='red')
 
     def delete_wfm(self):
-        """Deletes one waveform from the waveform list."""
+        """Deletes selected waveform from the waveform list."""
         try:
             index = self.lbWfmList.curselection()[0]
+            if type(self.inst) == pyarbtools.instruments.VSG:
+                self.inst.delete(self.wfmList[index]['name'])
             del(self.wfmList[index])
             self.lbWfmList.delete(index)
+            if len(self.wfmList) == 0:
+                self.btnWfmDownload.configure(state=DISABLED)
+                self.btnWfmPlay.configure(state=DISABLED)
+                self.lblName.configure(text='')
+                self.lblLength.configure(text='')
+                self.lblFormat.configure(text='')
         except IndexError:
             pass
 
     def clear_all_wfm(self):
-        """Clears all waveforms from waveform list."""
+        """Deletes all waveforms from waveform list."""
+        if type(self.inst) == pyarbtools.instruments.VSG:
+            self.inst.clear_all()
         self.wfmList = []
         self.lbWfmList.delete(0, END)
+        self.btnWfmDownload.configure(state=DISABLED)
+        self.btnWfmPlay.configure(state=DISABLED)
+        self.lblName.configure(text='')
+        self.lblLength.configure(text='')
+        self.lblFormat.configure(text='')
 
     def select_wfm(self, event=None):
         try:
@@ -595,18 +626,22 @@ class PyarbtoolsGUI:
             self.btnWfmClearAll.configure(state=ACTIVE)
             if self.inst:
                 self.btnWfmDownload.configure(state=ACTIVE)
-                self.btnWfmPlay.configure(state=ACTIVE)
-            self.statusBar.configure(text='')
+                if wfmData['dl']:
+                    self.btnWfmPlay.configure(state=ACTIVE)
+                else:
+                    self.btnWfmPlay.configure(state=DISABLED)
+            self.statusBar.configure(text='', bg='white')
         except IndexError:
-            """THIS NEEDS WORK"""
-            self.statusBar.configure(text='No waveforms have been defined yet.')
+            self.statusBar.configure(text='No waveforms have been defined yet.', bg='red')
 
     def inst_write(self):
         self.inst.write(self.eScpi.get())
+        self.inst.write('*cls')
         self.lblReadout.configure(text=f'"{self.eScpi.get()}" command sent')
 
     def inst_query(self):
         response = self.inst.query(self.eScpi.get())
+        self.inst.write('*cls')
         self.lblReadout.configure(text=response)
 
     def inst_err_check(self):
@@ -615,11 +650,23 @@ class PyarbtoolsGUI:
             self.lblReadout.configure(text='No error')
         except Exception as e:
             self.lblReadout.configure(text=str(e))
+        finally:
+            self.inst.write('*cls')
 
     def inst_preset(self):
         self.inst.write('*rst')
         self.inst.query('*opc?')
         self.lblReadout.configure(text='Instrument preset complete')
+
+    def inst_flush(self):
+        """Flushes the SCPI I/O buffer."""
+        self.inst.socket.settimeout(0.25)
+        try:
+            self.inst.query('')
+        except Exception:
+            pass
+        finally:
+            self.inst.socket.settimeout(10)
 
     def instrument_connect(self, debug=False):
         """Selects the appropriate instrument class based on combobox selection."""
@@ -627,14 +674,14 @@ class PyarbtoolsGUI:
         try:
             ipaddress.ip_address(self.ipAddress)
         except ValueError:
-            self.statusBar.configure(text='Invalid IP Address.')
+            self.statusBar.configure(text='Invalid IP Address.', bg='red')
 
         self.instKey = self.cbInstruments.get()
         try:
             # Connect to instrument
             if not debug:
                 self.inst = self.instClasses[self.instKey](self.ipAddress)
-                self.statusBar.configure(text=f'Connected to {self.inst.instId}')
+                self.statusBar.configure(text=f'Connected to {self.inst.instId}', bg='white')
 
             self.lblInstStatus.configure(text='Connected', bg='green')
             self.open_inst_config()
@@ -642,32 +689,37 @@ class PyarbtoolsGUI:
             self.btnQuery.configure(state=ACTIVE)
             self.btnErrCheck.configure(state=ACTIVE)
             self.btnPreset.configure(state=ACTIVE)
+            self.btnFlush.configure(state=ACTIVE)
             self.lblReadout.configure(text='Ready for SCPI interaction')
             self.btnInstConnect.configure(text='Disconnect', command=self.instrument_disconnect)
         except Exception as e:
             self.lblInstStatus.configure(text='Not Connected', bg='red')
-            self.statusBar.configure(text=str(e))
+            self.statusBar.configure(text=str(e), bg='red')
 
     def instrument_disconnect(self):
         """Disconnects from connected instrument and adjusts GUI accordingly."""
         self.inst.disconnect()
-        self.statusBar.configure(text='Welcome')
+        self.inst = None
+        self.statusBar.configure(text='Welcome', bg='white')
         self.btnWrite.configure(state=DISABLED)
         self.btnQuery.configure(state=DISABLED)
         self.btnErrCheck.configure(state=DISABLED)
         self.btnPreset.configure(state=DISABLED)
+        self.btnFlush.configure(state=DISABLED)
         self.lblReadout.configure(text='Connect to instrument')
         self.lblInstStatus.configure(text='Not Connected', bg='red')
         self.btnInstConnect.configure(text='Connect', command=self.instrument_connect)
 
         # Reset instrument config frame
         self.configFrame.destroy()
-        self.configFrame = Frame(self.master, bd=5, rowspan=2)
-        self.configFrame.grid(row=1, column=0)
+        self.configFrame = Frame(self.master, bd=5)
+        self.configFrame.grid(row=1, column=0, rowspan=2)
 
     def instrument_configure(self):
         """Pulls settings from config frame and calls instrument-specific measurement functions"""
         try:
+            if self.cbPreset.get() == 'True':
+                self.inst.write('*rst')
             if self.instKey == 'M8190A':
                 configArgs = {'res': self.resArgs[self.cbRes.get()],
                               'clkSrc': self.clkSrcArgs[self.cbClkSrc.get()],
@@ -715,9 +767,9 @@ class PyarbtoolsGUI:
             else:
                 raise ValueError('Invalid instrument selected. This should never happen.')
             self.inst.configure(*configArgs.values())
-            self.statusBar.configure(text=f'{self.instKey} configured.')
+            self.statusBar.configure(text=f'{self.instKey} configured.', bg='white')
         except Exception as e:
-            self.statusBar.configure(text=str(e))
+            self.statusBar.configure(text=str(e), bg='red')
 
 
     def open_inst_config(self):
@@ -958,7 +1010,7 @@ class PyarbtoolsGUI:
             ampLabel = Label(self.configFrame, text='Amplitude (dBm)')
             ampVar = StringVar()
             self.eAmp = Entry(self.configFrame, textvariable=ampVar)
-            ampVar.set(-130)
+            ampVar.set(-20)
 
             alcStateLabel = Label(self.configFrame, text='ALC State')
             self.alcStateArgs = {'On': 1, 'Off': 0}
@@ -1114,6 +1166,14 @@ class PyarbtoolsGUI:
         else:
             raise ValueError('You got an argument that was not in the instrument select combobox. This should never happen.')
 
+        lblPreset = Label(self.configFrame, text='Preset')
+        presetList = ['False', 'True']
+        self.cbPreset = ttk.Combobox(self.configFrame, state='readonly', values=presetList)
+        self.cbPreset.current(0)
+
+        lblPreset.grid(row=r, column=0, sticky=E)
+        self.cbPreset.grid(row=r, column=1, sticky=W)
+        r += 1
         configBtn.grid(row=r, column=0, columnspan=2)
 
 def main():
