@@ -6,10 +6,10 @@ A much-needed GUI for pyarbtools.
 
 """
 TODO
-* Tie arb memory to wfm list (THIS IS DONE FOR THE VSG)
-* Test M8190 and UXG
-* BUGFIX: when waveform is in wfm list without connected hw, Download/Play 
-    buttons don't auto-turn on
+* Tie arb memory to wfm list (THIS IS DONE FOR THE VSG and M8190A)
+* ^ Test M8195/6 and UXG
+* BUGFIX: when waveform is in wfm list without connected hw, 
+    Delete/Clear All buttons don't auto-turn on
 """
 
 from tkinter import *
@@ -32,7 +32,7 @@ class PyarbtoolsGUI:
 
         # Variables
         # self.ipAddress = '127.0.0.1'
-        self.ipAddress = '141.121.210.122'
+        self.ipAddress = '141.121.210.171'
         self.inst = None
 
         """Master Frame Setup"""
@@ -66,7 +66,7 @@ class PyarbtoolsGUI:
         # setupFrame Widgets
         self.lblInstruments = Label(setupFrame, text='Instrument Class')
         self.cbInstruments = ttk.Combobox(setupFrame, state='readonly', values=list(self.instClasses.keys()))
-        self.cbInstruments.current(3)
+        self.cbInstruments.current(0)
 
         v = StringVar()
         self.lblInstIPAddress = Label(setupFrame, text='Instrument IP Address')
@@ -173,6 +173,7 @@ class PyarbtoolsGUI:
         self.lblFormat = Label(self.wfmListFrame)
         self.lbWfmList = Listbox(self.wfmListFrame, selectmode='single', width=25, exportselection=0)
         self.lbWfmList.bind("<<ListboxSelect>>", self.select_wfm)
+        self.cbChannel.bind("<<ComboboxSelected>>", self.change_channel)
 
         # wfmListFrame Geometry
         listLength = 10
@@ -222,11 +223,7 @@ class PyarbtoolsGUI:
         if self.wfmType == 'AM':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
-            self.eFs = Entry(self.wfmFrame, textvariable=fsVar)
-            try:
-                fsVar.set(str(self.inst.fs))
-            except AttributeError as e:
-                fsVar.set('100e6')
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
 
             lblAmDepth = Label(self.wfmFrame, text='AM Depth')
             amDepthVar = StringVar()
@@ -241,7 +238,7 @@ class PyarbtoolsGUI:
             # AM Geometry
             r = 0
             lblFs.grid(row=r, column=0, sticky=E)
-            self.eFs.grid(row=r, column=1, sticky=W)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
 
             r += 1
             lblAmDepth.grid(row=r, column=0, sticky=E)
@@ -254,7 +251,7 @@ class PyarbtoolsGUI:
         elif self.wfmType == 'Chirp':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
-            self.eFs = Entry(self.wfmFrame, textvariable=fsVar)
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
             try:
                 fsVar.set(str(self.inst.fs))
             except AttributeError as e:
@@ -278,7 +275,7 @@ class PyarbtoolsGUI:
             # Chirp Geometry
             r = 0
             lblFs.grid(row=r, column=0, sticky=E)
-            self.eFs.grid(row=r, column=1, sticky=W)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
 
             r += 1
             lblPulseWidth.grid(row=r, column=0, sticky=E)
@@ -305,7 +302,7 @@ class PyarbtoolsGUI:
         elif self.wfmType == 'Barker Code':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
-            self.eFs = Entry(self.wfmFrame, textvariable=fsVar)
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
             try:
                 fsVar.set(str(self.inst.fs))
             except AttributeError as e:
@@ -329,7 +326,7 @@ class PyarbtoolsGUI:
             # Barker Geometry
             r = 0
             lblFs.grid(row=r, column=0, sticky=E)
-            self.eFs.grid(row=r, column=1, sticky=W)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
 
             r += 1
             lblPulseWidth.grid(row=r, column=0, sticky=E)
@@ -356,7 +353,7 @@ class PyarbtoolsGUI:
         elif self.wfmType == 'Digital Modulation':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
-            self.eFs = Entry(self.wfmFrame, textvariable=fsVar)
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
             try:
                 fsVar.set(str(self.inst.fs))
             except AttributeError as e:
@@ -390,7 +387,7 @@ class PyarbtoolsGUI:
             # Digital Modulation Geometry
             r = 0
             lblFs.grid(row=r, column=0, sticky=E)
-            self.eFs.grid(row=r, column=1, sticky=W)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
 
             r += 1
             lblModType.grid(row=r, column=0, sticky=E)
@@ -415,7 +412,7 @@ class PyarbtoolsGUI:
         elif self.wfmType == 'Multitone':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
-            self.eFs = Entry(self.wfmFrame, textvariable=fsVar)
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
             try:
                 fsVar.set(str(self.inst.fs))
             except AttributeError as e:
@@ -439,7 +436,7 @@ class PyarbtoolsGUI:
             # Multitone Geometry
             r = 0
             lblFs.grid(row=r, column=0, sticky=E)
-            self.eFs.grid(row=r, column=1, sticky=W)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
 
             r += 1
             lblSpacing.grid(row=r, column=0, sticky=E)
@@ -455,6 +452,16 @@ class PyarbtoolsGUI:
 
         else:
             raise ValueError('Invalid wfmType selected, this should never happen.')
+
+        if type(self.inst) == pyarbtools.instruments.M8190A:
+            fsVar.set(str(self.inst.bbfs))
+            print(self.inst.bbfs)
+        else:
+            try:
+                fsVar.set(str(self.inst.fs))
+                print(self.inst.fs)
+            except AttributeError:
+                fsVar.set('100e6')
 
         lblWfmName = Label(self.wfmFrame, text='Name')
         wfmNameVar = StringVar()
@@ -473,10 +480,10 @@ class PyarbtoolsGUI:
         and stores it in the waveform list."""
         try:
             if self.wfmType == 'AM':
-                wfmArgs = [float(self.eFs.get()), int(self.eAmDepth.get()), float(self.eModRate.get())]
+                wfmArgs = [float(self.eFsWfm.get()), int(self.eAmDepth.get()), float(self.eModRate.get())]
                 i, q = pyarbtools.wfmBuilder.am_generator(*wfmArgs)
             elif self.wfmType == 'Chirp':
-                wfmArgs = [float(self.eFs.get()), float(self.ePulseWidth.get()),
+                wfmArgs = [float(self.eFsWfm.get()), float(self.ePulseWidth.get()),
                            float(self.ePri.get()), float(self.eChirpBw.get())]
                 if self.genMode == 'IQ':
                     i, q = pyarbtools.wfmBuilder.chirp_generator(*wfmArgs)
@@ -484,7 +491,7 @@ class PyarbtoolsGUI:
                     wfmArgs.append(float(self.eCf.get()))
                     real = pyarbtools.wfmBuilder.chirp_generator_real(*wfmArgs)
             elif self.wfmType == 'Barker Code':
-                wfmArgs = [float(self.eFs.get()), float(self.ePulseWidth.get()),
+                wfmArgs = [float(self.eFsWfm.get()), float(self.ePulseWidth.get()),
                            float(self.ePri.get()), self.cbCode.get()]
                 if self.genMode == 'IQ':
                     i, q = pyarbtools.wfmBuilder.barker_generator(*wfmArgs)
@@ -499,12 +506,12 @@ class PyarbtoolsGUI:
                     filtType = pyarbtools.wfmBuilder.rc_filter
                 else:
                     raise ValueError('Invalid filter type chosen, this should never happen.')
-                wfmArgs = [float(self.eFs.get()), self.cbModType.get(),
+                wfmArgs = [float(self.eFsWfm.get()), self.cbModType.get(),
                            float(self.eSymrate.get()), int(self.cbPrbsOrder.get()),
                            filtType, float(self.eFiltAlpha.get())]
                 i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(*wfmArgs)
             elif self.wfmType == 'Multitone':
-                wfmArgs = [float(self.eFs.get()), float(self.eSpacing.get()),
+                wfmArgs = [float(self.eFsWfm.get()), float(self.eSpacing.get()),
                            int(self.eNumTones.get()), self.cbPhase.get()]
                 i, q = pyarbtools.wfmBuilder.multitone(*wfmArgs)
             else:
@@ -551,14 +558,13 @@ class PyarbtoolsGUI:
                 if 'M819' not in self.inst.instId:
                     self.statusBar.configure(text='Invalid waveform type for VSG. Select a waveform with "IQ" type.', bg='red')
                 else:
-                    segment = self.inst.download_wfm(wfmData['real'], ch=1, name=wfmData['name'])
+                    segment = self.inst.download_wfm(wfmData['real'], ch=int(self.cbChannel.get()), name=wfmData['name'])
                     self.wfmList[index]['segment'] = segment
                     self.wfmList[index]['dl'] = True
                     self.btnWfmPlay.configure(state=ACTIVE)
-            # elif wfmData['type'] == 'iq':
             else:
                 if 'M819' in self.inst.instId:
-                    segment = self.inst.download_iq_wfm(wfmData['i'], wfmData['q'], ch=1, name=wfmData['name'])
+                    segment = self.inst.download_iq_wfm(wfmData['i'], wfmData['q'], ch=int(self.cbChannel.get()), name=wfmData['name'])
                     self.wfmList[index]['segment'] = segment
                     self.wfmList[index]['dl'] = True
                     self.btnWfmPlay.configure(state=ACTIVE)
@@ -586,27 +592,39 @@ class PyarbtoolsGUI:
         except pyarbtools.error.SockInstError as e:
             self.statusBar.configure(str(e), bg='red')
 
+    def change_channel(self, event=None):
+        """Resets waveform play button to ensure that the segment is
+        downloaded for the selected channel."""
+
+        self.btnWfmPlay.configure(state=DISABLED)
+
     def delete_wfm(self):
         """Deletes selected waveform from the waveform list."""
         try:
             index = self.lbWfmList.curselection()[0]
-            if type(self.inst) == pyarbtools.instruments.VSG:
-                self.inst.delete(self.wfmList[index]['name'])
-            del(self.wfmList[index])
+            del (self.wfmList[index])
             self.lbWfmList.delete(index)
+            if type(self.inst) == pyarbtools.instruments.VSG:
+                self.inst.delete_wfm(self.wfmList[index]['name'])
+            elif type(self.inst) == pyarbtools.instruments.M8190A:
+                self.inst.delete_segment(self.wfmList[index]['segment'])
+        except IndexError:
+            # wfm list is empty
+            pass
+        except KeyError:
+            # wfm hasn't been downloaded to instrument
+            pass
+        finally:
             if len(self.wfmList) == 0:
                 self.btnWfmDownload.configure(state=DISABLED)
                 self.btnWfmPlay.configure(state=DISABLED)
                 self.lblName.configure(text='')
                 self.lblLength.configure(text='')
                 self.lblFormat.configure(text='')
-        except IndexError:
-            pass
 
     def clear_all_wfm(self):
         """Deletes all waveforms from waveform list."""
-        if type(self.inst) == pyarbtools.instruments.VSG:
-            self.inst.clear_all()
+        self.inst.clear_all_wfm()
         self.wfmList = []
         self.lbWfmList.delete(0, END)
         self.btnWfmDownload.configure(state=DISABLED)
@@ -721,6 +739,7 @@ class PyarbtoolsGUI:
             if self.cbPreset.get() == 'True':
                 self.inst.write('*rst')
             if self.instKey == 'M8190A':
+                self.inst.clear_all_wfm()
                 configArgs = {'res': self.resArgs[self.cbRes.get()],
                               'clkSrc': self.clkSrcArgs[self.cbClkSrc.get()],
                               'fs': float(self.eFs.get()),
@@ -744,6 +763,7 @@ class PyarbtoolsGUI:
                               'refSrc': self.refSrcArgs[self.cbRefSrc.get()],
                               'refFreq': float(self.eRefFreq.get())}
             elif self.instKey == 'VSG':
+                self.inst.clear_all_wfm()
                 configArgs = {'rfState': self.rfStateArgs[self.cbRfState.get()],
                               'modState': self.modStateArgs[self.cbModState.get()],
                               'cf': float(self.eCf.get()),
@@ -795,7 +815,7 @@ class PyarbtoolsGUI:
             fsLabel = Label(self.configFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFs = Entry(self.configFrame, textvariable=fsVar)
-            fsVar.set('12e9')
+            fsVar.set('7.2e9')
 
             refSrcLabel = Label(self.configFrame, text='Reference Source')
             self.refSrcArgs = {'AXIe': 'axi', 'Internal': 'int', 'External': 'ext'}
@@ -817,7 +837,8 @@ class PyarbtoolsGUI:
             self.cbOut2.current(0)
 
             func1Label = Label(self.configFrame, text='Ch 1 Function')
-            self.funcArgs = {'Arbitrary Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
+            # self.funcArgs = {'Arbitrary Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
+            self.funcArgs = {'Arbitrary Waveform': 'arb'}
             self.cbFunc1 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()))
             self.cbFunc1.current(0)
 
@@ -913,7 +934,8 @@ class PyarbtoolsGUI:
             refFreqVar.set('100e6')
 
             funcLabel = Label(self.configFrame, text='Function')
-            self.funcArgs = {'Arbitrary Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
+            # self.funcArgs = {'Arbitrary Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
+            self.funcArgs = {'Arbitrary Waveform': 'arb'}
             self.cbFunc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()))
             self.cbFunc.current(0)
 

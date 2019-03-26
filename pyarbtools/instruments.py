@@ -15,6 +15,7 @@ TODO:
     instrument is connected
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
+* Separate out configure() into individual methods that update class attributes
 * Add a check for PDW length (600k limit?)
 * Add a multi-binblockwrite feature for download_wfm in the case of 
     waveform size > 1 GB
@@ -41,7 +42,7 @@ def wraparound_calc(length, gran, minLen):
 class M8190A(communications.SocketInstrument):
     """Generic class for controlling a Keysight M8190A AWG."""
 
-    def __init__(self, host, port=5025, timeout=3, reset=False):
+    def __init__(self, host, port=5025, timeout=10, reset=False):
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
@@ -90,6 +91,7 @@ class M8190A(communications.SocketInstrument):
         if not isinstance(cf1, float) or cf1 <= 0 or not isinstance(cf2, float) or cf2 <= 0:
             raise error.SockInstError('Carrier frequencies must be positive floating point values.')
 
+        self.write('abort')
         self.set_resolution(res)
 
         self.write(f'frequency:raster:source {clkSrc}')
@@ -170,6 +172,7 @@ class M8190A(communications.SocketInstrument):
         Assigns a waveform name to the segment. Returns segment number."""
 
         self.write('abort')
+        self.query('*opc?')
         wfm = self.check_wfm(wfm)
         length = len(wfm)
 
@@ -186,6 +189,7 @@ class M8190A(communications.SocketInstrument):
         identifier."""
 
         self.write('abort')
+        self.query('*opc?')
         i = self.check_wfm(i)
         q = self.check_wfm(q)
 
@@ -227,9 +231,25 @@ class M8190A(communications.SocketInstrument):
 
         return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
 
+    def delete_segment(self, wfmID=1, ch=1):
+        """Deletes waveform segment"""
+        if type(wfmID) != int or wfmID < 1:
+            raise error.SockInstError('Segment ID must be a positive integer.')
+        if ch not in [1, 2]:
+            raise error.SockInstError('Channel must be 1 or 2.')
+        self.write('abort')
+        self.write(f'trace{ch}:delete {wfmID}')
+
+    def clear_all_wfm(self):
+        """Clears all segments from segment memory."""
+        self.write('abort')
+        self.write('trace1:delete:all')
+        self.write('trace2:delete:all')
+
     def play(self, wfmID=1, ch=1):
         """Selects waveform, turns on analog output, and begins continuous playback."""
-        self.write(f'trace:select {wfmID}')
+        self.write('abort')
+        self.write(f'trace{ch}:select {wfmID}')
         self.write(f'output{ch}:norm on')
         self.write('init:cont on')
         self.write('init:imm')
@@ -244,7 +264,7 @@ class M8190A(communications.SocketInstrument):
 class M8195A(communications.SocketInstrument):
     """Generic class for controlling Keysight M8195A AWG."""
 
-    def __init__(self, host, port=5025, timeout=3, reset=False):
+    def __init__(self, host, port=5025, timeout=10, reset=False):
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
@@ -343,7 +363,7 @@ class M8195A(communications.SocketInstrument):
 class M8196A(communications.SocketInstrument):
     """Generic class for controlling Keysight M8196A AWG."""
 
-    def __init__(self, host, port=5025, timeout=3, reset=False):
+    def __init__(self, host, port=5025, timeout=10, reset=False):
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
@@ -458,7 +478,7 @@ class M8196A(communications.SocketInstrument):
 
 
 class VSG(communications.SocketInstrument):
-    def __init__(self, host, port=5025, timeout=5, reset=False):
+    def __init__(self, host, port=5025, timeout=10, reset=False):
         """Generic class for controlling the EXG, MXG, and PSG family
         signal generators."""
 
@@ -620,14 +640,15 @@ class VSG(communications.SocketInstrument):
         else:
             return np.array(self.binMult * wfm, dtype=np.int16)
 
-    def delete(self, wfmID):
+    def delete_wfm(self, wfmID):
         """Deletes specified waveform."""
         if 'M938' in self.instId:
             self.write(f'memory:delete "{wfmID}"')
         else:
             self.write(f'memory:delete "WFM1:{wfmID}"')
+        self.err_check()
 
-    def clear_all(self):
+    def clear_all_wfm(self):
         """Deletes all iq waveforms."""
         if 'M938' in self.instId:
 
@@ -636,6 +657,7 @@ class VSG(communications.SocketInstrument):
             self.write('memory:delete:all')
         else:
             self.write('mmemory:delete:wfm')
+        self.err_check()
 
     def play(self, wfmID='wfm'):
         """Selects waveform and activates arb mode, RF output, and modulation."""
@@ -665,7 +687,7 @@ class VSG(communications.SocketInstrument):
 class AnalogUXG(communications.SocketInstrument):
     """Generic class for controlling the N5193A Analog UXG agile signal generators."""
 
-    def __init__(self, host, port=5025, timeout=5, reset=False, clearMemory=False):
+    def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False):
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
@@ -991,7 +1013,7 @@ class VectorUXG(communications.SocketInstrument):
     """Generic class for controlling the N5194A + N5193A (Vector + Analog)
     UXG agile signal generators."""
 
-    def __init__(self, host, port=5025, timeout=5, reset=False, clearMemory=False):
+    def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False):
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
