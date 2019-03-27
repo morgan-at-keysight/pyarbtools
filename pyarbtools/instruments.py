@@ -55,7 +55,7 @@ class M8190A(communications.SocketInstrument):
         self.minLen = 0
         self.binMult = 0
         self.binShift = 0
-        self.intFactor = 0
+        self.intFactor = 1
         self.idleGran = 0
         self.clkSrc = self.query('frequency:raster:source?').strip().lower()
         self.fs = float(self.query('frequency:raster?').strip())
@@ -73,6 +73,7 @@ class M8190A(communications.SocketInstrument):
     def sanity_check(self):
         """Prints out initialized values."""
         print('Sample rate:', self.fs)
+        print('Baseband Sample Rate:', self.bbfs)
         print('Resolution:', self.res)
         print(f'Output path 1: {self.out1}, Output path 2: {self.out2}')
         print(f'Carrier 1: {self.cf1} Hz, Carrier 2: {self.cf2}')
@@ -81,7 +82,7 @@ class M8190A(communications.SocketInstrument):
         print('Ref frequency:', self.refFreq)
 
     def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
-                  out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9):
+                  out2='dac', func1='arb', func2='arb', cf1=1e9, cf2=1e9):
         """Sets basic configuration for M8190A and populates class attributes accordingly."""
 
         if not isinstance(fs, float) or fs <= 0:
@@ -103,6 +104,8 @@ class M8190A(communications.SocketInstrument):
         else:
             self.write(f'frequency:raster:external {fs}')
             self.fs = float(self.query('frequency:raster:external?').strip())
+
+        self.bbfs = self.fs / self.intFactor
 
         self.write(f'output1:route {out1}')
         self.out1 = self.query('output1:route?').strip()
@@ -270,7 +273,9 @@ class M8195A(communications.SocketInstrument):
             self.write('*rst')
             self.query('*opc?')
         self.dacMode = self.query('inst:dacm?').strip()
+        self.memDiv = 1
         self.fs = float(self.query('frequency:raster?').strip())
+        self.effFs = self.fs / self.memDiv
         self.func = self.query('func:mode?').strip()
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = float(self.query('roscillator:frequency?').strip())
@@ -280,21 +285,23 @@ class M8195A(communications.SocketInstrument):
         self.binShift = 0
 
     def configure(self, dacMode='single', memDiv=1, fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
-        """Sets basic configuration for M8195A and populates class attributes accordingly."""
-
+        """Sets basic config uration for M8195A and populates class attributes accordingly."""
         if not isinstance(fs, float) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
         if not isinstance(refFreq, float) or refFreq <= 0:
             raise ValueError('Reference frequency must be a positive floating point value.')
+        if memDiv not in [1, 2, 4]:
+            raise ValueError('Memory divider must be 1, 2, or 4.')
 
         self.write(f'inst:dacm {dacMode}')
         self.dacMode = self.query('inst:dacm?').strip().lower()
 
         self.write(f'instrument:memory:extended:rdivider div{memDiv}')
-        self.memDiv = self.query('instrument:memory:extended:rdivider?').strip()
+        self.memDiv = int(self.query('instrument:memory:extended:rdivider?').strip().split('DIV')[-1])
 
         self.write(f'frequency:raster {fs}')
         self.fs = float(self.query('frequency:raster?').strip())
+        self.effFs = self.fs / self.memDiv
 
         self.write(f'func:mode {func}')
         self.func = self.query('func:mode?').strip()
@@ -346,6 +353,21 @@ class M8195A(communications.SocketInstrument):
             raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
+
+    def delete_segment(self, wfmID=1, ch=1):
+        """Deletes waveform segment"""
+        if type(wfmID) != int or wfmID < 1:
+            raise error.SockInstError('Segment ID must be a positive integer.')
+        if ch not in [1, 2, 3, 4]:
+            raise error.SockInstError('Channel must be 1, 2, 3, or 4.')
+        self.write('abort')
+        self.write(f'trace{ch}:del {wfmID}')
+
+    def clear_all_wfm(self):
+        """Clears all segments from segment memory."""
+        self.write('abort')
+        for ch in range(1,5):
+            self.write(f'trace{ch}:del:all')
 
     def play(self, wfmID=1, ch=1):
         """Selects waveform, turns on analog output, and begins continuous playback."""

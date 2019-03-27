@@ -12,6 +12,8 @@ TODO
     Delete/Clear All buttons don't auto-turn on
 """
 
+"""YOU ARE ON 478"""
+
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
@@ -87,6 +89,8 @@ class PyarbtoolsGUI:
         self.eInstIPAddress.grid(row=r, column=1)
         self.btnInstConnect.grid(row=r, column=2)
 
+        self.instKey = self.cbInstruments.get()
+
         """configFrame"""
         # configFrame Widgets
 
@@ -131,20 +135,13 @@ class PyarbtoolsGUI:
         self.cbWfmType = ttk.Combobox(self.wfmTypeSelectFrame, state='readonly', values=self.wfmTypeList)
         self.cbWfmType.current(0)
 
-        iqSelectList = ['IQ', 'Real']
-        self.cbIqSelect = ttk.Combobox(self.wfmTypeSelectFrame, state='readonly', values=iqSelectList)
-        self.cbIqSelect.current(0)
-
         self.cbWfmType.bind("<<ComboboxSelected>>", self.open_wfm_builder)
-        self.cbIqSelect.bind("<<ComboboxSelected>>", self.open_wfm_builder)
 
         # wfmTypeSelectFrame Geometry
         r = 0
         wfmLabel.grid(row=r, column=0)
         r += 1
         self.cbWfmType.grid(row=r)
-        r += 1
-        self.cbIqSelect.grid(row=r)
 
         """wfmFrame"""
         self.open_wfm_builder()
@@ -213,12 +210,6 @@ class PyarbtoolsGUI:
         self.wfmFrame.grid(row=1, column=1, sticky=N)
 
         self.wfmType = self.cbWfmType.get()
-        if self.wfmType == 'Digital Modulation' or self.wfmType == 'Multitone' or self.wfmType == 'AM':
-            self.cbIqSelect.configure(state=DISABLED)
-            self.cbIqSelect.current(0)
-        else:
-            self.cbIqSelect.configure(state=ACTIVE)
-            self.genMode = self.cbIqSelect.get()
 
         if self.wfmType == 'AM':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
@@ -252,10 +243,6 @@ class PyarbtoolsGUI:
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
-            try:
-                fsVar.set(str(self.inst.fs))
-            except AttributeError as e:
-                fsVar.set('100e6')
 
             lblPulseWidth = Label(self.wfmFrame, text='Pulse Width')
             lengthVar = StringVar()
@@ -289,24 +276,10 @@ class PyarbtoolsGUI:
             lblChirpBw.grid(row=r, column=0, sticky=E)
             self.eChirpBw.grid(row=r, column=1, sticky=W)
 
-            if self.genMode == 'Real':
-                lblCf = Label(self.wfmFrame, text='Carrier Frequency')
-                cfVar = StringVar()
-                self.eCf = Entry(self.wfmFrame, textvariable=cfVar)
-                cfVar.set('1e9')
-
-                r += 1
-                lblCf.grid(row=r, column=0, sticky=E)
-                self.eCf.grid(row=r, column=1, sticky=W)
-
         elif self.wfmType == 'Barker Code':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
-            try:
-                fsVar.set(str(self.inst.fs))
-            except AttributeError as e:
-                fsVar.set('100e6')
 
             lblPulseWidth = Label(self.wfmFrame, text='Pulse Width')
             lengthVar = StringVar()
@@ -340,24 +313,10 @@ class PyarbtoolsGUI:
             lblCode.grid(row=r, column=0, sticky=E)
             self.cbCode.grid(row=r, column=1, sticky=W)
 
-            if self.genMode == 'Real':
-                lblCf = Label(self.wfmFrame, text='Carrier Frequency')
-                cfVar = StringVar()
-                self.eCf = Entry(self.wfmFrame, textvariable=cfVar)
-                cfVar.set('1e9')
-
-                r += 1
-                lblCf.grid(row=r, column=0, sticky=E)
-                self.eCf.grid(row=r, column=1, sticky=W)
-
         elif self.wfmType == 'Digital Modulation':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
-            try:
-                fsVar.set(str(self.inst.fs))
-            except AttributeError as e:
-                fsVar.set('100e6')
 
             lblModType = Label(self.wfmFrame, text='Modulation Type')
             modTypeList = ['bpsk', 'qpsk', '8psk', '16psk', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256']
@@ -413,10 +372,6 @@ class PyarbtoolsGUI:
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
-            try:
-                fsVar.set(str(self.inst.fs))
-            except AttributeError as e:
-                fsVar.set('100e6')
 
             lblSpacing = Label(self.wfmFrame, text='Tone Spacing')
             spacingVar = StringVar()
@@ -453,34 +408,78 @@ class PyarbtoolsGUI:
         else:
             raise ValueError('Invalid wfmType selected, this should never happen.')
 
-        if type(self.inst) == pyarbtools.instruments.M8190A:
-            fsVar.set(str(self.inst.bbfs))
-            print(self.inst.bbfs)
-        else:
-            try:
-                fsVar.set(str(self.inst.fs))
-                print(self.inst.fs)
-            except AttributeError:
-                fsVar.set('100e6')
+        lblCf = Label(self.wfmFrame, text='Carrier Frequency')
+        cfVar = StringVar()
+        self.eCf = Entry(self.wfmFrame, textvariable=cfVar)
+        cfVar.set('1e9')
+
+        lblWfmFormat = Label(self.wfmFrame, text='Waveform Format')
+        formatList = ['IQ', 'Real']
+        self.cbWfmFormat = ttk.Combobox(self.wfmFrame, state=DISABLED, values=formatList)
+        self.cbWfmFormat.current(0)
+        self.cbWfmFormat.bind("<<ComboboxSelected>>", self.wfmFormat_select)
+        self.cbWfmFormat.event_generate("<<ComboboxSelected>>")
+
+        try:
+            if self.instKey == 'M8190A':
+                if 'intx' in self.inst.res.lower():
+                    self.cbWfmFormat.current(0)
+                else:
+                    self.cbWfmFormat.current(1)
+            elif self.instKey in ['M8195A', 'M8196A']:
+                self.cbWfmFormat.current(1)
+        except AttributeError:
+            print('nothing is connected, dumbass')
 
         lblWfmName = Label(self.wfmFrame, text='Name')
         wfmNameVar = StringVar()
         self.eWfmName = Entry(self.wfmFrame, textvariable=wfmNameVar)
         wfmNameVar.set('wfm')
+
         self.btnCreateWfm = Button(self.wfmFrame, text='Create Waveform', command=self.create_wfm)
 
+        if type(self.inst) == pyarbtools.instruments.M8190A and self.cbWfmFormat.get().lower() == 'iq':
+            fsVar.set(f'{self.inst.bbfs:.2e}')
+        elif type(self.inst) == pyarbtools.instruments.M8195A:
+            fsVar.set(f'{self.inst.effFs:.2e}')
+        else:
+            try:
+                fsVar.set(f'{self.inst.fs:.2e}')
+            except AttributeError:
+                fsVar.set('100e6')
+
+        r += 1
+        lblCf.grid(row=r, column=0, sticky=E)
+        self.eCf.grid(row=r, column=1, sticky=W)
+        r += 1
+        lblWfmFormat.grid(row=r, column=0, sticky=E)
+        self.cbWfmFormat.grid(row=r, column=1, sticky=W)
         r += 1
         lblWfmName.grid(row=r, column=0, sticky=E)
         self.eWfmName.grid(row=r, column=1, sticky=W)
         r += 1
         self.btnCreateWfm.grid(row=r, columnspan=2)
 
+    def wfmFormat_select(self, event=None):
+        """Enables or disables cf input based on waveform format."""
+        wfmFormat = self.cbWfmFormat.get()
+        if wfmFormat.lower() == 'iq':
+            self.eCf.configure(state=DISABLED)
+        elif wfmFormat.lower() == 'real':
+            self.eCf.configure(state=ACTIVE)
+        else:
+            raise ValueError('Invalid waveform format selected. This should never happen.')
+
     def create_wfm(self):
         """Calls the function to create the selected type of waveform
         and stores it in the waveform list."""
         try:
+            """YOU ARE HERE TRYING TO FIGURE OUT HOW TO MANAGE DIFFERENT NUMBERS OF
+            RETURN ARGUMENTS DEPENDING ON THE WAVEFORM FORMAT. YOU MAY NEED TO REFACTOR 
+            WFMBUILDER RETURNS AND THE THINGS THEY DEPEND ON."""
             if self.wfmType == 'AM':
-                wfmArgs = [float(self.eFsWfm.get()), int(self.eAmDepth.get()), float(self.eModRate.get())]
+                wfmArgs = [float(self.eFsWfm.get()), int(self.eAmDepth.get()),
+                           float(self.eModRate.get()), float(self.eCf.get())]
                 i, q = pyarbtools.wfmBuilder.am_generator(*wfmArgs)
             elif self.wfmType == 'Chirp':
                 wfmArgs = [float(self.eFsWfm.get()), float(self.ePulseWidth.get()),
@@ -606,8 +605,8 @@ class PyarbtoolsGUI:
             self.lbWfmList.delete(index)
             if type(self.inst) == pyarbtools.instruments.VSG:
                 self.inst.delete_wfm(self.wfmList[index]['name'])
-            elif type(self.inst) == pyarbtools.instruments.M8190A:
-                self.inst.delete_segment(self.wfmList[index]['segment'])
+            elif type(self.inst) in [pyarbtools.instruments.M8190A, pyarbtools.instruments.M8195A]:
+                self.inst.delete_segment(self.wfmList[index]['segment'], int(self.cbChannel.get()))
         except IndexError:
             # wfm list is empty
             pass
@@ -752,7 +751,9 @@ class PyarbtoolsGUI:
                               'cf1': float(self.eCf1.get()),
                               'cf2': float(self.eCf2.get())}
             elif self.instKey == 'M8195A':
+                self.inst.clear_all_wfm()
                 configArgs= {'dacMode': self.dacModeArgs[self.cbDacMode.get()],
+                             'memDiv': int(self.cbMemDiv.get()),
                              'fs': float(self.eFs.get()),
                              'refSrc': self.refSrcArgs[self.cbRefSrc.get()],
                              'refFreq': float(self.eRefFreq.get()),
@@ -787,9 +788,12 @@ class PyarbtoolsGUI:
             else:
                 raise ValueError('Invalid instrument selected. This should never happen.')
             self.inst.configure(*configArgs.values())
+            self.memDiv_select()
+            self.res_select()
             self.statusBar.configure(text=f'{self.instKey} configured.', bg='white')
         except Exception as e:
             self.statusBar.configure(text=str(e), bg='red')
+        self.cbWfmFormat.event_generate("<<ComboboxSelected>>")
 
 
     def open_inst_config(self):
@@ -806,6 +810,7 @@ class PyarbtoolsGUI:
                             '24x Interpolation': 'intx24', '48x Interpolation': 'intx48'}
             self.cbRes = ttk.Combobox(self.configFrame, state='readonly', values=list(self.resArgs.keys()))
             self.cbRes.current(0)
+            self.cbRes.bind("<<ComboboxSelected>>", self.res_select)
 
             clkSrcLabel = Label(self.configFrame, text='Clock Source')
             self.clkSrcArgs = {'Internal': 'int', 'External': 'ext'}
@@ -816,6 +821,9 @@ class PyarbtoolsGUI:
             fsVar = StringVar()
             self.eFs = Entry(self.configFrame, textvariable=fsVar)
             fsVar.set('7.2e9')
+
+            bbfsLabel = Label(self.configFrame, text='Baseband Sample Rate')
+            self.lblBbFs = Label(self.configFrame, text=0)
 
             refSrcLabel = Label(self.configFrame, text='Reference Source')
             self.refSrcArgs = {'AXIe': 'axi', 'Internal': 'int', 'External': 'ext'}
@@ -870,6 +878,10 @@ class PyarbtoolsGUI:
             self.eFs.grid(row=r, column=1, sticky=W)
             r += 1
 
+            bbfsLabel.grid(row=r, column=0, sticky=E)
+            self.lblBbFs.grid(row=r, column=1, sticky=W)
+            r += 1
+
             refSrcLabel.grid(row=r, column=0, sticky=E)
             self.cbRefSrc.grid(row=r, column=1, sticky=W)
             r += 1
@@ -916,11 +928,20 @@ class PyarbtoolsGUI:
                                           values=list(self.dacModeArgs.keys()))
             self.cbDacMode.current(0)
 
+            memDivLabel = Label(self.configFrame, text='Sample Rate Divider')
+            memDivList = [1, 2, 4]
+            self.cbMemDiv = ttk.Combobox(self.configFrame, state='readonly', values=memDivList)
+            self.cbMemDiv.current(0)
+            self.cbMemDiv.bind("<<ComboboxSelected>>", self.memDiv_select)
+
             fsLabel = Label(self.configFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFs = Entry(self.configFrame, textvariable=fsVar)
             fsVar.set('64e9')
 
+            effFsLabel = Label(self.configFrame, text='Effective Sample Rate')
+            self.effFs = float(self.eFs.get()) / float(self.cbMemDiv.get())
+            self.lblEffFs = Label(self.configFrame, text=f'{self.effFs:.2e}')
             refSrcLabel = Label(self.configFrame, text='Reference Source')
 
             self.refSrcArgs = {'AXIe': 'axi', 'Internal': 'int', 'External': 'ext'}
@@ -945,8 +966,16 @@ class PyarbtoolsGUI:
             self.cbDacMode.grid(row=r, column=1, sticky=W)
             r += 1
 
+            memDivLabel.grid(row=r, column=0, sticky=E)
+            self.cbMemDiv.grid(row=r, column=1, sticky=W)
+            r += 1
+
             fsLabel.grid(row=r, column=0, sticky=E)
             self.eFs.grid(row=r, column=1, sticky=W)
+            r += 1
+
+            effFsLabel.grid(row=r, column=0, sticky=E)
+            self.lblEffFs.grid(row=r, column=1, sticky=W)
             r += 1
 
             refSrcLabel.grid(row=r, column=0, sticky=E)
@@ -1197,6 +1226,22 @@ class PyarbtoolsGUI:
         self.cbPreset.grid(row=r, column=1, sticky=W)
         r += 1
         configBtn.grid(row=r, column=0, columnspan=2)
+
+    def memDiv_select(self, event=None):
+        """Updates effective sample rate."""
+        # self.effFs = float(self.eFs.get()) / float(self.cbMemDiv.get())
+        # self.lblEffFs.configure(text=f'{self.effFs:.2e}')
+        if type(self.inst) == pyarbtools.instruments.M8195A:
+            self.lblEffFs.configure(text=f'{self.inst.effFs:.2e}')
+
+    def res_select(self, event=None):
+        """Updates baseband sample rate."""
+        if type(self.inst) == pyarbtools.instruments.M8190A:
+            if self.resArgs[self.cbRes.get()] in ['intx3', 'intx12', 'intx24', 'intx48']:
+                self.lblBbFs.configure(text=f'{self.inst.bbfs:.2e}')
+            else:
+                self.lblBbFs.configure(text=f'{self.inst.fs:.2e}')
+
 
 def main():
     root = Tk()
