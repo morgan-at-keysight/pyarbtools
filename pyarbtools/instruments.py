@@ -170,14 +170,24 @@ class M8190A(communications.SocketInstrument):
         else:
             raise error.AWGError('Invalid resolution selected.')
 
-    def download_wfm(self, wfm, ch=1, name='wfm'):
+    def download_wfm(self, wfmData, ch=1, name='wfm', wfmFormat='iq'):
         """Defines and downloads a waveform into the segment memory.
         Assigns a waveform name to the segment. Returns segment number."""
 
         self.write('abort')
         self.query('*opc?')
-        wfm = self.check_wfm(wfm)
-        length = len(wfm)
+        if wfmFormat.lower() == 'iq':
+            if wfmData.dtype != np.complex:
+                raise TypeError('Invalid wfm type. IQ waveforms must be an array of complex values.')
+            else:
+                i = self.check_wfm(np.real(wfmData))
+                q = self.check_wfm(np.imag(wfmData))
+
+                wfm = self.iq_wfm_combiner(i, q)
+                length = len(wfm) / 2
+        elif wfmFormat.lower() == 'real':
+            wfm = self.check_wfm(wfmData)
+            length = len(wfm)
 
         segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segment}, {length}')
@@ -186,25 +196,25 @@ class M8190A(communications.SocketInstrument):
 
         return segment
 
-    def download_iq_wfm(self, i, q, ch=1, name='wfm'):
-        """Defines and downloads an IQ waveform into the segment memory.
-        Optionally defines a waveform name. Returns useful waveform
-        identifier."""
-
-        self.write('abort')
-        self.query('*opc?')
-        i = self.check_wfm(i)
-        q = self.check_wfm(q)
-
-        iq = self.iq_wfm_combiner(i, q)
-        length = len(iq) / 2
-
-        segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
-        self.write(f'trace{ch}:def {segment}, {length}')
-        self.binblockwrite(f'trace{ch}:data {segment}, 0, ', iq)
-        self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
-
-        return segment
+    # def download_iq_wfm(self, i, q, ch=1, name='wfm'):
+    #     """Defines and downloads an IQ waveform into the segment memory.
+    #     Optionally defines a waveform name. Returns useful waveform
+    #     identifier."""
+    #
+    #     self.write('abort')
+    #     self.query('*opc?')
+    #     i = self.check_wfm(i)
+    #     q = self.check_wfm(q)
+    #
+    #     iq = self.iq_wfm_combiner(i, q)
+    #     length = len(iq) / 2
+    #
+    #     segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+    #     self.write(f'trace{ch}:def {segment}, {length}')
+    #     self.binblockwrite(f'trace{ch}:data {segment}, 0, ', iq)
+    #     self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
+    #
+    #     return segment
 
     @staticmethod
     def iq_wfm_combiner(i, q):
@@ -595,7 +605,7 @@ class VSG(communications.SocketInstrument):
         if 'M938' not in self.instId:
             print('IQ Scaling:', self.iqScale)
 
-    def download_iq_wfm(self, i, q, wfmID='wfm'):
+    def download_wfm(self, wfmData, wfmID='wfm'):
         """Defines and downloads a waveform into the waveform memory.
         Returns useful waveform identifier."""
 
@@ -609,9 +619,13 @@ class VSG(communications.SocketInstrument):
         self.write('modulation:state off')
         self.arbState = self.query('radio:arb:state?').strip()
 
-        i = self.check_wfm(i, bigEndian=bigEndian)
-        q = self.check_wfm(q, bigEndian=bigEndian)
-        iq = self.iq_wfm_combiner(i, q)
+        if wfmData.dtype != np.complex:
+            raise TypeError('Invalid wfm type. IQ waveforms must be an array of complex values.')
+        else:
+            i = self.check_wfm(np.real(wfmData), bigEndian=bigEndian)
+            q = self.check_wfm(np.imag(wfmData), bigEndian=bigEndian)
+
+            wfm = self.iq_wfm_combiner(i, q)
 
         # M9381/3A Download Procedure
         if 'M938' in self.instId:
@@ -624,11 +638,11 @@ class VSG(communications.SocketInstrument):
             except error.SockInstError:
                 # print('Waveform doesn\'t exist, skipping delete operation.')
                 pass
-            self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}",', iq)
+            self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
             self.write(f'memory:copy "C:\\Temp\\{wfmID}","{wfmID}"')
         # EXG/MXG/PSG Download Procedure
         else:
-            self.binblockwrite(f'mmemory:data "WFM1:{wfmID}", ', iq)
+            self.binblockwrite(f'mmemory:data "WFM1:{wfmID}", ', wfm)
             self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
         return wfmID
@@ -663,7 +677,8 @@ class VSG(communications.SocketInstrument):
             return np.array(self.binMult * wfm, dtype=np.int16)
 
     def delete_wfm(self, wfmID):
-        """Deletes specified waveform."""
+        """Stops output and deletes specified waveform."""
+        self.stop()
         if 'M938' in self.instId:
             self.write(f'memory:delete "{wfmID}"')
         else:
@@ -671,11 +686,10 @@ class VSG(communications.SocketInstrument):
         self.err_check()
 
     def clear_all_wfm(self):
-        """Deletes all iq waveforms."""
+        """Stops output and deletes all iq waveforms."""
+        self.stop()
         if 'M938' in self.instId:
-
             """UNTESTED PLEASE TEST"""
-
             self.write('memory:delete:all')
         else:
             self.write('mmemory:delete:wfm')
@@ -1264,16 +1278,21 @@ class VectorUXG(communications.SocketInstrument):
         self.query('*opc?')
         self.err_check()
 
-    def download_iq_wfm(self, i, q, wfmID='wfm'):
+    def download_wfm(self, wfmData, wfmID='wfm'):
         """Defines and downloads a waveform into the waveform memory.
         Returns useful waveform identifier."""
 
+        if wfmData.dtype != np.complex:
+            raise TypeError('Invalid wfm type. IQ waveforms must be an array of complex values.')
+        else:
+            i = self.check_wfm(np.real(wfmData))
+            q = self.check_wfm(np.imag(wfmData))
+
+            wfm = self.iq_wfm_combiner(i, q)
         self.write('radio:arb:state off')
+
         self.arbState = self.query('radio:arb:state?').strip()
-        i = self.check_wfm(i)
-        q = self.check_wfm(q)
-        iq = self.iq_wfm_combiner(i, q)
-        self.binblockwrite(f'memory:data "WFM1:{wfmID}", ', iq)
+        self.binblockwrite(f'memory:data "WFM1:{wfmID}", ', wfm)
 
         return wfmID
 

@@ -27,7 +27,7 @@ def sine_generator(fs=100e6, freq=0, phase=0, zeroLast=False, format='iq'):
         iq = np.exp(2 * np.pi * freq * 1j * t) + phase
         if zeroLast:
             iq[-1] = 0 + 1j*0
-        return iq.real, iq.imag
+        return iq
     elif format.lower() == 'real':
         real = np.cos(2 * np.pi * freq * t + phase)
         if zeroLast:
@@ -55,9 +55,7 @@ def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, format='iq'):
         sFactor = abs(np.amax(iq))
         iq = iq / sFactor * 0.707
 
-        i = np.real(iq)
-        q = np.imag(iq)
-        return i, q
+        return iq
     elif format.lower() == 'real':
         real = mod * np.cos(2 * np.pi * cf * t)
         sFactor = np.amax(real)
@@ -67,7 +65,7 @@ def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, format='iq'):
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
-def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, zeroLast=False, cf=1e9, format='iq'):
+def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, format='iq', zeroLast=False):
     """Generates a symmetrical linear chirp at baseband or RF. Chirp direction
     is determined by the sign of chirpBw (pos=up chirp, neg=down chirp)."""
 
@@ -99,15 +97,12 @@ def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, zeroLast=F
         iq = np.exp(1j * mod)
         if zeroLast:
             iq[-1] = 0 + 1j*0
-        if pri <= pWidth:
-            i = np.real(iq)
-            q = np.imag(iq)
-        else:
+        if pri > pWidth:
             deadTime = np.zeros(int(fs * pri - rl))
-            i = np.append(np.real(iq), deadTime)
-            q = np.append(np.imag(iq), deadTime)
+            iq = np.append(iq, deadTime)
 
-        return i, q
+        return iq
+
     elif format.lower() == 'real':
         if pri <= pWidth:
             real = np.cos(2 * np.pi * cf * t + mod)
@@ -120,7 +115,7 @@ def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, zeroLast=F
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
-def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', zeroLast=False, cf=1e9, format='iq'):
+def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9, format='iq', zeroLast=False):
     """Generates a Barker phase coded signal at baseband or RF."""
     if pWidth <= 0 or pri <= 0:
         raise error.WfmBuilderError('Pulse width and PRI must be positive values.')
@@ -146,15 +141,11 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', zeroLast=Fal
 
         if zeroLast:
             iq[-1] = 0 + 0j
-        if pri <= pWidth:
-            i = np.real(iq)
-            q = np.imag(iq)
-        else:
+        if pri > pWidth:
             deadTime = np.zeros(int(fs * pri - rl))
-            i = np.append(np.real(iq), deadTime)
-            q = np.append(np.imag(iq), deadTime)
+            iq = np.append(iq, deadTime)
+        return iq
 
-        return i, q
     elif format.lower() == 'real':
         t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
 
@@ -163,6 +154,70 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', zeroLast=Fal
         else:
             deadTime = np.zeros(int(fs * pri - rl))
             real = np.append(np.cos(2 * np.pi * cf * t + mod), deadTime)
+
+        return real
+    else:
+        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
+
+
+def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, format='iq'):
+    """Generates a multitone signal with given tone spacing, number of
+    tones, sample rate, and phase relationship at baseband or RF."""
+    if spacing * num > fs:
+        raise error.WfmBuilderError('Multitone spacing and number of tones violates Nyquist.')
+
+    # Determine start frequency based on parity of the number of tones
+    if num % 2 != 0:
+        # Freq offset is integer mult of spacing, so time can be 1/spacing
+        f = - (num - 1) * spacing / 2
+        time = 1 / spacing
+    else:
+        # Freq offset is integer mult of spacing/2, so time must be 2/spacing
+        f = -num * spacing / 2 + spacing / 2
+        time = 2 / spacing
+
+    # Create time vector and record length
+    t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
+    rl = len(t)
+
+    # Define phase relationship
+    if phase == 'random':
+        phase = np.random.random_sample(size=rl) * 360
+    elif phase == 'zero':
+        phase = np.zeros(num)
+    elif phase == 'increasing':
+        phase = 180 * np.linspace(-1, 1, rl, endpoint=False)
+    elif phase == 'parabolic':
+        phase = np.cumsum(180 * np.linspace(-1, 1, rl, endpoint=False))
+
+    if format.lower() == 'iq':
+        # Preallocate 2D array for tones
+        tones = np.zeros((num, len(t)), dtype=np.complex)
+
+        # Create tones at each frequency and sum all together
+        for n in range(num):
+            tones[n] = np.exp(2j * np.pi * f * (t + phase[n]))
+            f += spacing
+        iq = tones.sum(axis=0)
+
+        # Normalize and return values
+        sFactor = abs(np.amax(iq))
+        iq = iq / sFactor * 0.707
+
+        return iq
+    elif format.lower() == 'real':
+        # Preallocate 2D array for tones
+        tones = np.zeros((num, len(t)))
+
+        # Create tones at each frequency and sum all together
+        for n in range(num):
+            tones[n] = np.cos(2 * np.pi * (cf + f) * (t + phase[n]))
+            f += spacing
+        real = tones.sum(axis=0)
+
+        # Normalize and return values
+        sFactor = abs(np.amax(real))
+        real = real / sFactor
 
         return real
     else:
@@ -853,71 +908,7 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     if zeroLast:
         iq[-1] = 0 + 1j*0
 
-    return np.real(iq), np.imag(iq)
-
-
-def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, format='iq'):
-    """Generates a multitone signal with given tone spacing, number of
-    tones, sample rate, and phase relationship at baseband or RF."""
-    if spacing * num > fs:
-        raise error.WfmBuilderError('Multitone spacing and number of tones violates Nyquist.')
-
-    # Determine start frequency based on parity of the number of tones
-    if num % 2 != 0:
-        # Freq offset is integer mult of spacing, so time can be 1/spacing
-        f = - (num - 1) * spacing / 2
-        time = 1 / spacing
-    else:
-        # Freq offset is integer mult of spacing/2, so time must be 2/spacing
-        f = -num * spacing / 2 + spacing / 2
-        time = 2 / spacing
-
-    # Create time vector and record length
-    t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
-    rl = len(t)
-
-    # Define phase relationship
-    if phase == 'random':
-        phase = np.random.random_sample(size=rl) * 360
-    elif phase == 'zero':
-        phase = np.zeros(num)
-    elif phase == 'increasing':
-        phase = 180 * np.linspace(-1, 1, rl, endpoint=False)
-    elif phase == 'parabolic':
-        phase = np.cumsum(180 * np.linspace(-1, 1, rl, endpoint=False))
-
-    if format.lower() == 'iq':
-        # Preallocate 2D array for tones
-        tones = np.zeros((num, len(t)), dtype=np.complex)
-
-        # Create tones at each frequency and sum all together
-        for n in range(num):
-            tones[n] = np.exp(2j * np.pi * f * (t + phase[n]))
-            f += spacing
-        iq = tones.sum(axis=0)
-
-        # Normalize and return values
-        sFactor = abs(np.amax(iq))
-        iq = iq / sFactor * 0.707
-
-        return np.real(iq), np.imag(iq)
-    elif format.lower() == 'real':
-        # Preallocate 2D array for tones
-        tones = np.zeros((num, len(t)))
-
-        # Create tones at each frequency and sum all together
-        for n in range(num):
-            tones[n] = np.cos(2 * np.pi * (cf + f) * (t + phase[n]))
-            f += spacing
-        real = tones.sum(axis=0)
-
-        # Normalize and return values
-        sFactor = abs(np.amax(real))
-        real = real / sFactor
-
-        return real
-    else:
-        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
+    return iq
 
 
 def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
