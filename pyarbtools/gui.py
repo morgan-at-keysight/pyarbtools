@@ -36,6 +36,7 @@ class PyarbtoolsGUI:
         # self.ipAddress = '127.0.0.1'
         self.ipAddress = '141.121.210.122'
         self.inst = None
+        self.cbWidth = 17
 
         """Master Frame Setup"""
         self.master = master
@@ -76,7 +77,7 @@ class PyarbtoolsGUI:
         v.set(self.ipAddress)
 
         self.lblInstStatus = Label(setupFrame, text='Not Connected', bg='red', width=13)
-        self.btnInstConnect = Button(setupFrame, text='Connect', command=self.instrument_connect)
+        self.btnInstConnect = ttk.Button(setupFrame, text='Connect', command=self.instrument_connect)
 
         # setupFrame Geometry
         r = 0
@@ -102,11 +103,11 @@ class PyarbtoolsGUI:
         scpiString.set('*idn?')
 
         btnWidth = 9
-        self.btnWrite = Button(self.interactFrame, text='Write', command=self.inst_write, width=btnWidth, state=DISABLED)
-        self.btnQuery = Button(self.interactFrame, text='Query', command=self.inst_query, width=btnWidth, state=DISABLED)
-        self.btnErrCheck = Button(self.interactFrame, text='Err Check', command=self.inst_err_check, width=btnWidth, state=DISABLED)
-        self.btnPreset = Button(self.interactFrame, text='Preset', command=self.inst_preset, width=btnWidth, state=DISABLED)
-        self.btnFlush = Button(self.interactFrame, text='Flush', command=self.inst_flush, width=btnWidth, state=DISABLED)
+        self.btnWrite = ttk.Button(self.interactFrame, text='Write', command=self.inst_write, width=btnWidth, state=DISABLED)
+        self.btnQuery = ttk.Button(self.interactFrame, text='Query', command=self.inst_query, width=btnWidth, state=DISABLED)
+        self.btnErrCheck = ttk.Button(self.interactFrame, text='Err Check', command=self.inst_err_check, width=btnWidth, state=DISABLED)
+        self.btnPreset = ttk.Button(self.interactFrame, text='Preset', command=self.inst_preset, width=btnWidth, state=DISABLED)
+        self.btnFlush = ttk.Button(self.interactFrame, text='Flush', command=self.inst_flush, width=btnWidth, state=DISABLED)
 
         lblReadoutTitle = Label(self.interactFrame, text='SCPI Readout', width=40)
         self.lblReadout = Label(self.interactFrame, text='Connect to instrument', width=40, relief='sunken')
@@ -132,7 +133,7 @@ class PyarbtoolsGUI:
         # wfmTypeSelectFrame Widgets
         wfmLabel = Label(self.wfmTypeSelectFrame, text='Waveform Type')
         self.wfmTypeList = ['AM', 'Chirp', 'Barker Code', 'Multitone', 'Digital Modulation']
-        self.cbWfmType = ttk.Combobox(self.wfmTypeSelectFrame, state='readonly', values=self.wfmTypeList)
+        self.cbWfmType = ttk.Combobox(self.wfmTypeSelectFrame, state='readonly', values=self.wfmTypeList, width=self.cbWidth)
         self.cbWfmType.current(0)
 
         self.cbWfmType.bind("<<ComboboxSelected>>", self.open_wfm_builder)
@@ -154,13 +155,13 @@ class PyarbtoolsGUI:
         lblNameHdr = Label(self.wfmListFrame, text='Name:')
         lblLengthHdr = Label(self.wfmListFrame, text='Length:')
         lblFormatHdr = Label(self.wfmListFrame, text='Format:')
-        self.btnWfmDownload = Button(self.wfmListFrame, text='Download', command=self.download_wfm, width=btnWidth)
+        self.btnWfmDownload = ttk.Button(self.wfmListFrame, text='Download', command=self.download_wfm, width=btnWidth)
         self.btnWfmDownload.configure(state=DISABLED)
-        self.btnWfmPlay = Button(self.wfmListFrame, text='Play', command=self.play_wfm, width=btnWidth)
+        self.btnWfmPlay = ttk.Button(self.wfmListFrame, text='Play', command=self.play_wfm, width=btnWidth)
         self.btnWfmPlay.configure(state=DISABLED)
-        self.btnWfmDelete = Button(self.wfmListFrame, text='Delete', command=self.delete_wfm, width=btnWidth)
+        self.btnWfmDelete = ttk.Button(self.wfmListFrame, text='Delete', command=self.delete_wfm, width=btnWidth)
         self.btnWfmDelete.configure(state=DISABLED)
-        self.btnWfmClearAll = Button(self.wfmListFrame, text='Clear All', command=self.clear_all_wfm, width=btnWidth)
+        self.btnWfmClearAll = ttk.Button(self.wfmListFrame, text='Clear All', command=self.clear_all_wfm, width=btnWidth)
         self.btnWfmClearAll.configure(state=DISABLED)
         lblChannel = Label(self.wfmListFrame, text='Ch')
         self.cbChannel = ttk.Combobox(self.wfmListFrame, width=4)
@@ -415,7 +416,7 @@ class PyarbtoolsGUI:
 
         lblWfmFormat = Label(self.wfmFrame, text='Waveform Format')
         formatList = ['IQ', 'Real']
-        self.cbWfmFormat = ttk.Combobox(self.wfmFrame, state=DISABLED, values=formatList)
+        self.cbWfmFormat = ttk.Combobox(self.wfmFrame, state=DISABLED, values=formatList, width=self.cbWidth)
         self.cbWfmFormat.current(0)
         self.cbWfmFormat.bind("<<ComboboxSelected>>", self.wfmFormat_select)
 
@@ -437,7 +438,7 @@ class PyarbtoolsGUI:
         self.eWfmName = Entry(self.wfmFrame, textvariable=wfmNameVar)
         wfmNameVar.set('wfm')
 
-        self.btnCreateWfm = Button(self.wfmFrame, text='Create Waveform', command=self.create_wfm)
+        self.btnCreateWfm = ttk.Button(self.wfmFrame, text='Create Waveform', command=self.create_wfm)
 
         if type(self.inst) == pyarbtools.instruments.M8190A and self.cbWfmFormat.get().lower() == 'iq':
             fsVar.set(f'{self.inst.bbfs:.2e}')
@@ -619,7 +620,7 @@ class PyarbtoolsGUI:
         self.lblName.configure(text='')
         self.lblLength.configure(text='')
         self.lblFormat.configure(text='')
-        self.statusBar.configure(text='All waveforms cleared from arb memory.')
+        self.statusBar.configure(text='All waveforms cleared from arb memory.', bg='white')
 
     def select_wfm(self, event=None):
         try:
@@ -638,7 +639,7 @@ class PyarbtoolsGUI:
                     self.btnWfmPlay.configure(state=DISABLED)
             self.statusBar.configure(text='', bg='white')
         except IndexError:
-            self.statusBar.configure(text='No waveforms have been defined yet.', bg='red')
+            self.statusBar.configure(text='No waveforms defined.', bg='white')
 
     def inst_write(self):
         self.inst.write(self.eScpi.get())
@@ -791,19 +792,19 @@ class PyarbtoolsGUI:
         self.configFrame = Frame(self.master, bd=5)
         self.configFrame.grid(row=1, column=0, rowspan=2, sticky=N)
 
-        configBtn = Button(self.configFrame, text='Configure', command=self.instrument_configure)
+        configBtn = ttk.Button(self.configFrame, text='Configure', command=self.instrument_configure)
 
         if self.instKey == 'M8190A':
             resLabel = Label(self.configFrame, text='Resolution')
             self.resArgs = {'12 Bit': 'wsp', '14 Bit': 'wpr', '3x Interpolation': 'intx3', '12x Interpolation': 'intx12',
                             '24x Interpolation': 'intx24', '48x Interpolation': 'intx48'}
-            self.cbRes = ttk.Combobox(self.configFrame, state='readonly', values=list(self.resArgs.keys()))
+            self.cbRes = ttk.Combobox(self.configFrame, state='readonly', values=list(self.resArgs.keys()), width=self.cbWidth)
             self.cbRes.current(0)
             self.cbRes.bind("<<ComboboxSelected>>", self.res_select)
 
             clkSrcLabel = Label(self.configFrame, text='Clock Source')
             self.clkSrcArgs = {'Internal': 'int', 'External': 'ext'}
-            self.cbClkSrc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.clkSrcArgs.keys()))
+            self.cbClkSrc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.clkSrcArgs.keys()), width=self.cbWidth)
             self.cbClkSrc.current(0)
 
             fsLabel = Label(self.configFrame, text='Sample Rate')
@@ -816,7 +817,7 @@ class PyarbtoolsGUI:
 
             refSrcLabel = Label(self.configFrame, text='Reference Source')
             self.refSrcArgs = {'AXIe': 'axi', 'Internal': 'int', 'External': 'ext'}
-            self.cbRefSrc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.refSrcArgs.keys()))
+            self.cbRefSrc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.refSrcArgs.keys()), width=self.cbWidth)
             self.cbRefSrc.current(0)
 
             refFreqLabel = Label(self.configFrame, text='Reference Frequency')
@@ -826,21 +827,21 @@ class PyarbtoolsGUI:
 
             out1Label = Label(self.configFrame, text='Ch 1 Output Path')
             self.outArgs = {'Direct DAC': 'dac', 'AC Amplified': 'ac', 'DC Amplified': 'dc'}
-            self.cbOut1 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.outArgs.keys()))
+            self.cbOut1 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.outArgs.keys()), width=self.cbWidth)
             self.cbOut1.current(0)
 
             out2Label = Label(self.configFrame, text='Ch 2 Output Path')
-            self.cbOut2 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.outArgs.keys()))
+            self.cbOut2 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.outArgs.keys()), width=self.cbWidth)
             self.cbOut2.current(0)
 
             func1Label = Label(self.configFrame, text='Ch 1 Function')
-            # self.funcArgs = {'Arbitrary Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
-            self.funcArgs = {'Arbitrary Waveform': 'arb'}
-            self.cbFunc1 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()))
+            # self.funcArgs = {'Arb Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
+            self.funcArgs = {'Arb Waveform': 'arb'}
+            self.cbFunc1 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()), width=self.cbWidth)
             self.cbFunc1.current(0)
 
             func2Label = Label(self.configFrame, text='Ch 2 Function')
-            self.cbFunc2 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()))
+            self.cbFunc2 = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()), width=self.cbWidth)
             self.cbFunc2.current(0)
 
             cf1Label = Label(self.configFrame, text='Ch 1 Carrier Frequency')
@@ -914,13 +915,12 @@ class PyarbtoolsGUI:
                                 'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
                                 'Dual Channel Duplicate (Ch 3 & 4 copy Ch 1 & 2)': 'dcd',
                                 'Dual Channel Marker (Sign Ch 1 & 2, Ch 1 mkr on Ch 3 & 4)': 'dcm'}
-            self.cbDacMode = ttk.Combobox(self.configFrame, state='readonly',
-                                          values=list(self.dacModeArgs.keys()))
+            self.cbDacMode = ttk.Combobox(self.configFrame, state='readonly', values=list(self.dacModeArgs.keys()), width=self.cbWidth)
             self.cbDacMode.current(0)
 
             memDivLabel = Label(self.configFrame, text='Sample Rate Divider')
             memDivList = [1, 2, 4]
-            self.cbMemDiv = ttk.Combobox(self.configFrame, state='readonly', values=memDivList)
+            self.cbMemDiv = ttk.Combobox(self.configFrame, state='readonly', values=memDivList, width=self.cbWidth)
             self.cbMemDiv.current(0)
             self.cbMemDiv.bind("<<ComboboxSelected>>", self.memDiv_select)
 
@@ -936,7 +936,7 @@ class PyarbtoolsGUI:
 
             self.refSrcArgs = {'AXIe': 'axi', 'Internal': 'int', 'External': 'ext'}
             self.cbRefSrc = ttk.Combobox(self.configFrame, state='readonly',
-                                         values=list(self.refSrcArgs.keys()))
+                                         values=list(self.refSrcArgs.keys()), width=self.cbWidth)
             self.cbRefSrc.current(0)
 
             refFreqLabel = Label(self.configFrame, text='Reference Frequency')
@@ -945,9 +945,9 @@ class PyarbtoolsGUI:
             refFreqVar.set('100e6')
 
             funcLabel = Label(self.configFrame, text='Function')
-            # self.funcArgs = {'Arbitrary Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
-            self.funcArgs = {'Arbitrary Waveform': 'arb'}
-            self.cbFunc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()))
+            # self.funcArgs = {'Arb Waveform': 'arb', 'Sequence': 'sts', 'Scenario': 'stc'}
+            self.funcArgs = {'Arb Waveform': 'arb'}
+            self.cbFunc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.funcArgs.keys()), width=self.cbWidth)
             self.cbFunc.current(0)
 
             # Layout
@@ -990,7 +990,7 @@ class PyarbtoolsGUI:
                                 'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 2 & 3)': 'marker',
                                 'Dual Channel Marker (Sign Ch 1 & 4, Ch 1 mkr on Ch 2 & 3)': 'dcm'}
             self.cbDacMode = ttk.Combobox(self.configFrame, state='readonly',
-                                          values=list(self.dacModeArgs.keys()))
+                                          values=list(self.dacModeArgs.keys()), width=self.cbWidth)
             self.cbDacMode.current(0)
 
             fsLabel = Label(self.configFrame, text='Sample Rate')
@@ -1002,7 +1002,7 @@ class PyarbtoolsGUI:
 
             self.refSrcArgs = {'AXIe': 'axi', 'Internal': 'int', 'External': 'ext'}
             self.cbRefSrc = ttk.Combobox(self.configFrame, state='readonly',
-                                         values=list(self.refSrcArgs.keys()))
+                                         values=list(self.refSrcArgs.keys()), width=self.cbWidth)
             self.cbRefSrc.current(0)
 
             refFreqLabel = Label(self.configFrame, text='Reference Frequency')
@@ -1035,12 +1035,12 @@ class PyarbtoolsGUI:
         elif self.instKey == 'VSG':
             rfStateLabel = Label(self.configFrame, text='RF State')
             self.rfStateArgs = {'On': 1, 'Off': 0}
-            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()))
+            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()), width=self.cbWidth)
             self.cbRfState.current(0)
 
             modStateLabel = Label(self.configFrame, text='Modulation State')
             self.modStateArgs = {'On': 1, 'Off': 0}
-            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()))
+            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()), width=self.cbWidth)
             self.cbModState.current(0)
 
             cfLabel = Label(self.configFrame, text='Carrier Frequency')
@@ -1055,7 +1055,7 @@ class PyarbtoolsGUI:
 
             alcStateLabel = Label(self.configFrame, text='ALC State')
             self.alcStateArgs = {'On': 1, 'Off': 0}
-            self.cbAlcState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.alcStateArgs.keys()))
+            self.cbAlcState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.alcStateArgs.keys()), width=self.cbWidth)
             self.cbAlcState.current(0)
 
             iqScaleLabel = Label(self.configFrame, text='IQ Scale (%)')
@@ -1065,7 +1065,7 @@ class PyarbtoolsGUI:
 
             refSrcLabel = Label(self.configFrame, text='Reference Source')
             self.refSrcArgs = {'Internal': 'int', 'External': 'ext'}
-            self.cbRefSrc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.refSrcArgs.keys()))
+            self.cbRefSrc = ttk.Combobox(self.configFrame, state='readonly', values=list(self.refSrcArgs.keys()), width=self.cbWidth)
             self.cbRefSrc.current(0)
 
             fsLabel = Label(self.configFrame, text='Sample Rate')
@@ -1110,12 +1110,12 @@ class PyarbtoolsGUI:
         elif self.instKey == 'VectorUXG':
             rfStateLabel = Label(self.configFrame, text='RF State')
             self.rfStateArgs = {'On': 1, 'Off': 0}
-            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()))
+            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()), width=self.cbWidth)
             self.cbRfState.current(0)
 
             modStateLabel = Label(self.configFrame, text='Modulation State')
             self.modStateArgs = {'On': 1, 'Off': 0}
-            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()))
+            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()), width=self.cbWidth)
             self.cbModState.current(0)
 
             cfLabel = Label(self.configFrame, text='Carrier Frequency')
@@ -1158,12 +1158,12 @@ class PyarbtoolsGUI:
         elif self.instKey == 'AnalogUXG':
             rfStateLabel = Label(self.configFrame, text='RF State')
             self.rfStateArgs = {'On': 1, 'Off': 0}
-            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()))
+            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()), width=self.cbWidth)
             self.cbRfState.current(0)
 
             modStateLabel = Label(self.configFrame, text='Modulation State')
             self.modStateArgs = {'On': 1, 'Off': 0}
-            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()))
+            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()), width=self.cbWidth)
             self.cbModState.current(0)
 
             cfLabel = Label(self.configFrame, text='Carrier Frequency')
@@ -1179,7 +1179,7 @@ class PyarbtoolsGUI:
             modeLabel = Label(self.configFrame, text='Instrument Mode')
             self.modeArgs = {'Streaming': 'streaming', 'Normal': 'normal', 'List': 'list',
                              'Fast CW Switching': 'fcwswitching'}
-            self.cbMode = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modeArgs.keys()))
+            self.cbMode = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modeArgs.keys()), width=self.cbWidth)
             self.cbMode.current(0)
 
             # Layout
@@ -1209,7 +1209,7 @@ class PyarbtoolsGUI:
 
         lblPreset = Label(self.configFrame, text='Preset')
         presetList = ['False', 'True']
-        self.cbPreset = ttk.Combobox(self.configFrame, state='readonly', values=presetList)
+        self.cbPreset = ttk.Combobox(self.configFrame, state='readonly', values=presetList, width=self.cbWidth)
         self.cbPreset.current(0)
 
         lblPreset.grid(row=r, column=0, sticky=E)

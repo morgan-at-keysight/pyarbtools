@@ -792,6 +792,8 @@ class AnalogUXG(communications.SocketInstrument):
 
     def open_lan_stream(self):
         """Open connection to port 5033 for LAN streaming to the UXG."""
+        self.write('stream:state on')
+        self.query('*opc?')
         self.lanStream.connect((self.host, 5033))
 
     def close_lan_stream(self):
@@ -1140,6 +1142,8 @@ class VectorUXG(communications.SocketInstrument):
 
     def open_lan_stream(self):
         """Open connection to port 5033 for LAN streaming to the UXG."""
+        self.write('stream:state on')
+        self.query('*opc?')
         self.lanStream.connect((self.host, 5033))
 
     def close_lan_stream(self):
