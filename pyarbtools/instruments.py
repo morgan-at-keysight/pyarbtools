@@ -332,13 +332,13 @@ class M8195A(communications.SocketInstrument):
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
 
-    def download_wfm(self, wfm, ch=1, name='wfm'):
+    def download_wfm(self, wfmData, ch=1, name='wfm', *args, **kwargs):
         """Defines and downloads a waveform into the segment memory.
         Assigns a waveform name to the segment. Returns segment number."""
 
         self.write('abort')
-        wfm = self.check_wfm(wfm)
-        length = len(wfm)
+        wfm = self.check_wfm(wfmData)
+        length = len(wfmData)
 
         segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segment}, {length}')
@@ -347,15 +347,15 @@ class M8195A(communications.SocketInstrument):
 
         return segment
 
-    def check_wfm(self, wfm):
+    def check_wfm(self, wfmData):
         """Checks minimum size and granularity and returns waveform with
         appropriate binary formatting based on the chosen DAC resolution.
 
         See pages 273-274 in Keysight M8195A User's Guide (Edition 13.0,
         October 2017) for more info."""
 
-        repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
-        wfm = np.tile(wfm, repeats)
+        repeats = wraparound_calc(len(wfmData), self.gran, self.minLen)
+        wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
         if rl < self.minLen:
             raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
@@ -463,30 +463,30 @@ class M8196A(communications.SocketInstrument):
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
 
-    def download_wfm(self, wfm, ch=1, name='wfm'):
+    def download_wfm(self, wfmData, ch=1, name='wfm', *args, **kwargs):
         """Defines and downloads a waveform into the segment memory.
         Assigns a waveform name to the segment. Returns segment number."""
 
-        self.write('abort')
-        wfm = self.check_wfm(wfm)
+        self.clear_all_wfm()
+        wfm = self.check_wfm(wfmData)
         length = len(wfm)
 
-        segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
+        segment = 1
         self.write(f'trace{ch}:def {segment}, {length}')
         self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         return segment
 
-    def check_wfm(self, wfm):
+    def check_wfm(self, wfmData):
         """Checks minimum size and granularity and returns waveform with
         appropriate binary formatting based on the chosen DAC resolution.
 
         See page 132 in Keysight M8196A User's Guide (Edition 2.2,
         March 2018) for more info."""
 
-        repeats = wraparound_calc(len(wfm), self.gran)
-        wfm = np.tile(wfm, repeats)
+        repeats = wraparound_calc(len(wfmData), self.gran, self.minLen)
+        wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
         if rl < self.minLen:
             raise error.AWGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
@@ -496,6 +496,16 @@ class M8196A(communications.SocketInstrument):
             raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
+
+    def delete_segment(self, wfmID=1, ch=1):
+        """Deletes waveform segment"""
+        self.clear_all_wfm()
+
+    def clear_all_wfm(self):
+        """Clears all segments from segment memory."""
+        self.write('abort')
+        for ch in range(1, 5):
+            self.write(f'trace{ch}:del:all')
 
     def play(self, ch=1):
         """Selects waveform, activates analog output, and begins continuous playback."""
@@ -795,6 +805,7 @@ class AnalogUXG(communications.SocketInstrument):
         self.write('stream:state on')
         self.query('*opc?')
         self.lanStream.connect((self.host, 5033))
+        self.lanStream.settimeout(1)
 
     def close_lan_stream(self):
         """Close LAN streaming port."""
@@ -922,9 +933,8 @@ class AnalogUXG(communications.SocketInstrument):
 
         return output
 
-
-    def bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, width=0, power=0, markers=0,
-                        pulseMode=0, phaseControl=0, bandAdjust=0, chirpControl=0, code=0,
+    def bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, width=0, power=1, markers=0,
+                        pulseMode=2, phaseControl=0, bandAdjust=0, chirpControl=0, code=0,
                         chirpRate=0, freqMap=0):
         """This function builds a single format-1 PDW from a list of parameters.
 
@@ -1128,18 +1138,6 @@ class VectorUXG(communications.SocketInstrument):
         print('IQ Scaling:', self.iqScale)
         self.err_check()
 
-    def clear_memory(self):
-        """Clears all waveform, pdw, and windex files. This function
-        MUST be called prior to downloading waveforms and making
-        changes to an existing pdw file."""
-
-        self.write('stream:state off')
-        self.write('radio:arb:state off')
-        self.write('memory:delete:binary')
-        self.write('mmemory:delete:wfm')
-        self.query('*opc?')
-        self.err_check()
-
     def open_lan_stream(self):
         """Open connection to port 5033 for LAN streaming to the UXG."""
         self.write('stream:state on')
@@ -1329,6 +1327,24 @@ class VectorUXG(communications.SocketInstrument):
             return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()
         else:
             return np.array(self.binMult * wfm, dtype=np.uint16)
+
+    def delete_wfm(self, wfmID):
+        """Stops output and deletes specified waveform."""
+        self.stop()
+        self.write(f'memory:delete "WFM1:{wfmID}"')
+        self.err_check()
+
+    def clear_all_wfm(self):
+        """Clears all waveform, pdw, and windex files. This function
+        MUST be called prior to downloading waveforms and making
+        changes to an existing pdw file."""
+
+        self.write('stream:state off')
+        self.write('radio:arb:state off')
+        self.write('memory:delete:binary')
+        self.write('mmemory:delete:wfm')
+        self.query('*opc?')
+        self.err_check()
 
     def arb_play(self, wfmID='wfm'):
         """Selects waveform and activates RF output, modulation, and arb mode."""

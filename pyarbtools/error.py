@@ -4,6 +4,8 @@ Author: Morgan Allison, Keysight RF/uW Application Engineer
 Custom error classes for pyarbtools.
 """
 
+from socket import timeout
+
 class WfmBuilderError(Exception):
     """Waveform Builder Exception class"""
 

@@ -4,16 +4,6 @@ Author: Morgan Allison, Keysight RF/uW Application Engineer
 A much-needed GUI for pyarbtools.
 """
 
-"""
-TODO
-* Tie arb memory to wfm list (THIS IS DONE FOR THE VSG and M8190A)
-* ^ Test M8195/6 and UXG
-* BUGFIX: when waveform is in wfm list without connected hw, 
-    Delete/Clear All buttons don't auto-turn on
-"""
-
-"""YOU ARE ON 478"""
-
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
@@ -21,7 +11,19 @@ from tkinter import messagebox
 import ipaddress
 import pyarbtools
 
+"""
+TODO
+* Tie arb memory to wfm list (THIS IS DONE FOR THE VSG, M8190A, and M8195A)
+* ^ Test UXG
+* For future help box to explain what the different DAC modes mean
+    # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
+    #                     'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
+    #                     'Dual Channel Duplicate (Ch 3 & 4 copy Ch 1 & 2)': 'dcd',
+    #                     'Dual Channel Marker (Sign Ch 1 & 2, Ch 1 mkr on Ch 3 & 4)': 'dcm'}
+"""
 
+
+# noinspection PyUnusedLocal,PyAttributeOutsideInit
 class PyarbtoolsGUI:
     def __init__(self, master):
         # Constants
@@ -29,12 +31,12 @@ class PyarbtoolsGUI:
                             'M8195A': pyarbtools.instruments.M8195A,
                             'M8196A': pyarbtools.instruments.M8196A,
                             'VSG': pyarbtools.instruments.VSG,
-                            'AnalogUXG': pyarbtools.instruments.AnalogUXG,
+                            # 'AnalogUXG': pyarbtools.instruments.AnalogUXG,
                             'VectorUXG': pyarbtools.instruments.VectorUXG}
 
         # Variables
-        # self.ipAddress = '127.0.0.1'
-        self.ipAddress = '141.121.210.122'
+        self.ipAddress = '127.0.0.1'
+        # self.ipAddress = '141.121.210.122'
         self.inst = None
         self.cbWidth = 17
 
@@ -69,7 +71,7 @@ class PyarbtoolsGUI:
         # setupFrame Widgets
         self.lblInstruments = Label(setupFrame, text='Instrument Class')
         self.cbInstruments = ttk.Combobox(setupFrame, state='readonly', values=list(self.instClasses.keys()))
-        self.cbInstruments.current(3)
+        self.cbInstruments.current(1)
 
         v = StringVar()
         self.lblInstIPAddress = Label(setupFrame, text='Instrument IP Address')
@@ -204,7 +206,6 @@ class PyarbtoolsGUI:
         self.statusBar = Label(statusBarFrame, text='Welcome', width=130, relief=SUNKEN, bg='white')
         self.statusBar.grid(row=0, sticky=N+S+E+W)
 
-
     def open_wfm_builder(self, event=None):
         self.wfmFrame.destroy()
         self.wfmFrame = Frame(self.master, bd=5)
@@ -314,6 +315,43 @@ class PyarbtoolsGUI:
             lblCode.grid(row=r, column=0, sticky=E)
             self.cbCode.grid(row=r, column=1, sticky=W)
 
+        elif self.wfmType == 'Multitone':
+            lblFs = Label(self.wfmFrame, text='Sample Rate')
+            fsVar = StringVar()
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
+
+            lblSpacing = Label(self.wfmFrame, text='Tone Spacing')
+            spacingVar = StringVar()
+            self.eSpacing = Entry(self.wfmFrame, textvariable=spacingVar)
+            spacingVar.set('1e6')
+
+            lblNumTones = Label(self.wfmFrame, text='Num Tones')
+            numTonesVar = StringVar()
+            self.eNumTones = Entry(self.wfmFrame, textvariable=numTonesVar)
+            numTonesVar.set('11')
+
+            lblPhase = Label(self.wfmFrame, text='Phase Relationship')
+            phaseList = ['random', 'zero', 'increasing', 'parabolic']
+            self.cbPhase = ttk.Combobox(self.wfmFrame, state='readonly', values=phaseList)
+            self.cbPhase.current(0)
+
+            # Multitone Geometry
+            r = 0
+            lblFs.grid(row=r, column=0, sticky=E)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblSpacing.grid(row=r, column=0, sticky=E)
+            self.eSpacing.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblNumTones.grid(row=r, column=0, sticky=E)
+            self.eNumTones.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblPhase.grid(row=r, column=0, sticky=E)
+            self.cbPhase.grid(row=r, column=1, sticky=W)
+
         elif self.wfmType == 'Digital Modulation':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
@@ -369,43 +407,6 @@ class PyarbtoolsGUI:
             lblFiltAlpha.grid(row=r, column=0, sticky=E)
             self.eFiltAlpha.grid(row=r, column=1, sticky=W)
 
-        elif self.wfmType == 'Multitone':
-            lblFs = Label(self.wfmFrame, text='Sample Rate')
-            fsVar = StringVar()
-            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
-
-            lblSpacing = Label(self.wfmFrame, text='Tone Spacing')
-            spacingVar = StringVar()
-            self.eSpacing = Entry(self.wfmFrame, textvariable=spacingVar)
-            spacingVar.set('1e6')
-
-            lblNumTones = Label(self.wfmFrame, text='Num Tones')
-            numTonesVar = StringVar()
-            self.eNumTones = Entry(self.wfmFrame, textvariable=numTonesVar)
-            numTonesVar.set('11')
-
-            lblPhase = Label(self.wfmFrame, text='Phase Relationship')
-            phaseList = ['random', 'zero', 'increasing', 'parabolic']
-            self.cbPhase = ttk.Combobox(self.wfmFrame, state='readonly', values=phaseList)
-            self.cbPhase.current(0)
-
-            # Multitone Geometry
-            r = 0
-            lblFs.grid(row=r, column=0, sticky=E)
-            self.eFsWfm.grid(row=r, column=1, sticky=W)
-
-            r += 1
-            lblSpacing.grid(row=r, column=0, sticky=E)
-            self.eSpacing.grid(row=r, column=1, sticky=W)
-
-            r += 1
-            lblNumTones.grid(row=r, column=0, sticky=E)
-            self.eNumTones.grid(row=r, column=1, sticky=W)
-
-            r += 1
-            lblPhase.grid(row=r, column=0, sticky=E)
-            self.cbPhase.grid(row=r, column=1, sticky=W)
-
         else:
             raise ValueError('Invalid wfmType selected, this should never happen.')
 
@@ -429,7 +430,7 @@ class PyarbtoolsGUI:
             elif self.instKey in ['M8195A', 'M8196A']:
                 self.cbWfmFormat.current(1)
         except AttributeError:
-            pass # nothing is connected
+            pass  # nothing is connected
 
         self.cbWfmFormat.event_generate("<<ComboboxSelected>>")
 
@@ -498,7 +499,7 @@ class PyarbtoolsGUI:
                 wfmRaw = pyarbtools.wfmBuilder.multitone(*wfmArgs)
             elif self.wfmType == 'Digital Modulation':
                 filtArg = self.cbFiltType.get()
-                if  filtArg == 'Root Raised Cosine':
+                if filtArg == 'Root Raised Cosine':
                     filtType = pyarbtools.wfmBuilder.rrc_filter
                 elif filtArg == 'Raised Cosine':
                     filtType = pyarbtools.wfmBuilder.rc_filter
@@ -506,7 +507,7 @@ class PyarbtoolsGUI:
                     raise ValueError('Invalid filter type chosen, this should never happen.')
                 wfmArgs = [float(self.eFsWfm.get()), self.cbModType.get(),
                            float(self.eSymrate.get()), int(self.cbPrbsOrder.get()),
-                           filtType, float(self.eFiltAlpha.get())]
+                           filtType, float(self.eFiltAlpha.get()), self.cbWfmFormat.get()]
                 wfmRaw = pyarbtools.wfmBuilder.digmod_prbs_generator(*wfmArgs)
             else:
                 raise ValueError('Invalid selection chosen, this should never happen.')
@@ -517,7 +518,7 @@ class PyarbtoolsGUI:
                 if name in names:
                     idx = names.index(name)
                     ans = messagebox.askyesno(title='Overwrite?', message=f'"{name}" already exists in waveform list. Would you like to overwrite it?')
-                    if ans == False:
+                    if not ans:
                         raise pyarbtools.error.WfmBuilderError()
                     else:
                         del(self.wfmList[idx])
@@ -546,11 +547,12 @@ class PyarbtoolsGUI:
         try:
             if 'M819' in self.inst.instId:
                 segment = self.inst.download_wfm(wfmTarget['wfmData'], ch=int(self.cbChannel.get()), name=wfmTarget['name'], wfmFormat=wfmTarget['format'])
+                """CHANGE M8196A WAVEFORM DOWNLOAD BEHAVIOR SO THAT WHEN YOU DOWNLOAD A WAVEFORM, THE REST OF THE WAVEFORMS['dl'] GO TO False"""
                 self.wfmList[index]['segment'] = segment
                 self.wfmList[index]['dl'] = True
                 self.btnWfmPlay.configure(state=ACTIVE)
                 self.statusBar.configure(text=f'"{wfmTarget["name"]}" downloaded to instrument at segment {segment}.', bg='white')
-            else: # 'iq' format
+            else:  # 'iq' format
                 if wfmTarget['format'].lower() == 'real':
                     self.statusBar.configure(text='Invalid waveform format for VSG/UXG. Select a waveform with "IQ" format.', bg='red')
                 else:
@@ -566,10 +568,12 @@ class PyarbtoolsGUI:
         wfmData = self.wfmList[index]
 
         try:
-            if 'M819' in self.inst.instId:
-                self.inst.play(wfmData['segment'], ch=int(self.cbChannel.get()))
+            if 'M819' in self.instKey:
+                if self.instKey == 'M8196A':
+                    self.inst.play(ch=int(self.cbChannel.get()))
+                else:
+                    self.inst.play(wfmData['segment'], ch=int(self.cbChannel.get()))
                 self.statusBar.configure(text=f'"{wfmData["name"]}" playing out of channel {int(self.cbChannel.get())}', bg='white')
-
             else:
                 self.inst.play(wfmData['name'])
                 self.statusBar.configure(text=f'"{wfmData["name"]}" playing.', bg='white')
@@ -584,22 +588,25 @@ class PyarbtoolsGUI:
 
     def delete_wfm(self):
         """Deletes selected waveform from the waveform list."""
+        index = self.lbWfmList.curselection()[0]
         try:
-            index = self.lbWfmList.curselection()[0]
-            self.statusBar.configure(text=f'"{self.wfmList[index]["name"]}" deleted from arb memory.')
-            del (self.wfmList[index])
-            self.lbWfmList.delete(index)
-            if type(self.inst) == pyarbtools.instruments.VSG:
+            if self.instKey == 'VSG':
                 self.inst.delete_wfm(self.wfmList[index]['name'])
-            elif type(self.inst) in [pyarbtools.instruments.M8190A, pyarbtools.instruments.M8195A]:
+            elif 'M819' in self.instKey:
                 self.inst.delete_segment(self.wfmList[index]['segment'], int(self.cbChannel.get()))
+            self.statusBar.configure(text=f'"{self.wfmList[index]["name"]}" deleted from arb memory.')
         except IndexError:
             # wfm list is empty
+            pass
+        except AttributeError:
+            # No arb connected
             pass
         except KeyError:
             # wfm hasn't been downloaded to instrument
             pass
         finally:
+            del self.wfmList[index]
+            self.lbWfmList.delete(index)
             if len(self.wfmList) == 0:
                 self.btnWfmDownload.configure(state=DISABLED)
                 self.btnWfmPlay.configure(state=DISABLED)
@@ -611,8 +618,8 @@ class PyarbtoolsGUI:
         """Deletes all waveforms from waveform list."""
         try:
             self.inst.clear_all_wfm()
-        except  AttributeError:
-            pass # nothings is connected
+        except AttributeError:
+            pass  # nothings is connected
         self.wfmList = []
         self.lbWfmList.delete(0, END)
         self.btnWfmDownload.configure(state=DISABLED)
@@ -647,9 +654,15 @@ class PyarbtoolsGUI:
         self.lblReadout.configure(text=f'"{self.eScpi.get()}" command sent')
 
     def inst_query(self):
-        response = self.inst.query(self.eScpi.get())
-        self.inst.write('*cls')
-        self.lblReadout.configure(text=response)
+        try:
+            self.inst.socket.settimeout(1)
+            response = self.inst.query(self.eScpi.get())
+            self.inst.write('*cls')
+            self.lblReadout.configure(text=response)
+        except Exception as e:
+            self.lblReadout.configure(text=str(e))
+        finally:
+            self.inst.socket.settimeout(3)
 
     def inst_err_check(self):
         try:
@@ -668,12 +681,13 @@ class PyarbtoolsGUI:
     def inst_flush(self):
         """Flushes the SCPI I/O buffer."""
         self.inst.socket.settimeout(0.25)
+        # noinspection PyBroadException
         try:
             self.inst.query('')
         except Exception:
             pass
         finally:
-            self.inst.socket.settimeout(10)
+            self.inst.socket.settimeout(3)
 
     def instrument_connect(self, debug=False):
         """Selects the appropriate instrument class based on combobox selection."""
@@ -687,7 +701,7 @@ class PyarbtoolsGUI:
         try:
             # Connect to instrument
             if not debug:
-                self.inst = self.instClasses[self.instKey](self.ipAddress)
+                self.inst = self.instClasses[self.instKey](self.ipAddress, timeout=2)
                 self.statusBar.configure(text=f'Connected to {self.inst.instId}', bg='white')
 
             self.lblInstStatus.configure(text='Connected', bg='green')
@@ -725,10 +739,10 @@ class PyarbtoolsGUI:
     def instrument_configure(self):
         """Pulls settings from config frame and calls instrument-specific measurement functions"""
         try:
+            self.inst.clear_all_wfm()
             if self.cbPreset.get() == 'True':
                 self.inst.write('*rst')
             if self.instKey == 'M8190A':
-                self.inst.clear_all_wfm()
                 configArgs = {'res': self.resArgs[self.cbRes.get()],
                               'clkSrc': self.clkSrcArgs[self.cbClkSrc.get()],
                               'fs': float(self.eFs.get()),
@@ -741,8 +755,7 @@ class PyarbtoolsGUI:
                               'cf1': float(self.eCf1.get()),
                               'cf2': float(self.eCf2.get())}
             elif self.instKey == 'M8195A':
-                self.inst.clear_all_wfm()
-                configArgs= {'dacMode': self.dacModeArgs[self.cbDacMode.get()],
+                configArgs = {'dacMode': self.dacModeArgs[self.cbDacMode.get()],
                              'memDiv': int(self.cbMemDiv.get()),
                              'fs': float(self.eFs.get()),
                              'refSrc': self.refSrcArgs[self.cbRefSrc.get()],
@@ -754,7 +767,6 @@ class PyarbtoolsGUI:
                               'refSrc': self.refSrcArgs[self.cbRefSrc.get()],
                               'refFreq': float(self.eRefFreq.get())}
             elif self.instKey == 'VSG':
-                self.inst.clear_all_wfm()
                 configArgs = {'rfState': self.rfStateArgs[self.cbRfState.get()],
                               'modState': self.modStateArgs[self.cbModState.get()],
                               'cf': float(self.eCf.get()),
@@ -763,12 +775,12 @@ class PyarbtoolsGUI:
                               'iqScale': int(self.eIqScale.get()),
                               'refSrc': self.refSrcArgs[self.cbRefSrc.get()],
                               'fs': float(self.eFs.get())}
-            elif self.instKey == 'AnalogUXG':
-                configArgs = {'rfState': self.rfStateArgs[self.cbRfState.get()],
-                              'modState': self.modStateArgs[self.cbModState.get()],
-                              'cf': float(self.eCf.get()),
-                              'amp': int(self.eAmp.get()),
-                              'mode': self.modeArgs[self.cbMode.get()]}
+            # elif self.instKey == 'AnalogUXG':
+            #     configArgs = {'rfState': self.rfStateArgs[self.cbRfState.get()],
+            #                   'modState': self.modStateArgs[self.cbModState.get()],
+            #                   'cf': float(self.eCf.get()),
+            #                   'amp': int(self.eAmp.get()),
+            #                   'mode': self.modeArgs[self.cbMode.get()]}
             elif self.instKey == 'VectorUXG':
                 configArgs = {'rfState': self.rfStateArgs[self.cbRfState.get()],
                               'modState': self.modStateArgs[self.cbModState.get()],
@@ -784,7 +796,6 @@ class PyarbtoolsGUI:
         except Exception as e:
             self.statusBar.configure(text=repr(e), bg='red')
         self.cbWfmType.event_generate("<<ComboboxSelected>>")
-
 
     def open_inst_config(self):
         """Creates a new frame with instrument-specific configuration fields."""
@@ -911,10 +922,15 @@ class PyarbtoolsGUI:
 
         elif self.instKey == 'M8195A':
             dacModeLabel = Label(self.configFrame, text='DAC Mode')
-            self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
-                                'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
-                                'Dual Channel Duplicate (Ch 3 & 4 copy Ch 1 & 2)': 'dcd',
-                                'Dual Channel Marker (Sign Ch 1 & 2, Ch 1 mkr on Ch 3 & 4)': 'dcm'}
+            self.dacModeArgs = {'Single': 'single', 'Dual': 'dual',
+                                'Four': 'four', 'Marker': 'marker',
+                                'Dual Channel Dup.': 'dcd',
+                                'Dual Channel Marker': 'dcm'}
+            # For future help box to explain what the different DAC modes mean
+            # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
+            #                     'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
+            #                     'Dual Channel Duplicate (Ch 3 & 4 copy Ch 1 & 2)': 'dcd',
+            #                     'Dual Channel Marker (Sign Ch 1 & 2, Ch 1 mkr on Ch 3 & 4)': 'dcm'}
             self.cbDacMode = ttk.Combobox(self.configFrame, state='readonly', values=list(self.dacModeArgs.keys()), width=self.cbWidth)
             self.cbDacMode.current(0)
 
@@ -986,9 +1002,12 @@ class PyarbtoolsGUI:
 
         elif self.instKey == 'M8196A':
             dacModeLabel = Label(self.configFrame, text='DAC Mode')
-            self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
-                                'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 2 & 3)': 'marker',
-                                'Dual Channel Marker (Sign Ch 1 & 4, Ch 1 mkr on Ch 2 & 3)': 'dcm'}
+            self.dacModeArgs = {'Single': 'single', 'Dual': 'dual',
+                                'Four': 'four', 'Marker': 'marker',
+                                'Dual Channel Marker': 'dcm'}
+            # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
+            #                     'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 2 & 3)': 'marker',
+            #                     'Dual Channel Marker (Sign Ch 1 & 4, Ch 1 mkr on Ch 2 & 3)': 'dcm'}
             self.cbDacMode = ttk.Combobox(self.configFrame, state='readonly',
                                           values=list(self.dacModeArgs.keys()), width=self.cbWidth)
             self.cbDacMode.current(0)
@@ -1155,55 +1174,54 @@ class PyarbtoolsGUI:
             self.eIqScale.grid(row=r, column=1, sticky=W)
             r += 1
 
-        elif self.instKey == 'AnalogUXG':
-            rfStateLabel = Label(self.configFrame, text='RF State')
-            self.rfStateArgs = {'On': 1, 'Off': 0}
-            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()), width=self.cbWidth)
-            self.cbRfState.current(0)
-
-            modStateLabel = Label(self.configFrame, text='Modulation State')
-            self.modStateArgs = {'On': 1, 'Off': 0}
-            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()), width=self.cbWidth)
-            self.cbModState.current(0)
-
-            cfLabel = Label(self.configFrame, text='Carrier Frequency')
-            cfVar = StringVar()
-            self.eCf = Entry(self.configFrame, textvariable=cfVar)
-            cfVar.set('1e9')
-
-            ampLabel = Label(self.configFrame, text='Amplitude (dBm)')
-            ampVar = StringVar()
-            self.eAmp = Entry(self.configFrame, textvariable=ampVar)
-            ampVar.set(-130)
-
-            modeLabel = Label(self.configFrame, text='Instrument Mode')
-            self.modeArgs = {'Streaming': 'streaming', 'Normal': 'normal', 'List': 'list',
-                             'Fast CW Switching': 'fcwswitching'}
-            self.cbMode = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modeArgs.keys()), width=self.cbWidth)
-            self.cbMode.current(0)
-
-            # Layout
-            r = 0
-            rfStateLabel.grid(row=r, column=0, sticky=E)
-            self.cbRfState.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            modStateLabel.grid(row=r, column=0, sticky=E)
-            self.cbModState.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            cfLabel.grid(row=r, column=0, sticky=E)
-            self.eCf.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            ampLabel.grid(row=r, column=0, sticky=E)
-            self.eAmp.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            modeLabel.grid(row=r, column=0, sticky=E)
-            self.cbMode.grid(row=r, column=1, sticky=W)
-            r += 1
-
+        # elif self.instKey == 'AnalogUXG':
+        #     rfStateLabel = Label(self.configFrame, text='RF State')
+        #     self.rfStateArgs = {'On': 1, 'Off': 0}
+        #     self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()), width=self.cbWidth)
+        #     self.cbRfState.current(0)
+        #
+        #     modStateLabel = Label(self.configFrame, text='Modulation State')
+        #     self.modStateArgs = {'On': 1, 'Off': 0}
+        #     self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()), width=self.cbWidth)
+        #     self.cbModState.current(0)
+        #
+        #     cfLabel = Label(self.configFrame, text='Carrier Frequency')
+        #     cfVar = StringVar()
+        #     self.eCf = Entry(self.configFrame, textvariable=cfVar)
+        #     cfVar.set('1e9')
+        #
+        #     ampLabel = Label(self.configFrame, text='Amplitude (dBm)')
+        #     ampVar = StringVar()
+        #     self.eAmp = Entry(self.configFrame, textvariable=ampVar)
+        #     ampVar.set(-130)
+        #
+        #     modeLabel = Label(self.configFrame, text='Instrument Mode')
+        #     self.modeArgs = {'Streaming': 'streaming', 'Normal': 'normal', 'List': 'list',
+        #                      'Fast CW Switching': 'fcwswitching'}
+        #     self.cbMode = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modeArgs.keys()), width=self.cbWidth)
+        #     self.cbMode.current(0)
+        #
+        #     # Layout
+        #     r = 0
+        #     rfStateLabel.grid(row=r, column=0, sticky=E)
+        #     self.cbRfState.grid(row=r, column=1, sticky=W)
+        #     r += 1
+        #
+        #     modStateLabel.grid(row=r, column=0, sticky=E)
+        #     self.cbModState.grid(row=r, column=1, sticky=W)
+        #     r += 1
+        #
+        #     cfLabel.grid(row=r, column=0, sticky=E)
+        #     self.eCf.grid(row=r, column=1, sticky=W)
+        #     r += 1
+        #
+        #     ampLabel.grid(row=r, column=0, sticky=E)
+        #     self.eAmp.grid(row=r, column=1, sticky=W)
+        #     r += 1
+        #
+        #     modeLabel.grid(row=r, column=0, sticky=E)
+        #     self.cbMode.grid(row=r, column=1, sticky=W)
+        #     r += 1
         else:
             raise ValueError('You got an argument that was not in the instrument select combobox. This should never happen.')
 
@@ -1239,8 +1257,8 @@ class PyarbtoolsGUI:
 
 def main():
     root = Tk()
+    root.resizable(False, False)
     root.title('pyarbtools')
-    # root.geometry('1000x200')
 
     PyarbtoolsGUI(root)
 
