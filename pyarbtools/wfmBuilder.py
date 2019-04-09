@@ -827,9 +827,12 @@ def qam256_modulator(data, customMap=None):
         raise ValueError('Invalid 256 QAM symbol.')
 
 
-def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, zeroLast=False):
+def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, wfmFormat='iq', zeroLast=False):
     """Generates a digitally modulated signal with a given modulation
     and filter type using PRBS data at baseband."""
+
+    if wfmFormat.lower() != 'iq':
+        raise error.WfmBuilderError('Digital modulation currently supports IQ waveform format only.')
 
     if symRate > fs:
         raise error.WfmBuilderError('Symbol Rate violates Nyquist.')
