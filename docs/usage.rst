@@ -9,6 +9,8 @@ To use pyarbtools in a project::
 
     import pyarbtools
 
+**pyarbtools now has a GUI! To run it, navigate to the pyarbtools/ folder in the project directory and run** ``python gui.py``.
+
 pyarbtools is built from two primary submodules:
 
 * :ref:`instruments`
@@ -131,40 +133,53 @@ changed (ideally *once* directly after creating the M8190A object).
 ----------------
 ::
 
-    M8190A.download_wfm(wfm, ch=1, wfmID -> str)
+    M8190A.download_wfm(wfmData, ch=1, name='wfm', wfmFormat='iq')
 
 Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfm``: NumPy array containing real waveform samples (not IQ).
+* ``wfmData``: NumPy array containing waveform samples (either real or IQ).
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
-* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
+* ``name``: String providing a name for downloaded waveform segment.
+* ``wfmFormat``: String that determines the format of the waveform being downloaded. Arguments are ``'iq'`` (default) or ``'real'``.
 
 **Returns**
 
-* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* ``segment``: Segment number used to specify which waveform is played using the ``.play()`` method.
 
-**download_iq_wfm**
--------------------
+**delete_segment**
+------------------
 ::
 
-    M8190A.download_iq_wfm(i, q, ch=1, name -> str)
+    M8190A.delete_segment(wfmID=1, ch=1)
 
-Defines and downloads a waveform into the lowest available segment slot
-while checking that the waveform meets minimum waveform length and
-granularity requirements.
+Deletes a waveform segment from the waveform memory.
 
 **Arguments**
 
-* ``i``: NumPy array of values representing the real component of an IQ waveform.
-* ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
+* ``wfmID``: Segment number used to specify which waveform is deleted.
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
-* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
 
 **Returns**
 
-* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    M8190A.clear_all_wfm()
+
+Stops playback and deletes all waveform segments from the waveform memory.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
 
 **play**
 --------
@@ -232,19 +247,52 @@ changed (ideally *once* directly after creating the M8195A object).
 ----------------
 ::
 
-    M8195A.download_wfm(wfm, ch=1, name -> str)
+    M8195A.download_wfm(wfmData, ch=1, name='wfm')
 
 Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfm``: NumPy array containing real waveform samples (not IQ).
+* ``wfmData``: NumPy array containing real waveform samples (not IQ).
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
-* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
+* ``name``: String providing a name for downloaded waveform segment.
 
 **Returns**
 
-* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* ``segment``: Segment number used to specify which waveform is played using the ``.play()`` method.
+
+**delete_segment**
+------------------
+::
+
+    M8195A.delete_segment(wfmID=1, ch=1)
+
+Deletes a waveform segment from the waveform memory.
+
+**Arguments**
+
+* ``wfmID``: Segment number used to specify which waveform is deleted.
+* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+
+**Returns**
+
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    M8195A.clear_all_wfm()
+
+Stops playback and deletes all waveform segments from the waveform memory.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
 
 **play**
 --------
@@ -310,15 +358,48 @@ changed (ideally *once* directly after creating the M8196A object).
 ----------------
 ::
 
-    M8196A.download_wfm(wfm, ch=1, name -> str)
+    M8196A.download_wfm(wfmData, ch=1, name='wfm')
 
 Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfm``: NumPy array containing real waveform samples (not IQ).
+* ``wfmData``: NumPy array containing real waveform samples (not IQ).
 * ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
-* ``name`` kwarg: Optional string argument to attach a name to your downloaded waveform segment.
+* ``name``: String providing a name for downloaded waveform segment.
+
+**Returns**
+
+* ``segment``: Segment number used to specify which waveform is played using the ``.play()`` method.
+
+**delete_segment**
+------------------
+::
+
+    M8196A.delete_segment(wfmID=1, ch=1)
+
+Deletes a waveform segment from the waveform memory.
+
+**Arguments**
+
+* ``wfmID``: Segment number used to specify which waveform is deleted.
+* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+
+**Returns**
+
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    M8196A.clear_all_wfm()
+
+Stops playback and deletes all waveform segments from the waveform memory.
+
+**Arguments**
+
+* None
 
 **Returns**
 
@@ -392,11 +473,11 @@ accordingly. It should be called any time these settings are changed
 
 * None
 
-**download_iq_wfm**
--------------------
+**download_wfm**
+----------------
 ::
 
-    VSG.download_iq_wfm(i, q, wfmID='wfm')
+    VSG.download_iq_wfm(wfmData, wfmID='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -404,13 +485,44 @@ requirements.
 
 **Arguments**
 
-* ``i``: NumPy array of values representing the real component of an IQ waveform.
-* ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
-* ``wfmID``: String containing the waveform name. Default is ``'wfm'``.
+* ``wfmData``: Complex NumPy array of values representing the complex sample pairs in an IQ waveform.
+* ``wfmID``: String specifying the name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
 
-* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* None
+
+**delete_wfm**
+--------------
+::
+
+    VSG.delete_wfm(wfmID)
+
+Deletes a waveform from the waveform memory.
+
+**Arguments**
+
+* ``wfmID``: String specify the name of the waveform to be deleted.
+
+**Returns**
+
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    VSG.clear_all_wfm()
+
+Stops playback and deletes all waveforms from the waveform memory.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
 
 **play**
 --------
@@ -472,29 +584,11 @@ accordingly. It should be called any time these settings are changed
 
 * None
 
-**clear_memory**
+**download_wfm**
 ----------------
 ::
 
-    VectorUXG.clear_memory()
-
-Clears all waveform, pdw, and windex files. This function MUST be called
-prior to downloading waveforms or making changes to an existing pdw file.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-
-**download_iq_wfm**
--------------------
-::
-
-   VectorUXG.download_iq_wfm(i, q, wfmID='wfm')
+    VectorUXG.download_iq_wfm(wfmData, wfmID='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
@@ -502,13 +596,44 @@ requirements.
 
 **Arguments**
 
-* ``i``: NumPy array of values representing the real component of an IQ waveform.
-* ``q``: NumPy array of values representing the imaginary component of an IQ waveform.
-* ``wfmID``: String containing the waveform name. Default is ``'wfm'``.
+* ``wfmData``: Complex NumPy array of values representing the complex sample pairs in an IQ waveform.
+* ``wfmID``: String specifying the name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
 
-* ``wfmID``: Waveform identifier used to specify which waveform is played using the ``.play()`` method.
+* ``wfmID``: Returns a string identifying the waveform that has been downloaded.
+
+**delete_wfm**
+--------------
+::
+
+    VectorUXG.delete_wfm(wfmID)
+
+Deletes a waveform from the waveform memory.
+
+**Arguments**
+
+* ``wfmID``: String specify the name of the waveform to be deleted.
+
+**Returns**
+
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    VectorUXG.clear_all_wfm()
+
+Stops playback and deletes all waveforms from the waveform memory.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
 
 **arb_play**
 ------------
@@ -903,74 +1028,96 @@ them as generic signals for DSP work::
 ----------------
 ::
 
-    am_generator(amDepth=50, modRate=100e3, fs=50e6):
+    am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, format='iq'):
 
-Generates a linear sinusoidal AM signal of specified depth and modulation rate.
+Generates a linear sinusoidal AM signal of specified depth and modulation rate at baseband or RF.
 
 **Arguments**
 
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``50e6``.
 * ``amDepth``: Depth of AM in %. Argument is an integer. Argument range is ``0`` to ``100``. Default is ``50``.
 * ``modRate``: AM rate in Hz. Argument is a float. Argument range is ``0`` to ``fs/2``. Default is ``100e3``.
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``50e6``.
+* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
+* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
 
 **Returns**
 
-* ``i``: NumPy array of values representing the real component of the AM waveform.
-* ``q``: NumPy array of values representing the imaginary component of the AM waveform.
-
+* ``iq``/``real``: NumPy array of values representing the complex or real components of the AM waveform.
 
 **chirp_generator**
 -------------------
 ::
 
-    wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6, zeroLast=False):
+    wfmBuilder.chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, format='iq', zeroLast=False):
 
-Generates a symmetrical linear chirp (linear frequency modulated signal)
-at baseband. Chirp direction is determined by the sign of chirpBw
+Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction is determined by the sign of chirpBw
 (pos=up chirp, neg=down chirp).
 
 **Arguments**
 
-* ``length``: Length of the chirp in seconds. Argument is a float. Default is ``100e-6``.
 * ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
+* ``pWidth``: Length of the chirp in seconds. Argument is a float. Default is ``10e-6``.
+* ``pri``: Pulse repetition interval in seconds. Argument is a float. Default is ``100e-6``.
 * ``chirpBw``: Total bandwidth of the chirp. Frequency range of resulting signal is ``-chirpBw/2`` to ``chirpBw/2``. Default is ``20e6``.
+* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
+* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
 * ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
 **Returns**
 
-* ``i``: NumPy array of values representing the real component of the chirp waveform.
-* ``q``: NumPy array of values representing the imaginary component of the chirp waveform.
-
+* ``iq``/``real``: NumPy array of values representing the complex or real components of the chirped pulse.
 
 **barker_generator**
 --------------------
 ::
 
-    wfmBuilder.barker_generator(length=100e-6, fs=100e6, code='b2', zeroLast=False)
+    wfmBuilder.barker_generator(fs=100e6, pWidth=100e-6, code='b2', cf=1e9, format='iq', zeroLast=False)
 
-Generates a baseband Barker phase coded signal.
+Generates a Barker phase coded pulsed signal at RF or baseband.
 See `Wikipedia article <https://en.wikipedia.org/wiki/Barker_code>`_ for
 more information on Barker coding.
 
 
 **Arguments**
 
-* ``length``: Length of the pulse in seconds. Argument is a float. Default is ``100e-6``.
 * ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
+* ``pWidth``: Length of the chirp in seconds. Argument is a float. Default is ``10e-6``.
+* ``pri``: Pulse repetition interval in seconds. Argument is a float. Default is ``100e-6``.
 * ``code``: Barker code order. Argument is a string containing ``'b2'`` (default), ``'b3'``, ``'b41'``, ``'b42'``, ``'b5'``, ``'b7'``, ``'b11'``, or ``'b13'``.
+* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
+* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
 * ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
 **Returns**
 
-* ``i``: NumPy array of values representing the real component of the Barker pulse.
-* ``q``: NumPy array of values representing the imaginary component of the Barker pulse.
+* ``iq``/``real``: NumPy array of values representing the complex or real components of the barker pulse.
 
+**multitone**
+-------------
+::
+
+    multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, format='iq')
+
+Generates a multitone signal with given tone spacing, number of tones, sample rate, and phase relationship.
+
+**Arguments**
+
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
+* ``spacing``: Tone spacing in Hz. Argument is a float. There is currently no limit to ``spacing``, so beware of the compilation time for small spacings and beware of aliasing for large spacings.
+* ``num``: Number of tones. Argument is an integer. There is currently no limit to ``num``, so beware of long compilation times for large number of tones.
+* ``phase``: Phase relationship between tones. Arguments are ``'random'`` (default), ``'zero'``, ``'increasing'``, or ``'parabolic'``.
+* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
+* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
+
+**Returns**
+
+* ``iq``/``real``: NumPy array of values representing the complex or real components of the multitone signal.
 
 **digmod_prbs_generator**
 -------------------------
 ::
 
-    digmod_prbs_generator(modType, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
+    digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, wfmFormat='iq', zeroLast=False)
 
 Generates a baseband modulated signal with a given modulation type and
 transmit filter using PRBS data.
@@ -978,6 +1125,7 @@ transmit filter using PRBS data.
 
 **Arguments**
 
+* ``fs``: Sample rate used to create the signal in Hz. Argument is a float.
 * ``modType``: Type of modulation. Argument is a ``_modulator`` function.
     * ``bpsk_modulator``, generates a binary phase shift keyed signal.
     * ``qpsk_modulator``, generates a quadrature phase shift keyed signal.
@@ -987,40 +1135,17 @@ transmit filter using PRBS data.
     * ``qam64_modulator``, generates a 64-state quadrature amplitude modulated signal.
     * ``qam128_modulator``, generates a 128-state quadrature amplitude modulated signal.
     * ``qam256_modulator``, generates a 256-state quadrature amplitude modulated signal.
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float.
 * ``symRate``: Symbol rate in Hz. Argument is a float.
 * ``prbsOrder``: Order of the pseudorandom bit sequence used for the underlying data. Arguments are integers. ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
 * ``filt``: Reference filter type. Argument is a ``_filter`` function.
     * ``rc_filter``: Creates the impulse response of a `raised cosine filter <https://en.wikipedia.org/wiki/Raised-cosine_filter>`_.
     * ``rrc_filter``: Creates the impulse response of a `root raised cosine filter <https://en.wikipedia.org/wiki/Root-raised-cosine_filter>`_. (default)
 * ``alpha``: Excess filter bandwidth specification. Also known as roll-off factor, alpha, or beta. Argument is a float between ``0`` and ``1``. Default is ``0.35``.
+* ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
 **Returns**
 
-* ``i``: NumPy array of values representing the real component of the digitally modulated signal.
-* ``q``: NumPy array of values representing the imaginary component of the digitally modulated signal.
-
-
-**multitone**
--------------
-::
-
-    multitone(spacing, num, fs, phase='random')
-
-Generates a multitone signal with given tone spacing, number of tones, sample rate, and phase relationship.
-
-**Arguments**
-
-* ``spacing``: Tone spacing in Hz. Argument is a float. There is currently no limit to ``spacing``, so beware of the compilation time for small spacings and beware of aliasing for large spacings.
-* ``num``: Number of tones. Argument is an integer. There is currently no limit to ``num``, so beware of long compilation times for large number of tones.
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float.
-* ``phase``: Phase relationship between tones. Arguments are ``'random'`` (default), ``'zero'``, ``'increasing'``, or ``'parabolic'``.
-
-**Returns**
-
-* ``i``: NumPy array of values representing the real component of the multitone signal.
-* ``q``: NumPy array of values representing the imaginary component of the multitone signal.
-
+* ``iq``: NumPy array of values representing the complex components of the digitally modulated signal.
 
 **iq_correction**
 -----------------

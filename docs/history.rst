@@ -31,3 +31,8 @@ History
 -------------------
 
 * Removed UXG class and replaced it with two classes, AnalogUXG and VectorUXG. Expanded VSG class to include M9381A and M9383A without changing public API.
+
+0.0.13 (2019-04-19)
+-------------------
+
+* Added GUI. Adjusted several functions to streamline waveform creation and download between all instrument types.
