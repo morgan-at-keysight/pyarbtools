@@ -19,8 +19,9 @@ def vsg_chirp_example(ipAddress):
     vsg.sanity_check()
 
     name = 'chirp'
-    pWidth = 100e-6
+    pWidth = 10e-6
     bw = 40e6
+    pri = 100e-6
     i, q = pyarbtools.wfmBuilder.chirp_generator(fs=vsg.fs, pWidth=pWidth, chirpBw=bw)
 
     i = np.append(i, np.zeros(5000))
@@ -41,12 +42,12 @@ def vsg_dig_mod_example(ipAddress):
     vsg.sanity_check()
     vsg.err_check()
 
-    name = '1MHZ_16QAM'
-    symRate = 1e6
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
+    name = '10MHZ_16QAM'
+    symRate = 10e6
+    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
 
-    vsg.write('mmemory:delete:wfm')
-    vsg.download_iq_wfm(i, q, name)
+    vsg.clear_all_wfm()
+    vsg.download_wfm(iq, wfmID=name)
     vsg.play(name)
     vsg.err_check()
     vsg.disconnect()
@@ -92,27 +93,23 @@ def m8190a_simple_wfm_example(ipAddress):
     """Sets up the M8190A and creates, downloads, assigns, and plays
     out a simple sine waveform from the AC output port."""
 
-    # User-defined sample rate and sine frequency.
-    ############################################################################
-    fs = 10e9
-    cf = 1e9
     res = 'wsp'
-    out1 = 'ac'
-    ############################################################################
+    fs = 10e9
+    output = 'ac'
+    cf = 1e9
+    wfmName = 'sine'
 
     awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
-    awg.configure(res=res, fs=fs, out1=out1)
+    awg.configure(res=res, fs=fs, out1=output)
 
-    # Define a waveform, ensuring min length and granularity requirements are met
-    rl = fs / cf * awg.gran
-    t = np.linspace(0, rl / fs, rl, endpoint=False)
-    wfm = awg.check_wfm(np.sin(2 * np.pi * cf * t))
+    # Create simple sinusoidal waveform
+    real = pyarbtools.wfmBuilder.sine_generator(fs=awg.fs, freq=cf, wfmFormat='real')
 
     # Define segment 1 and populate it with waveform data.
-    awg.download_wfm(wfm)
+    segment = awg.download_wfm(real, ch=1, name=wfmName, wfmFormat='real')
 
-    # Assign segment 1 to channel 1 and start continuous playback.
-    awg.play(ch=1, wfmID=1)
+    # Assign segment to channel 1 and start playback.
+    awg.play(ch=1, wfmID=segment)
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
@@ -120,51 +117,55 @@ def m8190a_simple_wfm_example(ipAddress):
 
 
 def m8190a_duc_dig_mod_example(ipAddress):
-    """Sets up the digital upconverter on the M8190A and creates,
-    downloads, assigns, and plays back a 16 QAM waveform from
-    the AC output port."""
+    """Creates a 10 MHz 16 QAM waveform using digital upconversion on the M8190A."""
+
+    res = 'intx3'
+    cf = 1e9
+    output = 'ac'
+
+    modType = 'qam16'
+    symRate = 10e6
+    wfmName = '10MHz_16QAM'
 
     awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, reset=True)
-    awg.configure(res='intx3', cf1=1e9, out1='ac')
+    awg.configure(res=res, cf1=cf, out1=output)
 
     # Create 16 QAM signal.
-    symRate = 20e6
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam16', symRate=symRate)
+    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType=modType, symRate=symRate, wfmFormat='iq')
 
-    # Define segment 1 and populate it with waveform data.
-    awg.download_iq_wfm(i, q)
+    # Download waveform to memory
+    segment = awg.download_wfm(iq, ch=1, name=wfmName, wfmFormat='iq')
 
-    awg.play(ch=1, wfmID=1)
+    # Assign segment to channel 1 and start playback
+    awg.play(wfmID=segment, ch=1)
     awg.err_check()
     awg.disconnect()
 
 
 def m8190a_duc_chirp_example(ipAddress):
-    """Creates a chirped pulse using digital upconversion in the M8190."""
-    """User-defined sample rate, carrier frequency, chirp bandwidth, 
-    pri, pulse width, and resolution."""
-    ############################################################################
-    name = 'chirp'
-    fs = 7.2e9
-    cf = 1e9
-    bw = 40e6
-    pri = 200e-6
-    pw = 100e-6
+    """Creates a 40 MHz chirped pulse using digital upconversion on the M8190A."""
+
+    wfmName = 'chirp'
     res = 'intx3'
-    ############################################################################
+    fs = 7.2e9
+    output = 'ac'
+    cf = 1e9
+
+    pw = 10e-6
+    pri = 100e-6
+    bw = 40e6
 
     awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
-    awg.configure(res=res, fs=fs, out1='ac', cf1=cf)
+    awg.configure(res=res, fs=fs, out1=output, cf1=cf)
 
-    # Create chirp and append dead time to waveform.
-    # i, q = pyarbtools.wfmBuilder.chirp_generator(pw, bbfs, bw)
-    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=awg.bbfs, pWidth=pw, pri=pri, chirpBw=bw)
+    # Create chirp waveform.
+    iq = pyarbtools.wfmBuilder.chirp_generator(fs=awg.bbfs, pWidth=pw, pri=pri, chirpBw=bw, wfmFormat='iq')
 
     # Interleave i and q into a single waveform and download to segment 1.
-    wfmID = awg.download_iq_wfm(i, q, ch=1, name=name)
+    segment = awg.download_wfm(iq, ch=1, name=wfmName, wfmFormat='iq')
 
-    # Assign segment 1 to trace (channel) 1 and start continuous playback.
-    awg.play(wfmID=wfmID)
+    # Assign segment to channel 1 and start playback.
+    awg.play(wfmID=segment, ch=1)
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
@@ -192,31 +193,23 @@ def m8195a_simple_wfm_example(ipAddress):
     """Sets up the M8195A and creates, downloads, assigns, and plays
     out a simple sine waveform from the AC output port."""
 
-    # User-defined sample rate and sine frequency.
-    ############################################################################
-    fs = 64e9
-    cf = 1e9
     dacMode = 'single'
-    func = 'arb'
-    ############################################################################
+    fs = 64e9
+
+    cf = 1e9
+    wfmName = 'sine'
 
     awg = pyarbtools.instruments.M8195A(ipAddress, reset=True)
-    awg.configure(dacMode=dacMode, fs=fs, func=func)
+    awg.configure(dacMode=dacMode, fs=fs)
 
     # Define a waveform, ensuring min length and granularity requirements are met
-    rl = fs / cf * awg.gran
-    t = np.linspace(0, rl / fs, rl, endpoint=False)
-    wfm = awg.check_wfm(np.sin(2 * np.pi * cf * t))
+    real = pyarbtools.wfmBuilder.sine_generator(fs=fs, freq=cf, wfmFormat='real')
 
     # Define segment 1 and populate it with waveform data.
-    awg.download_wfm(wfm)
+    segment = awg.download_wfm(real, ch=1, name=wfmName)
 
-    # Assign segment 1 to trace (channel) 1 and start continuous playback.
-    awg.write('trace:select 1')
-    awg.write('output1:state on')
-    awg.write('init:cont on')
-    awg.write('init:imm')
-    awg.query('*opc?')
+    # Assign segment to channel 1 and start playback.
+    awg.play(wfmID=segment, ch=1)
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
@@ -227,20 +220,18 @@ def vector_uxg_arb_example(ipAddress):
     """Generates and plays 10 MHz 64 QAM signal with 0.35 alpha RRC filter
     @ 1 GHz CF with vector UXG."""
 
-    uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
-    uxg.configure(rfState=1, cf=1e9, amp=0)
-    uxg.err_check()
-
-    uxg.write('stream:state off')
-    uxg.write('radio:arb:state off')
-    modType = 'qam64'
-    fs = 250e6
+    cf = 1e9
+    modType = 'qam16'
     symRate = 10e6
-    wfmName = '10M_64QAM'
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=fs, modType=modType, symRate=symRate)
+    wfmName = '10M_16QAM'
 
-    uxg.download_iq_wfm(i, q, wfmID=wfmName)
-    uxg.arb_play(wfmID=wfmName)
+    uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
+    uxg.configure(rfState=1, cf=cf, amp=-20)
+
+    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=uxg.fs, modType=modType, symRate=symRate)
+
+    uxg.download_wfm(iq, wfmID=wfmName)
+    uxg.play(wfmID=wfmName)
 
     uxg.err_check()
     uxg.disconnect()
@@ -250,9 +241,12 @@ def vector_uxg_pdw_example(ipAddress):
     """Creates and downloads a chirp waveform, defines a simple pdw csv
     file, and loads that pdw file into the UXG, and plays it out."""
 
+    pWidth = 10e-6
+    chirpBw = 40e6
+    wfmName = 'CHIRP'
+
     uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
     uxg.configure()
-    uxg.err_check()
 
     """Configure pdw markers. These commands will assign a TTL pulse 
     at the beginning of each PDW. The trigger 2 output will only be 
@@ -260,14 +254,9 @@ def vector_uxg_pdw_example(ipAddress):
     uxg.write('stream:markers:pdw1:mode stime')
     uxg.write('route:trigger2:output pmarker1')
 
-    # Create IQ waveform
-    pWidth = 1e-6
-    fs = 250e6
-    chirpBw = 100e6
-    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=fs, pWidth=pWidth, pri=pWidth, chirpBw=chirpBw, zeroLast=True)
-
-    wfmName = 'CHIRP'
-    uxg.download_iq_wfm(i, q, wfmName)
+    # Create and download chirp waveform
+    iq = pyarbtools.wfmBuilder.chirp_generator(fs=uxg.fs, pWidth=pWidth, pri=pWidth, chirpBw=chirpBw, zeroLast=True)
+    uxg.download_wfm(iq, wfmName)
 
     # Define and generate csv pdw file
     pdwName = 'basic_chirp'
@@ -277,7 +266,7 @@ def vector_uxg_pdw_example(ipAddress):
 
     uxg.csv_pdw_file_download(pdwName, fields, data)
 
-    uxg.stream_play(pdwID=pdwName)
+    uxg.stream_start(pdwID=pdwName)
 
     uxg.err_check()
     uxg.disconnect()
@@ -289,14 +278,15 @@ def vector_uxg_lan_streaming_example(ipAddress):
     to the UXG."""
 
     uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
-    uxg.err_check()
+    uxg.configure(rfState=1, modState=1)
+    uxg.clear_all_wfm()
 
     # Waveform creation, three chirps of the same bandwidth and different lengths
     lengths = [10e-6, 50e-6, 100e-6]
     wfmNames = []
     for l in lengths:
-        i, q = pyarbtools.wfmBuilder.chirp_generator(fs=250e6, pWidth=l, pri=l, chirpBw=100e6)
-        uxg.download_iq_wfm(i, q, f'{l}_100MHz_CHIRP')
+        iq = pyarbtools.wfmBuilder.chirp_generator(fs=uxg.fs, pWidth=l, pri=l, chirpBw=100e6, wfmFormat='iq', zeroLast=True)
+        uxg.download_wfm(iq, f'{l}_100MHz_CHIRP')
         wfmNames.append(f'{l}_100MHz_CHIRP')
 
     # Create/download waveform index file
@@ -306,10 +296,11 @@ def vector_uxg_lan_streaming_example(ipAddress):
     # Create PDWs
     # operation, freq, phase, startTimeSec, power, markers,
     # phaseControl, rfOff, wIndex, wfmMkrMask
-    rawPdw = [[1, 1e9, 0, 0,      0, 1, 0, 0, 0, 0xF],
-              [0, 1e9, 0, 20e-6,  0, 0, 0, 0, 1, 0xF],
-              [0, 1e9, 0, 120e-6, 0, 0, 0, 0, 2, 0xF],
-              [2, 1e9, 0, 300e-6, 0, 0, 0, 0, 2, 0xF]]
+
+    rawPdw = [[1, 1e9, 0, 0,      -10, 0, 0, 0, 0, 0xF],
+              [0, 1e9, 0, 20e-6,  -10, 0, 0, 0, 1, 0xF],
+              [0, 1e9, 0, 120e-6, -10, 0, 0, 0, 2, 0xF],
+              [2, 1e9, 0, 300e-6, -10, 0, 0, 0, 2, 0xF]]
 
     pdwFile = uxg.bin_pdw_file_builder(rawPdw)
 
@@ -317,8 +308,6 @@ def vector_uxg_lan_streaming_example(ipAddress):
     header = pdwFile[:4096]
     data = pdwFile[4096:]
 
-    uxg.write('stream:markers:pdw1:mode stime')
-    uxg.write('rout:trigger2:output pmarker1')
     uxg.write('stream:source lan')
     uxg.write('stream:trigger:play:file:type continuous')
     uxg.write('stream:trigger:play:file:type:continuous:type trigger')
@@ -328,13 +317,15 @@ def vector_uxg_lan_streaming_example(ipAddress):
 
     uxg.write('stream:external:header:clear')
 
-    # The esr=False argument allows you to send your own read/query after binblockwrite
+    # The esr=False argument in binblockwrite() allows you to send your own
+    # read/query after writing the binary block data rather than the
+    # default *ESR? query that is used for error checking.
     uxg.binblockwrite(f'stream:external:header? ', header, esr=False)
     if uxg.query('') != '+0':
         raise pyarbtools.error.VSGError('stream:external:header? response invalid. This should never happen.')
 
     # Configure LAN streaming and send PDWs
-    uxg.write('stream:state on')
+    # uxg.write('stream:state on')
     uxg.open_lan_stream()
     uxg.lanStream.send(data)
 
@@ -343,11 +334,6 @@ def vector_uxg_lan_streaming_example(ipAddress):
 
     # Begin streaming
     uxg.write('stream:trigger:play:immediate')
-
-    # Waiting for stream to finish, turn off stream, close stream port
-    uxg.query('*opc?')
-    uxg.write('stream:state off')
-    uxg.close_lan_stream()
 
     # Check for errors and gracefully disconnect.
     uxg.err_check()
@@ -382,19 +368,20 @@ def main():
     replace the IP address with one that is appropriate for your
     instrument(s)."""
 
-    m8190a_duc_dig_mod_example('141.121.210.248')
-    # m8190a_duc_chirp_example('141.121.210.241')
-    # m8190a_simple_wfm_example('141.121.210.241')
+    from time import sleep
+
+    # m8190a_simple_wfm_example('141.121.210.171')
+    # m8190a_duc_dig_mod_example('141.121.210.171')
+    # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
     # m8195a_simple_wfm_example('141.121.210.245')
     # vsg_dig_mod_example('141.121.210.122')
     # vsg_chirp_example('141.121.210.122')
     # vsg_am_example('141.121.210.122')
     # vsg_mtone_example('141.121.210.122')
-    # vector_uxg_arb_example('141.121.210.211')
+    # vector_uxg_arb_example('141.121.210.131')
     # vector_uxg_pdw_example('141.121.210.131')
-    # vector_uxg_pdw_example('141.121.210.211')
-    # vector_uxg_lan_streaming_example('141.121.210.131')
+    vector_uxg_lan_streaming_example('141.121.210.131')
     # analog_uxg_pdw_example('141.121.210.201')
 
 

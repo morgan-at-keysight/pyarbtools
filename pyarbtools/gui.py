@@ -13,8 +13,6 @@ import pyarbtools
 
 """
 TODO
-* Tie arb memory to wfm list (THIS IS DONE FOR THE VSG, M8190A, and M8195A)
-* ^ Test UXG
 * For future help box to explain what the different DAC modes mean
     # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
     #                     'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
@@ -35,7 +33,7 @@ class PyarbtoolsGUI:
                             'VectorUXG': pyarbtools.instruments.VectorUXG}
 
         # Variables
-        self.ipAddress = '127.0.0.1'
+        self.ipAddress = '141.121.210.131'
         # self.ipAddress = '141.121.210.122'
         self.inst = None
         self.cbWidth = 17
@@ -71,7 +69,7 @@ class PyarbtoolsGUI:
         # setupFrame Widgets
         self.lblInstruments = Label(setupFrame, text='Instrument Class')
         self.cbInstruments = ttk.Combobox(setupFrame, state='readonly', values=list(self.instClasses.keys()))
-        self.cbInstruments.current(1)
+        self.cbInstruments.current(4)
 
         v = StringVar()
         self.lblInstIPAddress = Label(setupFrame, text='Instrument IP Address')
@@ -590,7 +588,7 @@ class PyarbtoolsGUI:
         """Deletes selected waveform from the waveform list."""
         index = self.lbWfmList.curselection()[0]
         try:
-            if self.instKey == 'VSG':
+            if self.instKey in ['VSG', 'VectorUXG']:
                 self.inst.delete_wfm(self.wfmList[index]['name'])
             elif 'M819' in self.instKey:
                 self.inst.delete_segment(self.wfmList[index]['segment'], int(self.cbChannel.get()))
@@ -1145,7 +1143,7 @@ class PyarbtoolsGUI:
             ampLabel = Label(self.configFrame, text='Amplitude (dBm)')
             ampVar = StringVar()
             self.eAmp = Entry(self.configFrame, textvariable=ampVar)
-            ampVar.set(-130)
+            ampVar.set(-20)
 
             iqScaleLabel = Label(self.configFrame, text='IQ Scale (%)')
             iqScaleVar = StringVar()

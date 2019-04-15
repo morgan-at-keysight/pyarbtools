@@ -22,6 +22,10 @@ class VSGError(Exception):
     """Signal Generator Exception class"""
 
 
+class UXGError(Exception):
+    """UXG Exception class"""
+
+
 class BinblockError(Exception):
     """Binary Block Exception class"""
     pass

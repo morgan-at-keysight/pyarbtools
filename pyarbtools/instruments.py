@@ -11,6 +11,7 @@ N5182B, E8257D, M9383A, N5193A, N5194A
 
 """
 TODO:
+* Bugfix: fix zero/hold behavior on VectorUXG LAN pdw streaming
 * Add check to each instrument class to ensure that the correct 
     instrument is connected
 * Add a function for IQ adjustments in VSG class
@@ -557,7 +558,7 @@ class VSG(communications.SocketInstrument):
         else:
             self.gran = 4
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
+    def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
         """Sets basic configuration for VSG and populates class attributes accordingly."""
         if not isinstance(fs, float) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
@@ -760,7 +761,7 @@ class AnalogUXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-130, mode='streaming'):
+    def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, mode='stream'):
         """Sets the basic configuration for the UXG and populates class
         attributes accordingly. It should be called any time these
         settings are changed (ideally once directly after creating the
@@ -1093,11 +1094,14 @@ class VectorUXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-120, iqScale=70):
+    def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, iqScale=70, mode='arb'):
         """Sets the basic configuration for the UXG and populates class
         attributes accordingly. It should be called any time these
         settings are changed (ideally once directly after creating the
         UXG object)."""
+
+        if mode.lower() not in ['arb', 'stream']:
+            raise error.UXGError('Invalid mode selected. Use "arb" or "stream"')
 
         if not isinstance(cf, float) or cf <= 0:
             raise ValueError('Carrier frequency must be a positive floating point value.')
@@ -1127,6 +1131,38 @@ class VectorUXG(communications.SocketInstrument):
 
         self.err_check()
 
+    def stream_configure(self, source='file', trigState=True, trigSource='bus', trigInPort=None, trigPeriod=1e-3, trigOutPort=None):
+        """Configures streaming on the UXG."""
+
+        if source.lower() not in ['file', 'lan']:
+            raise error.UXGError('Invalid stream source selected. Use "file" or "lan"')
+
+        self.write(f'stream:source {source}')
+
+        if trigState:
+            if trigSource.lower() not in ['key', 'bus', 'external', 'timer']:
+                raise error.UXGError('Invalid trigger source selected. Use "key", "bus", "external", or "timer"')
+            if trigInPort == trigOutPort and trigInPort != None and trigOutPort != None:
+                raise error.UXGError('Conflicting trigger ports. trigInPort and trigOutPort must be unique.')
+            self.write('stream:trigger:play:file:type:continuous:type trigger')
+            self.write(f'stream:trigger:play:source {trigSource}')
+
+            if trigSource.lower() == 'external':
+                if trigInPort != None:
+                    if trigInPort < 1 or trigInPort > 10:
+                        raise error.UXGError('trigInPort must be an integer between 1 and 10.')
+                    self.write(f'trigger:play:external:source trigger{trigInPort}')
+            elif trigSource.lower() == 'timer':
+                if trigPeriod < 48e-9 or trigPeriod > 34:
+                    raise error.UXGError('Invalid trigPeriod')
+                self.write(f'trigger:timer {trigPeriod}')
+
+        if trigOutPort != None:
+            if trigOutPort < 1 or trigOutPort > 10:
+                raise error.UXGError('trigOutPort must be an integer between 1 and 10.')
+            self.write('stream:markers:pdw1:mode stime')
+            self.write(f'rout:trigger{trigOut}:output pmarker1')
+
     def sanity_check(self):
         """Prints out initialized values."""
         print('RF State:', self.rfState)
@@ -1150,14 +1186,57 @@ class VectorUXG(communications.SocketInstrument):
         self.lanStream.close()
 
     @staticmethod
-    def bin_pdw_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, power=0, markers=0,
-                        phaseControl=0, rfOff=0, wIndex=0, wfmMkrMask=0):
-        """This function builds a single format-1 PDW from a list of parameters.
+    def bin_pdw_builder_3(operation=0, freq=1e9, phase=0, startTimeSec=0, pulseWidthSec=10e-6,
+                        maxPower=0, markers=0, power=0, phaseControl=0, rfOff=0, autoBlank=0, newWfm=1,
+                        zeroHold=0, loLead=0, wfmMkrMask=0, wfmType=0, wIndex=0):
+        """This function builds a single format-3 PDW from a list of parameters.
 
         See User's Guide>Streaming Use>PDW Definitions section of
         Keysight UXG X-Series Agile Vector Adapter Online Documentation
         http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm"""
 
+        pdwFormat = 3
+        _freq = int(freq * 1024 + 0.5)
+        _phase = int(phase * 4096 / 360 + 0.5)
+        _startTimePs = int(startTimeSec * 1e12)
+        # you multiplied this by 2, it's probably not going to work.
+        _pulseWidthPs = int(pulseWidthSec * 1e12 * 2)
+        _maxPower = int((maxPower + 140) / 0.005 + 0.5)
+        _power = int((power + 140) / 0.005 + 0.5)
+        _loLead = loLead / 4e-9
+
+        # Build PDW
+        pdw = np.zeros(11, dtype=np.uint32)
+        # Word 0: Mask pdw format (3 bits), operation (2 bits), and the lower 27 bits of freq
+        pdw[0] = (pdwFormat | operation << 3 | _freq << 5) & 0xFFFFFFFF
+        # Word 1: Mask the upper 20 bits (47 - 27) of freq and phase (12 bits)
+        pdw[1] = (_freq >> 27 | _phase << 20) & 0xFFFFFFFF
+        # Word 2: Lower 32 bits of startTimePs
+        pdw[2] = _startTimePs & 0xFFFFFFFF
+        # Word 3: Upper 32 bits of startTimePS
+        pdw[3] = (_startTimePs & 0xFFFFFFFF00000000) >> 32
+        # Word 4: Lower 32 bits of Pulse width (37 bits)
+        pdw[4] = _pulseWidthPs & 0xFFFFFFFF
+        # Word 5: Upper 5 bits of Pulse width, max power (15 bits), markers (12 bits)
+        pdw[5] = (_pulseWidthPs & 0x1F00000000) >> 32 | _maxPower << 5 | markers << 20
+        # Word 5: Power (15 bits), phase mode (1), RF off (1), auto blank (1), new wfm (1),
+        # zero/hold (1), lo lead (8), marker mask (4)
+        pdw[6] = _power | phaseControl << 15 | rfOff << 16 | autoBlank << 17 | newWfm << 18 | zeroHold << 19 | _loLead << 20 | wfmMkrMask << 28
+        # Word 7: Reserved (8), Wfm type (2), index (16) reserved (
+        pdw[7] = wfmType << 8 | wIndex << 10
+
+        return pdw
+
+    @staticmethod
+    def bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers,
+                        phaseControl, rfOff, wIndex, wfmMkrMask):
+        """This function builds a single format-1 PDW from a list of parameters.
+
+                See User's Guide>Streaming Use>PDW Definitions section of
+                Keysight UXG X-Series Agile Vector Adapter Online Documentation
+                http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm"""
+
+        # Format 1 PDWs are deprecated
         pdwFormat = 1
         _freq = int(freq * 1024 + 0.5)
         _phase = int(phase * 4096 / 360 + 0.5)
@@ -1331,7 +1410,7 @@ class VectorUXG(communications.SocketInstrument):
     def delete_wfm(self, wfmID):
         """Stops output and deletes specified waveform."""
         self.stop()
-        self.write(f'memory:delete "WFM1:{wfmID}"')
+        self.write(f'mmemory:delete "{wfmID}", "WFM1:"')
         self.err_check()
 
     def clear_all_wfm(self):
@@ -1346,7 +1425,7 @@ class VectorUXG(communications.SocketInstrument):
         self.query('*opc?')
         self.err_check()
 
-    def arb_play(self, wfmID='wfm'):
+    def play(self, wfmID='wfm'):
         """Selects waveform and activates RF output, modulation, and arb mode."""
         self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
         self.write('radio:arb:state on')
@@ -1357,7 +1436,7 @@ class VectorUXG(communications.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
         self.err_check()
 
-    def arb_stop(self):
+    def stop(self):
         """Dectivates RF output, modulation, and arb mode."""
         self.write('output off')
         self.rfState = self.query('output?').strip()
@@ -1367,7 +1446,7 @@ class VectorUXG(communications.SocketInstrument):
         self.arbState = self.query('radio:arb:state?').strip()
         self.err_check()
 
-    def stream_play(self, pdwID='pdw', wIndexID=None):
+    def stream_start(self, pdwID='pdw', wIndexID=None):
         """Assigns pdw/windex, activates RF output, modulation, and
         streaming mode, and triggers streaming output."""
 
