@@ -4,9 +4,9 @@
 
 __author__ = """Morgan Allison"""
 __email__ = 'morgan.j.allison@gmail.com'
-__version__ = '0.0.12'
+__version__ = '0.0.13'
 
-from . import communications
-from . import instruments
-from . import wfmBuilder
-from . import error
+from pyarbtools import communications
+from pyarbtools import instruments
+from pyarbtools import wfmBuilder
+from pyarbtools import error
