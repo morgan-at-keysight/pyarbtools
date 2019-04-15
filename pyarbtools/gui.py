@@ -33,8 +33,7 @@ class PyarbtoolsGUI:
                             'VectorUXG': pyarbtools.instruments.VectorUXG}
 
         # Variables
-        self.ipAddress = '141.121.210.131'
-        # self.ipAddress = '141.121.210.122'
+        self.ipAddress = '127.0.0.1'
         self.inst = None
         self.cbWidth = 17
 
@@ -69,7 +68,7 @@ class PyarbtoolsGUI:
         # setupFrame Widgets
         self.lblInstruments = Label(setupFrame, text='Instrument Class')
         self.cbInstruments = ttk.Combobox(setupFrame, state='readonly', values=list(self.instClasses.keys()))
-        self.cbInstruments.current(4)
+        self.cbInstruments.current(0)
 
         v = StringVar()
         self.lblInstIPAddress = Label(setupFrame, text='Instrument IP Address')
