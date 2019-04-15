@@ -1,6 +1,3 @@
-TODO: Adjust all wfmBuilder docs to reflect changes in order of arguments (fs at beginning, cf at end)
-
-
 #####
 Usage
 #####

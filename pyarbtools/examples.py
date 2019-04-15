@@ -368,8 +368,6 @@ def main():
     replace the IP address with one that is appropriate for your
     instrument(s)."""
 
-    from time import sleep
-
     # m8190a_simple_wfm_example('141.121.210.171')
     # m8190a_duc_dig_mod_example('141.121.210.171')
     # m8190a_duc_chirp_example('141.121.210.171')
