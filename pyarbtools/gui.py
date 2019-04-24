@@ -13,6 +13,9 @@ import pyarbtools
 
 """
 TODO
+* Direct user to Configure the instrument before creating waveforms.
+* Gray out waveform creation until instrument is configured.
+* Color-code waveforms based on download status
 * For future help box to explain what the different DAC modes mean
     # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
     #                     'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
@@ -98,7 +101,7 @@ class PyarbtoolsGUI:
         # interactFrame Widgets
         lblScpi = Label(self.interactFrame, text='Interactive SCPI I/O')
         scpiString = StringVar()
-        self.eScpi = Entry(self.interactFrame, textvariable=scpiString, width=40)
+        self.eScpi = Entry(self.interactFrame, textvariable=scpiString, width=40, state=DISABLED)
         scpiString.set('*idn?')
 
         btnWidth = 9
@@ -145,6 +148,7 @@ class PyarbtoolsGUI:
 
         """wfmFrame"""
         self.open_wfm_builder()
+        self.disable_wfmFrame()
 
         """wfmListFrame"""
         self.wfmList = []
@@ -526,8 +530,14 @@ class PyarbtoolsGUI:
                         self.btnWfmDownload.configure(state=DISABLED)
                 self.wfmList.append({'name': name, 'length': len(wfmRaw), 'format': self.cbWfmFormat.get(), 'wfmData': wfmRaw, 'dl': False})
                 self.lbWfmList.delete(0, END)
+                idx = 0
                 for w in self.wfmList:
                     self.lbWfmList.insert(END, w['name'])
+                    if w['dl']:
+                        self.lbWfmList.itemconfig(idx, selectbackground='green', selectforeground='white')
+                    else:
+                        self.lbWfmList.itemconfig(idx, selectbackground='yellow', selectforeground='black')
+                    idx += 1
                 self.lbWfmList.selection_set(END)
                 self.lbWfmList.event_generate("<<ListboxSelect>>")
 
@@ -544,9 +554,15 @@ class PyarbtoolsGUI:
         try:
             if 'M819' in self.inst.instId:
                 segment = self.inst.download_wfm(wfmTarget['wfmData'], ch=int(self.cbChannel.get()), name=wfmTarget['name'], wfmFormat=wfmTarget['format'])
-                """CHANGE M8196A WAVEFORM DOWNLOAD BEHAVIOR SO THAT WHEN YOU DOWNLOAD A WAVEFORM, THE REST OF THE WAVEFORMS['dl'] GO TO False"""
                 self.wfmList[index]['segment'] = segment
-                self.wfmList[index]['dl'] = True
+                self.update_wfm_dl(index, dlState=True)
+                if 'M8196A' in self.inst.instId:
+                    for i in range(len(self.wfmList)):
+                        print(i, self.wfmList[i]['dl'])
+                        if i != index:
+                            self.update_wfm_dl(i, dlState=False)
+                        else:
+                            self.update_wfm_dl(i, dlState=True)
                 self.btnWfmPlay.configure(state=ACTIVE)
                 self.statusBar.configure(text=f'"{wfmTarget["name"]}" downloaded to instrument at segment {segment}.', bg='white')
             else:  # 'iq' format
@@ -554,11 +570,21 @@ class PyarbtoolsGUI:
                     self.statusBar.configure(text='Invalid waveform format for VSG/UXG. Select a waveform with "IQ" format.', bg='red')
                 else:
                     self.inst.download_wfm(wfmTarget['wfmData'], wfmTarget['name'])
-                    self.wfmList[index]['dl'] = True
+                    self.update_wfm_dl(index, True)
                     self.btnWfmPlay.configure(state=ACTIVE)
                     self.statusBar.configure(text=f'"{wfmTarget["name"]}" downloaded to instrument.', bg='white')
         except Exception as e:
             self.statusBar.configure(text=repr(e), bg='red')
+
+    def update_wfm_dl(self, index, dlState):
+        """Updates the appearance of a given waveform in the waveform list
+        depending on its "downloaded" status"""
+
+        self.wfmList[index]['dl'] = dlState
+        if dlState:
+            self.lbWfmList.itemconfig(index, selectbackground='green', selectforeground='white')
+        else:
+            self.lbWfmList.itemconfig(index, selectbackground='yellow', selectforeground='black')
 
     def play_wfm(self):
         index = self.lbWfmList.curselection()[0]
@@ -621,6 +647,8 @@ class PyarbtoolsGUI:
         self.lbWfmList.delete(0, END)
         self.btnWfmDownload.configure(state=DISABLED)
         self.btnWfmPlay.configure(state=DISABLED)
+        self.btnWfmClearAll.configure(state=DISABLED)
+        self.btnWfmDelete.configure(state=DISABLED)
         self.lblName.configure(text='')
         self.lblLength.configure(text='')
         self.lblFormat.configure(text='')
@@ -708,6 +736,7 @@ class PyarbtoolsGUI:
             self.btnErrCheck.configure(state=ACTIVE)
             self.btnPreset.configure(state=ACTIVE)
             self.btnFlush.configure(state=ACTIVE)
+            self.eScpi.configure(state=NORMAL)
             self.lblReadout.configure(text='Ready for SCPI interaction')
             self.btnInstConnect.configure(text='Disconnect', command=self.instrument_disconnect)
         except Exception as e:
@@ -724,9 +753,13 @@ class PyarbtoolsGUI:
         self.btnErrCheck.configure(state=DISABLED)
         self.btnPreset.configure(state=DISABLED)
         self.btnFlush.configure(state=DISABLED)
+        self.eScpi.configure(state=DISABLED)
         self.lblReadout.configure(text='Connect to instrument')
         self.lblInstStatus.configure(text='Not Connected', bg='red')
         self.btnInstConnect.configure(text='Connect', command=self.instrument_connect)
+
+        self.disable_wfmFrame()
+        self.clear_all_wfm()
 
         # Reset instrument config frame
         self.configFrame.destroy()
@@ -793,6 +826,15 @@ class PyarbtoolsGUI:
         except Exception as e:
             self.statusBar.configure(text=repr(e), bg='red')
         self.cbWfmType.event_generate("<<ComboboxSelected>>")
+        self.cbWfmType.configure(state='readonly')
+
+    def enable_wfmTypeSelect(self):
+        self.cbWfmType.configure(state='readonly')
+
+    def disable_wfmFrame(self):
+        for c in self.wfmFrame.winfo_children():
+            c.configure(state=DISABLED)
+        self.cbWfmType.configure(state=DISABLED)
 
     def open_inst_config(self):
         """Creates a new frame with instrument-specific configuration fields."""
@@ -913,7 +955,7 @@ class PyarbtoolsGUI:
             r += 1
 
             # Special
-            self.cbChannel.configure(values=[1, 2], state=ACTIVE)
+            self.cbChannel.configure(values=[1, 2], state='readonly')
             self.cbChannel.current(0)
             self.cbRes.event_generate("<<ComboboxSelected>>")
 
@@ -994,7 +1036,7 @@ class PyarbtoolsGUI:
             r += 1
 
             # Special
-            self.cbChannel.configure(values=[1, 2], state=ACTIVE)
+            self.cbChannel.configure(values=[1, 2, 3, 4], state='readonly')
             self.cbChannel.current(0)
 
         elif self.instKey == 'M8196A':
@@ -1045,7 +1087,7 @@ class PyarbtoolsGUI:
             r += 1
 
             # Special
-            self.cbChannel.configure(values=[1, 2], state=ACTIVE)
+            self.cbChannel.configure(values=[1, 2, 3, 4], state='readonly')
             self.cbChannel.current(0)
 
         elif self.instKey == 'VSG':
@@ -1123,6 +1165,9 @@ class PyarbtoolsGUI:
             self.eFs.grid(row=r, column=1, sticky=W)
             r += 1
 
+            # Special
+            self.cbChannel.configure(state=DISABLED)
+
         elif self.instKey == 'VectorUXG':
             rfStateLabel = Label(self.configFrame, text='RF State')
             self.rfStateArgs = {'On': 1, 'Off': 0}
@@ -1171,6 +1216,8 @@ class PyarbtoolsGUI:
             self.eIqScale.grid(row=r, column=1, sticky=W)
             r += 1
 
+            # Special
+            self.cbChannel.configure(state=DISABLED)
         # elif self.instKey == 'AnalogUXG':
         #     rfStateLabel = Label(self.configFrame, text='RF State')
         #     self.rfStateArgs = {'On': 1, 'Off': 0}

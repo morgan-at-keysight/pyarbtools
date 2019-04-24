@@ -22,7 +22,7 @@ def vsg_chirp_example(ipAddress):
     pWidth = 10e-6
     bw = 40e6
     pri = 100e-6
-    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=vsg.fs, pWidth=pWidth, chirpBw=bw)
+    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=vsg.fs, pWidth=pWidth, pri=pri, chirpBw=bw)
 
     i = np.append(i, np.zeros(5000))
     q = np.append(q, np.zeros(5000))

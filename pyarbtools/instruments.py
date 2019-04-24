@@ -9,6 +9,11 @@ Tested on M8190A, M8195A, M8196A,
 N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
+import numpy as np
+import math
+from pyarbtools import communications
+from pyarbtools import error
+
 """
 TODO:
 * Bugfix: fix zero/hold behavior on VectorUXG LAN pdw streaming
@@ -21,11 +26,6 @@ TODO:
 * Add a multi-binblockwrite feature for download_wfm in the case of 
     waveform size > 1 GB
 """
-
-import numpy as np
-import math
-from pyarbtools import communications
-from pyarbtools import error
 
 
 def wraparound_calc(length, gran, minLen):
@@ -189,6 +189,8 @@ class M8190A(communications.SocketInstrument):
         elif wfmFormat.lower() == 'real':
             wfm = self.check_wfm(wfmData)
             length = len(wfm)
+        else:
+            raise error.SockInstError('Invalid wfmFormat chosen. Use "iq" or "real".')
 
         segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segment}, {length}')
@@ -275,6 +277,7 @@ class M8190A(communications.SocketInstrument):
         self.write('abort')
 
 
+# noinspection PyUnusedLocal,PyUnusedLocal
 class M8195A(communications.SocketInstrument):
     """Generic class for controlling Keysight M8195A AWG."""
 
@@ -377,7 +380,7 @@ class M8195A(communications.SocketInstrument):
     def clear_all_wfm(self):
         """Clears all segments from segment memory."""
         self.write('abort')
-        for ch in range(1,5):
+        for ch in range(1, 5):
             self.write(f'trace{ch}:del:all')
 
     def play(self, wfmID=1, ch=1):
@@ -393,6 +396,7 @@ class M8195A(communications.SocketInstrument):
         self.write('abort')
 
 
+# noinspection PyUnusedLocal,PyUnusedLocal
 class M8196A(communications.SocketInstrument):
     """Generic class for controlling Keysight M8196A AWG."""
 
@@ -498,7 +502,7 @@ class M8196A(communications.SocketInstrument):
 
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
 
-    def delete_segment(self, wfmID=1, ch=1):
+    def delete_segment(self):
         """Deletes waveform segment"""
         self.clear_all_wfm()
 
@@ -731,6 +735,7 @@ class VSG(communications.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
 
 
+# noinspection PyUnusedLocal
 class AnalogUXG(communications.SocketInstrument):
     """Generic class for controlling the N5193A Analog UXG agile signal generators."""
 
@@ -1069,7 +1074,7 @@ class VectorUXG(communications.SocketInstrument):
             self.query('*opc?')
         # Clear all waveform, pdw, and windex files
         if clearMemory:
-            self.clear_memory()
+            self.clear_all_wfm()
         self.host = host
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
@@ -1142,13 +1147,13 @@ class VectorUXG(communications.SocketInstrument):
         if trigState:
             if trigSource.lower() not in ['key', 'bus', 'external', 'timer']:
                 raise error.UXGError('Invalid trigger source selected. Use "key", "bus", "external", or "timer"')
-            if trigInPort == trigOutPort and trigInPort != None and trigOutPort != None:
+            if trigInPort == trigOutPort and trigInPort and trigOutPort:
                 raise error.UXGError('Conflicting trigger ports. trigInPort and trigOutPort must be unique.')
             self.write('stream:trigger:play:file:type:continuous:type trigger')
             self.write(f'stream:trigger:play:source {trigSource}')
 
             if trigSource.lower() == 'external':
-                if trigInPort != None:
+                if trigInPort:
                     if trigInPort < 1 or trigInPort > 10:
                         raise error.UXGError('trigInPort must be an integer between 1 and 10.')
                     self.write(f'trigger:play:external:source trigger{trigInPort}')
@@ -1157,7 +1162,7 @@ class VectorUXG(communications.SocketInstrument):
                     raise error.UXGError('Invalid trigPeriod')
                 self.write(f'trigger:timer {trigPeriod}')
 
-        if trigOutPort != None:
+        if trigOutPort:
             if trigOutPort < 1 or trigOutPort > 10:
                 raise error.UXGError('trigOutPort must be an integer between 1 and 10.')
             self.write('stream:markers:pdw1:mode stime')
@@ -1203,7 +1208,7 @@ class VectorUXG(communications.SocketInstrument):
         _pulseWidthPs = int(pulseWidthSec * 1e12 * 2)
         _maxPower = int((maxPower + 140) / 0.005 + 0.5)
         _power = int((power + 140) / 0.005 + 0.5)
-        _loLead = loLead / 4e-9
+        _loLead = int(loLead / 4e-9)
 
         # Build PDW
         pdw = np.zeros(11, dtype=np.uint32)
