@@ -18,7 +18,7 @@ def sine_generator(fs=100e6, freq=0, phase=0, zeroLast=False, wfmFormat='iq'):
         raise error.WfmBuilderError('Frequency violates Nyquist.')
 
     if freq:
-        time = 1000 / freq
+        time = 100 / freq
     else:
         time = 10000 / fs
     t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
