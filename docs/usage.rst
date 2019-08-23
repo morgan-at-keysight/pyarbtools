@@ -105,7 +105,7 @@ code without having to send a SCPI query to determine values::
 -------------
 ::
 
-    M8190A.configure(res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac', out2='dac', func1='arb', func2='arb', cf1=2e9, cf2=2e9)
+    M8190A.configure(res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac', out2='dac', amp1=0.65, amp2=0.65, func1='arb', func2='arb', cf1=1e9, cf2=1e9)
 
 Sets the basic configuration for the M8190A and populates class
 attributes accordingly. It should be called any time these settings are
@@ -113,14 +113,15 @@ changed (ideally *once* directly after creating the M8190A object).
 
 **Arguments**
 
-* ``res``: AWG resolution. Arguments are ``'wpr'`` (14 bit), ``'wsp'`` (12 bit) (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'`` (intx resolutions are all 15 bit).
-* ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default) or ``'ext'``.
-* ``fs``: Sample rate in Hz. Argument is a floating point value from ``125e6`` to ``12e9``. Default is ``7.2e9``.
-* ``refSrc``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
-* ``refFreq``: Reference clock frequency in Hz. Argument is a floating point value from ``1e6`` to ``200e6`` in steps of ``1e6``. Default is ``100e6``.
-* ``out1``, ``out2``: Output signal path for channel 1 and 2 respectively. Arguments are ``'dac'`` (default), ``'dc'``, ``'ac'``.
-* ``func1``, ``func2``: Function of channel 1 and 2 respectively. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
-* ``cf1``, ``cf2``: Carrier frequency in Hz of channel 1 and 2 respectively. This setting is only applicable if the digital upconverter is being used (``res`` arguments of ``'intx<#>'``). Arguments are floating point values between ``0`` and ``12e9``.
+* ``res`` ``(str)``: AWG resolution. Arguments are ``'wpr'`` (14 bit), ``'wsp'`` (12 bit) (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'`` (intx resolutions are all 15 bit).
+* ``clkSrc`` ``(str)``: Sample clock source. Arguments are ``'int'`` (default) or ``'ext'``.
+* ``fs`` ``(float)``: Sample rate in Hz. Argument range is ``125e6`` to ``12e9``. Default is ``7.2e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
+* ``refFreq`` ``(float)``: Reference clock frequency in Hz. Argument range is ``1e6`` to ``200e6`` in steps of ``1e6``. Default is ``100e6``.
+* ``out1``, ``out2`` ``(str)``: Output signal path for channel 1 and 2 respectively. Arguments are ``'dac'`` (default), ``'dc'``, ``'ac'``.
+* ``amp1``, ``amp2`` ``(float)``: Output amplitude for channel 1 and 2 respectively. Argument range varies depending on output path chosen.
+* ``func1``, ``func2`` ``(str)``: Function of channel 1 and 2 respectively. Arguments are ``'arb'`` (default), ``'sts'`` (sequence), or ``'stc'`` (scenario).
+* ``cf1``, ``cf2`` ``(str)``: Carrier frequency in Hz of channel 1 and 2 respectively. This setting is only applicable if the digital upconverter is being used (``res`` arguments of ``'intx<#>'``). Argument range is ``0`` to ``12e9``.
 
 **Returns**
 
@@ -130,20 +131,22 @@ changed (ideally *once* directly after creating the M8190A object).
 ----------------
 ::
 
-    M8190A.download_wfm(wfmData, ch=1, name='wfm', wfmFormat='iq')
+    M8190A.download_wfm(wfmData, ch=1, name='wfm', wfmFormat='iq', sampleMkr=0, syncMkr=0)
 
 Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfmData``: NumPy array containing waveform samples (either real or IQ).
-* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
-* ``name``: String providing a name for downloaded waveform segment.
-* ``wfmFormat``: String that determines the format of the waveform being downloaded. Arguments are ``'iq'`` (default) or ``'real'``.
+* ``wfmData`` ``(NumPy array)``: Array of waveform samples (either real or IQ).
+* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
+* ``name`` ``(str)``: Name for downloaded waveform segment.
+* ``wfmFormat`` ``(str)``: Format of the waveform being downloaded. Arguments are ``'iq'`` (default) or ``'real'``.
+* ``sampleMkr`` ``(int)``: Index of the beginning of the sample marker.
+* ``syncMkr`` ``(int)``: Index of the beginning of the sync marker.
 
 **Returns**
 
-* ``segment``: Segment number used to specify which waveform is played using the ``.play()`` method.
+* ``segment`` ``(int)``: Segment identifier used to specify which waveform is played using the ``.play()`` method.
 
 **delete_segment**
 ------------------
@@ -155,8 +158,8 @@ Deletes a waveform segment from the waveform memory.
 
 **Arguments**
 
-* ``wfmID``: Segment number used to specify which waveform is deleted.
-* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
+* ``wfmID`` ``(int)``: Segment number used to specify which waveform is deleted.
+* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
 
 **Returns**
 
@@ -188,8 +191,8 @@ Selects waveform, turns on analog output, and begins continuous playback.
 
 **Arguments**
 
-* ``wfmID``: Segment index of the waveform to be loaded. Default is ``1``.
-* ``ch``: Channel to be used for playback. Default is ``1``.
+* ``wfmID`` ``(int)``: Segment index of the waveform to be loaded. Default is ``1``.
+* ``ch`` ``(int)``: Channel to be used for playback. Default is ``1``.
 
 **Returns**
 
@@ -205,7 +208,7 @@ Turns off analog output and stops playback.
 
 **Arguments**
 
-* ``ch``: Channel to be stopped. Default is ``1``.
+* ``ch`` ``(int)``: Channel to be stopped. Default is ``1``.
 
 **Returns**
 
@@ -229,12 +232,12 @@ changed (ideally *once* directly after creating the M8195A object).
 
 **Arguments**
 
-* ``dacMode``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
-* ``clkSrc``: Sample clock source. Arguments are ``'int'`` (default), ``'ext'``, ``'sclk1'``, or ``'sclk2'``.
-* ``fs``: Sample rate in Hz. Argument is a floating point value from ``53.76e9`` to ``65e9``.
-* ``refSrc``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
-* ``refFreq``: Reference clock frequency in Hz. Argument is a floating point value from ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
-* ``func``: Function of channels. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
+* ``dacMode`` ``(str)``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
+* ``clkSrc`` ``(str)``: Sample clock source. Arguments are ``'int'`` (default), ``'ext'``, ``'sclk1'``, or ``'sclk2'``.
+* ``fs`` ``(float)``: Sample rate in Hz. Argument range is ``53.76e9`` to ``65e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
+* ``refFreq`` ``(float)``: Reference clock frequency in Hz. Argument range is ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
+* ``func`` ``(str)``: Function of channels. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
 
 **Returns**
 
@@ -250,9 +253,9 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfmData``: NumPy array containing real waveform samples (not IQ).
-* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
-* ``name``: String providing a name for downloaded waveform segment.
+* ``wfmData`` ``(NumPy array)``: Array containing real waveform samples (not IQ).
+* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
+* ``name`` ``(str)``: String providing a name for downloaded waveform segment.
 
 **Returns**
 
@@ -268,8 +271,8 @@ Deletes a waveform segment from the waveform memory.
 
 **Arguments**
 
-* ``wfmID``: Segment number used to specify which waveform is deleted.
-* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+* ``wfmID`` ``(int)``: Segment number used to specify which waveform is deleted.
+* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
 
 **Returns**
 
@@ -301,8 +304,8 @@ Selects waveform, turns on analog output, and begins continuous playback.
 
 **Arguments**
 
-* ``wfmID``: Segment index of the waveform to be loaded. Default is ``1``.
-* ``ch``: Channel to be used for playback. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+* ``wfmID`` ``(int)``: Segment index of the waveform to be loaded. Default is ``1``.
+* ``ch`` ``(int)``: Channel to be used for playback. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
 
 **Returns**
 
@@ -318,7 +321,7 @@ Turns off analog output and stops playback.
 
 **Arguments**
 
-* ``ch``: Channel to be stopped. Default is ``1``.
+* ``ch`` ``(int)``: Channel to be stopped. Default is ``1``.
 
 **Returns**
 
@@ -342,10 +345,10 @@ changed (ideally *once* directly after creating the M8196A object).
 
 **Arguments**
 
-* ``dacMode``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, or ``'dcmarker'``.
-* ``fs``: Sample rate. Argument is a floating point value from ``82.24e9`` to ``93.4e9``.
-* ``refSrc``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
-* ``refFreq``: Reference clock frequency. Argument is a floating point value from ``10e6`` to ``17e9``. Default is ``100e6``.
+* ``dacMode`` ``(str)``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, or ``'dcmarker'``.
+* ``fs`` ``(float)``: Sample rate. Argument range is ``82.24e9`` to ``93.4e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
+* ``refFreq`` ``(float)``: Reference clock frequency. Argument range is ``10e6`` to ``17e9``. Default is ``100e6``.
 
 **Returns**
 
@@ -361,13 +364,13 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfmData``: NumPy array containing real waveform samples (not IQ).
-* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
-* ``name``: String providing a name for downloaded waveform segment.
+* ``wfmData`` ``(NumPy array)``: Array containing real waveform samples (not IQ).
+* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
+* ``name`` ``(str)``: Name for downloaded waveform segment.
 
 **Returns**
 
-* ``segment``: Segment number used to specify which waveform is played using the ``.play()`` method.
+* ``segment`` ``(int)``: Segment number used to specify which waveform is played using the ``.play()`` method.
 
 **delete_segment**
 ------------------
@@ -379,8 +382,8 @@ Deletes a waveform segment from the waveform memory.
 
 **Arguments**
 
-* ``wfmID``: Segment number used to specify which waveform is deleted.
-* ``ch``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+* ``wfmID`` ``(int)``: Segment number used to specify which waveform is deleted.
+* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
 
 **Returns**
 
@@ -412,7 +415,7 @@ Selects waveform, turns on analog output, and begins continuous playback.
 
 **Arguments**
 
-* ``ch``: Channel to be used for playback. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+* ``ch`` ``(int)``: Channel to be used for playback. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
 
 **Returns**
 
@@ -428,7 +431,7 @@ Turns off analog output and stops playback.
 
 **Arguments**
 
-* ``ch``: Channel to be stopped. Default is ``1``.
+* ``ch`` ``(int)``: Channel to be stopped. Default is ``1``.
 
 **Returns**
 
@@ -452,19 +455,19 @@ accordingly. It should be called any time these settings are changed
 
 **Arguments**
 
-* ``rfState``: Turns the RF output state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
-* ``modState``: Turns the modulation state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
-* ``cf``: Output carrier frequency in Hz. Argument is a floating point value whose range is instrument dependent. Default is ``1e9``.
-    * EXG/MXG ``9e3`` to ``6e9``
-    * PSG ``100e3`` to ``44e9``
-* ``amp``: Output power in dBm. Argument is a floating point value whose range is instrument dependent. Default is ``-130``.
-    * EXG/MXG ``-144`` to ``+26``
-    * PSG ``-130`` to ``+21``
-* ``iqScale``: IQ scale factor in %. Argument is an integer from ``1`` to ``100``. Default is ``70``.
-* ``refSrc``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
-* ``fs``: Sample rate in Hz. Argument is a floating point whose range is instrument dependent.
-    * EXG/MXG ``1e3`` to ``200e6``
-    * PSG ``1`` to ``100e6``
+* ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
+* ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
+* ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is instrument dependent. Default is ``1e9``.
+    * EXG/MXG: ``9e3`` to ``6e9``
+    * PSG: ``100e3`` to ``44e9``
+* ``amp`` ``(float)``: Output power in dBm. Argument range is instrument dependent. Default is ``-130``.
+    * EXG/MXG: ``-144`` to ``+26``
+    * PSG: ``-130`` to ``+21``
+* ``iqScale`` ``(int)``: IQ scale factor in %. Argument range is ``1`` to ``100``. Default is ``70``.
+* ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
+* ``fs`` ``(float)``: Sample rate in Hz. Argument range is instrument dependent.
+    * EXG/MXG: ``1e3`` to ``200e6``
+    * PSG: ``1`` to ``100e6``
 
 **Returns**
 
@@ -482,8 +485,8 @@ requirements.
 
 **Arguments**
 
-* ``wfmData``: Complex NumPy array of values representing the complex sample pairs in an IQ waveform.
-* ``wfmID``: String specifying the name of the waveform to be downloaded. Default is ``'wfm'``.
+* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
 
@@ -499,7 +502,7 @@ Deletes a waveform from the waveform memory.
 
 **Arguments**
 
-* ``wfmID``: String specify the name of the waveform to be deleted.
+* ``wfmID`` ``(str)``: Name of the waveform to be deleted.
 
 **Returns**
 
@@ -531,7 +534,7 @@ Selects waveform and activates arb mode, RF output, and modulation.
 
 **Arguments**
 
-* ``wfmID``: Name of the waveform to be loaded. Default is ``'wfm'``.
+* ``wfmID`` ``(str)``: Name of the waveform to be loaded. Default is ``'wfm'``.
 
 **Returns**
 
@@ -571,11 +574,11 @@ accordingly. It should be called any time these settings are changed
 
 **Arguments**
 
-* ``rfState``: Turns the RF output state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
-* ``modState``: Turns the modulation state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
-* ``cf``: Output carrier frequency in Hz. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
-* ``amp``: Output power in dBm. Argument is a floating point value from ``-120`` to ``+3``. Default is ``-120``.
-* ``iqScale``: IQ scale factor in %. Argument is an integer from ``1`` to ``100``. Default is ``70``.
+* ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
+* ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
+* ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is ``50e6`` to ``20e9``. Default is ``1e9``.
+* ``amp`` ``(float)``: Output power in dBm. Argument range is ``-120`` to ``+3``. Default is ``-120``.
+* ``iqScale`` ``(int)``: IQ scale factor in %. Argument range is ``1`` to ``100``. Default is ``70``.
 
 **Returns**
 
@@ -593,12 +596,12 @@ requirements.
 
 **Arguments**
 
-* ``wfmData``: Complex NumPy array of values representing the complex sample pairs in an IQ waveform.
-* ``wfmID``: String specifying the name of the waveform to be downloaded. Default is ``'wfm'``.
+* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmID`` ``(str)``: String specifying the name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
 
-* ``wfmID``: Returns a string identifying the waveform that has been downloaded.
+* ``wfmID`` ``(str)``: Name of waveform that has been downloaded.
 
 **delete_wfm**
 --------------
@@ -610,7 +613,7 @@ Deletes a waveform from the waveform memory.
 
 **Arguments**
 
-* ``wfmID``: String specify the name of the waveform to be deleted.
+* ``wfmID`` ``(str)``: Name of the waveform to be deleted.
 
 **Returns**
 
@@ -642,7 +645,7 @@ Selects waveform and activates RF output, modulation, and arb mode.
 
 **Arguments**
 
-* ``wfmID``: String containing the waveform name. Default is ``'wfm'``.
+* ``wfmID`` ``(str)``: Name of waveform to be played. Default is ``'wfm'``.
 
 **Returns**
 
@@ -674,8 +677,8 @@ Assigns pdw/windex, activates RF output, modulation, and streaming mode, and tri
 
 **Arguments**
 
-* ``pdwID``: Name of the PDW file to be loaded. Argument is a string. Default is ``'wfm'``.
-* ``wIndexID``: Name of the waveform index file to be loaded. Argument is a string. Default is ``None``, which loads a waveform index file with the same name as the PDW file.
+* ``pdwID`` ``(str)``: Name of the PDW file to be loaded. Default is ``'wfm'``.
+* ``wIndexID`` ``(str)``: Name of the waveform index file to be loaded. Default is ``None``, which loads a waveform index file with the same name as the PDW file.
 
 **Returns**
 
@@ -742,22 +745,22 @@ after streaming is complete.
 Builds a binary PDW file with a padding block to ensure the PDW section
 begins at an offset of 4096 bytes (required by UXG).
 
-See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series Agile Vector Adapter Online Documentation.
+See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
 
-* ``pdwList``: A list of PDWs. Argument is a tuple of lists where each list contains a single pulse descriptor word.
-    * PDW Fields:
-        * ``operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-        * ``freq``: CW frequency/chirp start frequency in Hz. Argument is a floating point value from ``50e6`` to ``20e9``.
-        * ``phase``: Phase of carrier in degrees. Argument is an integer between ``0`` and ``360``.
-        * ``startTimeSec``: Pulse start time in seconds. Argument is a float between ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
-        * ``power``: Power in dBm. Argument is a float between ``-140`` and ``+23.835``.
-        * ``markers``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
-        * ``phaseControl``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-        * ``rfOff``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
-        * ``wIndex``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
-        * ``wfmMkrMask``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
+* ``pdwList`` ``(list(list))``: A list of PDWs. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
+* PDW Fields:
+    * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+    * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``50e6`` to ``20e9``.
+    * ``phase`` ``(float)``: Phase of carrier in degrees. Argument range is ``0`` and ``360``.
+    * ``startTimeSec`` ``(float)``: Pulse start time in seconds. Argument range is ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
+    * ``power`` ``(float)``: Power in dBm. Argument range is ``-140`` and ``+23.835``.
+    * ``markers`` ``(int)``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
+    * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+    * ``rfOff`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
+    * ``wIndex`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
+    * ``wfmMkrMask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
 
 ::
 
@@ -768,7 +771,7 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series 
 
 **Returns**
 
-* ``pdwFile``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``VectorUXG.lanStream.send()``
+* ``pdwFile`` ``(bytes)``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``VectorUXG.lanStream.send()``
 
 
 **csv_windex_file_download**
@@ -781,7 +784,7 @@ Write header fields separated by commas and terminated with ``\n``
 
 **Arguments**
 
-* ``windex``: Specifies waveform index file name and waveform names contained inside. Argument is a dict with 'fileName' and 'wfmNames' as keys. e.g. {'fileName': '<fileName>', 'wfmNames': ['name0', 'name1',... 'nameN']}
+* ``windex`` ``(str)``: Specifies waveform index file name and waveform names contained inside. Argument is a dict with 'fileName' and 'wfmNames' as keys. e.g. {'fileName': '<fileName>', 'wfmNames': ['name0', 'name1',... 'nameN']}
 
 **Returns**
 
@@ -798,34 +801,32 @@ Builds a CSV PDW file, sends it into the UXG, and converts it to a
 binary PDW file. There are *a lot* of fields to choose from, but *you
 do not need to specify all of them.* It really is easier than it looks.
 See User's Guide>Streaming Use>CSV File Use>Streaming CSV File Creation
-section of Keysight UXG X-Series Agile Vector Adapter Online
-Documentation.
+section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
 
-* ``fileName``: Name of the csv file without the extension. Argument is a string.
-* ``fields``: Fields contained in the PDWs. Argument is a tuple of strings.
-* ``values``: Values for each PDW. Argument is a tuple of lists where each list contains the values for a single pulse descriptor word.
-    * ``PDW Format``: Sets the PDW Format. Argument is a string ``'Auto'`` (automatic type selected), ``'Indexed'`` (Format 1, waveform description only), ``'Control'`` (Format 2, change markers and execute Marked Operations), or ``'Full'`` (Format 3, which specifies all possible values).
-    * ``Operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-    * ``Time``: The start (50% of rise power) of the pulse with respect to Scenario Time. For Arb waveforms, the beginning of the waveform. Argument is a float between ``0 ps`` and ``213.504 days`` in seconds with a resolution of ``1 ps``.
-    * ``Pulse Width``: The duration of the entire waveform. Argument is a float between ``0`` and ``68.72`` in seconds with a resolution of ``500 ps``. An argument of ``0`` uses the known waveform length.
-    * ``Frequency``: CW frequency/chirp start frequency. Argument is a floating point value from ``50e6`` to ``20e9``. Default is ``1e9``.
-    * ``Phase Mode``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-    * ``Phase``: Phase of carrier. Argument is an integer between ``-360`` and ``360``.
-    * ``Maximum Power``: Power in dBm. Argument is a float between ``-140`` and ``+23.835``.
-    * ``Power``: Power in dBm. Argument is a float between ``-140`` and ``+23.835``. If not specified, Maximum Power is used.
-    * ``RF Off``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
-    * ``Markers``: Marker enable. Argument is a 12 bit hex spefication where each bit represents marker state. e.g. to activate marker 5 is ``0x020``
-    * ``Marker Mask``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
-    * ``Index``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
-    * ``Name``: Specifies the name of a waveform file to play. This field overrides the ``Index`` field if specified. Argument is a string containing the desired waveform name.
-    * ``New Waveform``: Documentation will be updated in an upcoming release.
-    * ``Blank``: Controls blanking between PDW transitions. Arguments are strings, either ``'None'``, which doesn't blank the output during PDW transition, or ``'Auto'``, which blanks the output during PDW transition.
-    * ``Zero/Hold``: Controls behavior of arb at the end of a waveform. Arguments are strings, either ``'Zero'``, which forces the arb output to go to 0, or ``'Hold'``, which holds the last waveform value until the beginning of the next PDW.
-    * ``LO Lead``: Controls how long before the next PDW the LO begins to switch frequencies. Argument is an integer between ``0`` and ``500 ns``.
+* ``fileName`` ``(str)``: Name of the csv file without the extension.
+* ``fields`` ``(list(str))``: Fields contained in the PDWs.
+* ``values`` ``(list(list))``: Values for each PDW. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
+    * ``PDW Format`` ``(str)``: Sets the PDW Format. Arguments are ``'Auto'`` (automatic type selected), ``'Indexed'`` (Format 1, waveform description only), ``'Control'`` (Format 2, change markers and execute Marked Operations), or ``'Full'`` (Format 3, which specifies all possible values).
+    * ``Operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+    * ``Time`` ``(float)``: The start (50% of rise power) of the pulse with respect to Scenario Time. For Arb waveforms, the beginning of the waveform. Argument range is ``0 ps`` to ``213.504 days`` in seconds with a resolution of ``1 ps``.
+    * ``Pulse Width`` ``(float)``: The duration of the entire waveform. Argument range is ``0`` to ``68.72`` in seconds with a resolution of ``500 ps``. An argument of ``0`` uses the known waveform length.
+    * ``Frequency`` ``(float)``: CW frequency/chirp start frequency. Argument range is ``50e6`` to ``20e9``. Default is ``1e9``.
+    * ``Phase Mode`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+    * ``Phase`` ``(int)``: Phase of carrier. Argument range is ``-360`` and ``360``.
+    * ``Maximum Power`` ``(float)``: Power in dBm. Argument range is ``-140`` to ``+23.835``.
+    * ``Power`` ``(float)``: Power in dBm. Argument range is ``-140`` to ``+23.835``. If not specified, Maximum Power is used.
+    * ``RF Off`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
+    * ``Markers`` ``(int)``: Marker enable. Argument is a 12 bit hex spefication where each bit represents marker state. e.g. to activate marker 5 is ``0x020``
+    * ``Marker Mask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
+    * ``Index`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment.
+    * ``Name`` ``(str)``: Specifies the name of a waveform file to play. This field overrides the ``Index`` field if specified.
+    * ``Blank`` ``(str)``: Controls blanking between PDW transitions. Arguments are ``'None'``, which doesn't blank the output during PDW transition, or ``'Auto'``, which blanks the output during PDW transition.
+    * ``Zero/Hold`` ``(str)``: Controls behavior of arb at the end of a waveform. Arguments are ``'Zero'``, which forces the arb output to go to 0, or ``'Hold'``, which holds the last waveform value until the beginning of the next PDW.
+    * ``LO Lead`` ``(float)``: Controls how long before the next PDW the LO begins to switch frequencies. Argument range is ``0`` to ``500`` in nanoseconds.
+    * ``Width`` ``(float)``: Truncates waveform if ``Width`` is shorter than known waveform length or forces DAC to zero/hold last sample if ``Width`` is longer than known waveform length.
     * Documentation will be updated for the following fields/values in an upcoming release.
-        * ``Width``: Specifies width of the pulse waveform generated at compile time.
         * ``Rise``: Specifies rise time of the pulse waveform generated at compile time.
         * ``Fall``: Specifies fall time of the pulse waveform generated at compile time.
         * ``Shape``: Specifies shape of the pulse waveform generated at compile time.
@@ -867,11 +868,11 @@ accordingly. It should be called any time these settings are changed
 
 **Arguments**
 
-* ``rfState``: Turns the RF output state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
-* ``modState``: Turns the modulation state on or off. Arguments are ``0/'off'`` (default) or ``1/'on'``.
-* ``cf``: Output carrier frequency in Hz. Argument is a floating point value from ``10e6`` to ``40e9``. Default is ``1e9``.
-* ``amp``: Output power in dBm. Argument is a floating point value from ``-130`` to ``+10``. Default is ``-130``.
-* ``mode``: Instrument mode. Argument is a string, either ``'streaming'`` (default), ``'normal'``, ``'list'``, ``'fcwswitching'``, ``'vlo'``
+* ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
+* ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
+* ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is ``10e6`` to ``40e9``. Default is ``1e9``.
+* ``amp`` ``(float)``: Output power in dBm. Argument range is ``-130`` to ``+10``. Default is ``-130``.
+* ``mode`` ``(str)``: Instrument mode. Arguments are ``'streaming'`` (default), ``'normal'``, ``'list'``, ``'fcwswitching'``, ``'vlo'``
 
 **Returns**
 
@@ -887,7 +888,7 @@ Assigns pdw/windex, activates RF output, modulation, and streaming mode, and tri
 
 **Arguments**
 
-* ``pdwID``: Name of the PDW file to be loaded. Argument is a string. Default is ``'wfm'``.
+* ``pdwID`` ``(str)``: Name of the PDW file to be loaded. Default is ``'wfm'``.
 
 **Returns**
 
@@ -955,8 +956,8 @@ Downloads binary PDW file to PDW directory in UXG.
 
 **Arguments**
 
-* ``pdwFile``: A binary PDW file, ideally generated and returned by ``AnalogUXG.bin_pdw_file_builder()``.
-* ``pdwName``: The name of the PDW file. Argument is a string.
+* ``pdwFile`` ``(bytes)``: A binary PDW file, ideally generated and returned by ``AnalogUXG.bin_pdw_file_builder()``.
+* ``pdwName`` ``(str)``: The name of the PDW file.
 
 **Returns**
 
@@ -971,25 +972,27 @@ Downloads binary PDW file to PDW directory in UXG.
 Builds a binary PDW file with a padding block to ensure the PDW section
 begins at an offset of 4096 bytes (required by UXG).
 
-See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator Online Documentation.
+See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
 
 **Arguments**
 
-* ``pdwList``: A list of PDWs. Argument is a tuple of lists where each list contains a single pulse descriptor word.
+* ``pdwList`` ``(list(list))``: A list of PDWs. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
     * PDW Fields:
-        * ``operation``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-        * ``freq``: CW frequency/chirp start frequency in Hz. Argument is a floating point value from ``10e6`` to ``40e9``.
-        * ``phase``: Phase of carrier in degrees. Argument is an integer between ``0`` and ``360``.
-        * ``startTimeSec``: Pulse start time in seconds. Argument is a float between ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
-        * ``width``: Pulse width in seconds. Argument is a float between ``4 ns`` and ``4.295 sec``.
-        * ``relativePower``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
-        * ``markers``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
-        * ``pulseMode``: Pulse mode. Argument is an int. ``1`` (RF Off) or ``2`` (Enabled) <-- (use this one).
-        * ``phaseControl``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-        * ``bandAdjust``: Controls how the frequency bands are selected. Argument is an int. ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
-        * ``chirpControl``: Controls the shape of the chirp. Argument is an int. ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
-        * ``phaseCode``: Will be implemented in future release. Enter a ``0`` until then.
-        * ``chirpRate``: Chirp rate in Hz/us. Argument is an int.
+        * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+        * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``10e6`` to ``40e9``.
+        * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
+        * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
+        * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
+        * ``relativePower`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
+        * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
+        * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
+        * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+        * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
+        * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
+        * ``phaseCode`` ``(int)``: Selects hard-coded frequency/phase coding table index.
+        * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
+        * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
+
 
 ::
 
@@ -1001,7 +1004,7 @@ See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Se
 
 **Returns**
 
-* ``pdwFile``: A binary file that can be sent directly to the UXG memory using ``AnalogUXG.bin_pdw_file_builder()`` method or sent to the LAN streaming port using ``AnalogUXG.lanStream.send()``
+* ``pdwFile`` ``(bytes)``: A binary file that can be sent directly to the UXG memory using ``AnalogUXG.bin_pdw_file_builder()`` method or sent to the LAN streaming port using ``AnalogUXG.lanStream.send()``
 
 
 .. _wfmBuilder:
@@ -1021,54 +1024,75 @@ them as generic signals for DSP work::
 
 
 
+**sine_generator**
+------------------
+::
+
+    sine_generator(fs=100e6, freq=0, phase=0, format='iq', zeroLast=False):
+
+Generates a sine wave with configurable frequency and initial phase at baseband or RF.
+
+**Arguments**
+
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``50e6``.
+* ``freq`` ``(float)``: Sine wave frequency.
+* ``phase`` ``(float)``: Initial phase offset. Argument range is ``0`` to ``360``.
+* ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
+* ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
+
+**Returns**
+
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the sine wave.
+
 **am_generator**
 ----------------
 ::
 
-    am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, format='iq'):
+    am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq'):
 
 Generates a linear sinusoidal AM signal of specified depth and modulation rate at baseband or RF.
 
 **Arguments**
 
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``50e6``.
-* ``amDepth``: Depth of AM in %. Argument is an integer. Argument range is ``0`` to ``100``. Default is ``50``.
-* ``modRate``: AM rate in Hz. Argument is a float. Argument range is ``0`` to ``fs/2``. Default is ``100e3``.
-* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
-* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``50e6``.
+* ``amDepth`` ``(int)``: Depth of AM in %. Argument range is ``0`` to ``100``. Default is ``50``.
+* ``modRate`` ``(float)``: AM rate in Hz. Argument range is ``0`` to ``fs/2``. Default is ``100e3``.
+* ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
+* ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
+* ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
 **Returns**
 
-* ``iq``/``real``: NumPy array of values representing the complex or real components of the AM waveform.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the AM waveform.
 
 **chirp_generator**
 -------------------
 ::
 
-    wfmBuilder.chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, format='iq', zeroLast=False):
+    wfmBuilder.chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wfmFormat='iq', zeroLast=False):
 
 Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction is determined by the sign of chirpBw
 (pos=up chirp, neg=down chirp).
 
 **Arguments**
 
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
-* ``pWidth``: Length of the chirp in seconds. Argument is a float. Default is ``10e-6``.
-* ``pri``: Pulse repetition interval in seconds. Argument is a float. Default is ``100e-6``.
-* ``chirpBw``: Total bandwidth of the chirp. Frequency range of resulting signal is ``-chirpBw/2`` to ``chirpBw/2``. Default is ``20e6``.
-* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
-* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
-* ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
+* ``pWidth`` ``(float)``: Length of the chirp in seconds. Default is ``10e-6``.
+* ``pri`` ``(float)``: Pulse repetition interval in seconds. Default is ``100e-6``.
+* ``chirpBw`` ``(float)``: Total bandwidth of the chirp. Frequency range of resulting signal is ``-chirpBw/2`` to ``chirpBw/2``. Default is ``20e6``.
+* ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
+* ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
+* ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
 **Returns**
 
-* ``iq``/``real``: NumPy array of values representing the complex or real components of the chirped pulse.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the chirped pulse.
 
 **barker_generator**
 --------------------
 ::
 
-    wfmBuilder.barker_generator(fs=100e6, pWidth=100e-6, code='b2', cf=1e9, format='iq', zeroLast=False)
+    wfmBuilder.barker_generator(fs=100e6, pWidth=100e-6, code='b2', cf=1e9, wfmFormat='iq', zeroLast=False)
 
 Generates a Barker phase coded pulsed signal at RF or baseband.
 See `Wikipedia article <https://en.wikipedia.org/wiki/Barker_code>`_ for
@@ -1077,44 +1101,44 @@ more information on Barker coding.
 
 **Arguments**
 
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
-* ``pWidth``: Length of the chirp in seconds. Argument is a float. Default is ``10e-6``.
-* ``pri``: Pulse repetition interval in seconds. Argument is a float. Default is ``100e-6``.
-* ``code``: Barker code order. Argument is a string containing ``'b2'`` (default), ``'b3'``, ``'b41'``, ``'b42'``, ``'b5'``, ``'b7'``, ``'b11'``, or ``'b13'``.
-* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
-* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
-* ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
+* ``pWidth`` ``(float)``: Length of the chirp in seconds. Default is ``10e-6``.
+* ``pri`` ``(float)``: Pulse repetition interval in seconds. Default is ``100e-6``.
+* ``code`` ``(str)``: Barker code order. Arguments are ``'b2'`` (default), ``'b3'``, ``'b41'``, ``'b42'``, ``'b5'``, ``'b7'``, ``'b11'``, or ``'b13'``.
+* ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
+* ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
+* ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
 **Returns**
 
-* ``iq``/``real``: NumPy array of values representing the complex or real components of the barker pulse.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the barker pulse.
 
 **multitone**
 -------------
 ::
 
-    multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, format='iq')
+    multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq')
 
 Generates a multitone signal with given tone spacing, number of tones, sample rate, and phase relationship.
 
 **Arguments**
 
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``100e6``.
-* ``spacing``: Tone spacing in Hz. Argument is a float. There is currently no limit to ``spacing``, so beware of the compilation time for small spacings and beware of aliasing for large spacings.
-* ``num``: Number of tones. Argument is an integer. There is currently no limit to ``num``, so beware of long compilation times for large number of tones.
-* ``phase``: Phase relationship between tones. Arguments are ``'random'`` (default), ``'zero'``, ``'increasing'``, or ``'parabolic'``.
-* ``cf``: Center frequency for ``'real'`` format waveforms. Argument is a float. Default is ``1e9``.
-* ``format``: Waveform format. Argument is a string. Values are ``'iq'`` (default) or ``'real'``.
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
+* ``spacing`` ``(float)``: Tone spacing in Hz. There is currently no limit to ``spacing``, so beware of the compilation time for small spacings and beware of aliasing for large spacings.
+* ``num`` ``(int)``: Number of tones. There is currently no limit to ``num``, so beware of long compilation times for large number of tones.
+* ``phase`` ``(str)``: Phase relationship between tones. Arguments are ``'random'`` (default), ``'zero'``, ``'increasing'``, or ``'parabolic'``.
+* ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
+* ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
 
 **Returns**
 
-* ``iq``/``real``: NumPy array of values representing the complex or real components of the multitone signal.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the multitone signal.
 
 **digmod_prbs_generator**
 -------------------------
 ::
 
-    digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, wfmFormat='iq', zeroLast=False)
+    digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, zeroLast=False)
 
 Generates a baseband modulated signal with a given modulation type and
 transmit filter using PRBS data.
@@ -1122,8 +1146,8 @@ transmit filter using PRBS data.
 
 **Arguments**
 
-* ``fs``: Sample rate used to create the signal in Hz. Argument is a float.
-* ``modType``: Type of modulation. Argument is a ``_modulator`` function.
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
+* ``modType`` ``(function handle)``: Type of modulation. Argument is a ``_modulator`` function handle.
     * ``bpsk_modulator``, generates a binary phase shift keyed signal.
     * ``qpsk_modulator``, generates a quadrature phase shift keyed signal.
     * ``psk8_modulator``, generates a 8-state phase shift keyed signal.
@@ -1132,17 +1156,17 @@ transmit filter using PRBS data.
     * ``qam64_modulator``, generates a 64-state quadrature amplitude modulated signal.
     * ``qam128_modulator``, generates a 128-state quadrature amplitude modulated signal.
     * ``qam256_modulator``, generates a 256-state quadrature amplitude modulated signal.
-* ``symRate``: Symbol rate in Hz. Argument is a float.
-* ``prbsOrder``: Order of the pseudorandom bit sequence used for the underlying data. Arguments are integers. ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
-* ``filt``: Reference filter type. Argument is a ``_filter`` function.
+* ``symRate`` ``(float)``: Symbol rate in Hz.
+* ``prbsOrder`` ``(int)``: Order of the pseudorandom bit sequence used for the underlying data. Arguments of ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
+* ``filt`` ``(function handle)``: Reference filter type. Argument is a ``_filter`` function handle.
     * ``rc_filter``: Creates the impulse response of a `raised cosine filter <https://en.wikipedia.org/wiki/Raised-cosine_filter>`_.
     * ``rrc_filter``: Creates the impulse response of a `root raised cosine filter <https://en.wikipedia.org/wiki/Root-raised-cosine_filter>`_. (default)
-* ``alpha``: Excess filter bandwidth specification. Also known as roll-off factor, alpha, or beta. Argument is a float between ``0`` and ``1``. Default is ``0.35``.
-* ``zeroLast``: Allows user to force the last sample point to ``0``. Default is ``False``.
+* ``alpha`` ``(float)``: Excess filter bandwidth specification. Also known as roll-off factor, alpha, or beta. Argument range is ``0`` to ``1``. Default is ``0.35``.
+* ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
 
 **Returns**
 
-* ``iq``: NumPy array of values representing the complex components of the digitally modulated signal.
+* ``iq`` ``(NumPy array)``: Array contianing the complex values of the digitally modulated signal.
 
 **iq_correction**
 -----------------
@@ -1160,17 +1184,15 @@ waveform.
 
 **Arguments**
 
-* ``i``: NumPy array of values representing the real component of the waveform to be corrected.
-* ``q``: NumPy array of values representing the imaginary component of the waveform to be corrected.
-* ``inst``: Instrument class of the generator to be used in the calibration. Must already be connected and configured. ``inst.fs`` is used as the basis for the calibration and ``inst.play()`` method is used.
-* ``vsaIPAddress``: String containing the IP address of the VSA instance to be used in calibration. Default is ``'127.0.0.1'``.
-* ``vsaHardware``: String containing the name of the hardware to be used by VSA. Name must be surrounded by double quotes (``"``). Default is ``'"Analyzer1"'``.
-* ``cf``: Floating point value for the center frequency at which calibration takes place. Default is ``1e9``.
-* ``osFactor``: Oversampling factor used by the digital demodulator in VSA. The larger the value, the narrower the bandwidth of the calibration. Effective bandwidth is roughly ``inst.fs / osFactor * 1.35``. Arguments are ``2``, ``4`` (default), ``5``, ``10``, or ``20``.
-* ``thresh``: Defines the target EVM value that should be reached before extracting equalizer impulse response. Argument is a float < ``1.0``. Default is ``0.4``. Low values take longer to settle but result in better calibration.
-* ``convergence``: Equalizer convergence value. Argument is a floating point value << 1. Default is ``2e-8``. High values settle more quickly but may become unstable. Lower values take longer to settle but tend to have better stability.
+* ``iq`` ``(NumPy array)``: Array contianing the complex values of the signal to be corrected.
+* ``inst`` ``(pyarbtools.instrument.XXX)``: Instrument class of the generator to be used in the calibration. Must already be connected and configured. ``inst.fs`` is used as the basis for the calibration and ``inst.play()`` method is used.
+* ``vsaIPAddress`` ``(str)``: IP address of the VSA instance to be used in calibration. Default is ``'127.0.0.1'``.
+* ``vsaHardware`` ``(str)``: Name of the hardware to be used by VSA. Name must be surrounded by double quotes (``"``). Default is ``'"Analyzer1"'``.
+* ``cf`` ``(float)``: Center frequency at which calibration takes place. Default is ``1e9``.
+* ``osFactor`` ``(int)``: Oversampling factor used by the digital demodulator in VSA. The larger the value, the narrower the bandwidth of the calibration. Effective bandwidth is roughly ``inst.fs / osFactor * 1.35``. Arguments are ``2``, ``4`` (default), ``5``, ``10``, or ``20``.
+* ``thresh`` ``(float)``: Defines the target EVM value that should be reached before extracting equalizer impulse response. Argument range is ``0`` to ``1.0``. Default is ``0.4``. Low values take longer to settle but result in better calibration.
+* ``convergence`` ``(float)``: Equalizer convergence value. Argument should be << 1. Default is ``2e-8``. High values settle more quickly but may become unstable. Lower values take longer to settle but tend to have better stability.
 
 **Returns**
 
-* ``iCorr``: NumPy array of values representing the real component of corrected signal.
-* ``qCorr``: NumPy array of values representing the imaginary component of the corrected signal.
+* ``iqCorr`` ``(NumPy array)``: Array containing the complex values of corrected signal.

@@ -8,11 +8,23 @@ import numpy as np
 from scipy.signal import max_len_seq
 from pyarbtools import communications
 from pyarbtools import error
+from time import sleep
 
 
-def sine_generator(fs=100e6, freq=0, phase=0, zeroLast=False, wfmFormat='iq'):
-    """Generates a sine wave with optional frequency offset and
-    initial phase at baseband or RF."""
+def sine_generator(fs=100e6, freq=0, phase=0, wfmFormat='iq', zeroLast=False):
+    """
+    Generates a sine wave with optional frequency offset and initial
+    phase at baseband or RF.
+    Args:
+        fs (float): Sample rate used to create the signal.
+        freq (float): Sine wave frequency.
+        phase (float): Sine wave initial phase.
+        wfmFormat (str): Selects waveform format. ('iq', 'real')
+        zeroLast (bool): Allows user to force the last sample point to 0.
+
+    Returns:
+        (NumPy array): Array containing the complex or real values of the waveform.
+    """
 
     if abs(freq) > fs / 2:
         raise error.WfmBuilderError('Frequency violates Nyquist.')
@@ -36,8 +48,20 @@ def sine_generator(fs=100e6, freq=0, phase=0, zeroLast=False, wfmFormat='iq'):
         raise error.WfmBuilderError('Invalid waveform wfmFormat selected. Choose "iq" or "real".')
 
 
-def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq'):
-    """Generates a sinusoidal AM signal at baseband or RF."""
+def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq', zeroLast=False):
+    """
+    Generates a sinusoidal AM signal at baseband or RF.
+    Args:
+        fs (float): Sample rate used to create the signal.
+        amDepth (int): Depth of AM in %.
+        modRate (float): AM rate in Hz.
+        cf (float): Center frequency for real format waveforms.
+        wfmFormat (str): Waveform format. ('iq', 'real')
+        zeroLast (bool): Force the last sample point to 0.
+
+    Returns:
+        (NumPy array): Array containing the complex or real values of the waveform.
+    """
 
     if amDepth <= 0 or amDepth > 100:
         raise error.WfmBuilderError('AM Depth out of range, must be 0 - 100.')
@@ -53,20 +77,36 @@ def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq'):
         iq = mod * np.exp(1j * t)
         sFactor = abs(np.amax(iq))
         iq = iq / sFactor * 0.707
-
+        if zeroLast:
+            iq[-1] = 0 + 1j*0
         return iq
     elif wfmFormat.lower() == 'real':
         real = mod * np.cos(2 * np.pi * cf * t)
         sFactor = np.amax(real)
         real = real / sFactor
+        if zeroLast:
+            real[-1] = 0
         return real
     else:
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
 def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wfmFormat='iq', zeroLast=False):
-    """Generates a symmetrical linear chirp at baseband or RF. Chirp direction
-    is determined by the sign of chirpBw (pos=up chirp, neg=down chirp)."""
+    """
+    Generates a symmetrical linear chirp at baseband or RF. Chirp direction
+    is determined by the sign of chirpBw (pos=up chirp, neg=down chirp).
+    Args:
+        fs (float): Sample rate used to create the signal.
+        pWidth (float): Length of the chirp in seconds.
+        pri (float): Pulse repetition interval in seconds.
+        chirpBw (float): Total bandwidth of the chirp.
+        cf (float): Carrier frequency for real format waveforms.
+        wfmFormat (str): Waveform format. ('iq', 'real')
+        zeroLast (bool): Force the last sample point to 0.
+
+    Returns:
+        (NumPy array): Array containing the complex or real values of the waveform.
+    """
 
     if chirpBw > fs:
         raise error.WfmBuilderError('Chirp Bandwidth violates Nyquist.')
@@ -115,7 +155,22 @@ def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wf
 
 
 def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9, wfmFormat='iq', zeroLast=False):
-    """Generates a Barker phase coded signal at baseband or RF."""
+    """
+    Generates a Barker phase coded signal at baseband or RF.
+    Args:
+        fs (float): Sample rate used to create the signal.
+        pWidth (float): Length of the chirp in seconds.
+        pri (float): Pulse repetition interval in seconds.
+        code (str): Barker code order. ('b2', 'b3', 'b41', 'b42', 'b5',
+            'b7', 'b11', 'b13')
+        cf (float): Carrier frequency for real format waveforms.
+        wfmFormat (str): Waveform format. ('iq', 'real')
+        zeroLast (bool): Force the last sample point to 0.
+
+    Returns:
+        (NumPy array): Array containing the complex or real values of the waveform.
+    """
+
     if pWidth <= 0 or pri <= 0:
         raise error.WfmBuilderError('Pulse width and PRI must be positive values.')
 
@@ -160,8 +215,21 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9, wfmF
 
 
 def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq'):
-    """Generates a multitone signal with given tone spacing, number of
-    tones, sample rate, and phase relationship at baseband or RF."""
+    """
+    Generates a multitone signal with given tone spacing, number of
+    tones, sample rate, and phase relationship at baseband or RF.
+    Args:
+        fs (float): Sample rate used to create the signal.
+        spacing (float): Tone spacing in Hz.
+        num (int): Number of tones.
+        phase (str): Phase relationship between tones. ('random',
+            'zero', 'increasing', 'parabolic')
+        cf (float): Carrier frequency for real format waveforms.
+        wfmFormat (str): Waveform format. ('iq', 'real')
+
+    Returns:
+        (NumPy array): Array containing the complex or real values of the waveform.
+    """
     if spacing * num > fs:
         raise error.WfmBuilderError('Multitone spacing and number of tones violates Nyquist.')
 
@@ -827,8 +895,26 @@ def qam256_modulator(data, customMap=None):
 
 
 def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, wfmFormat='iq', zeroLast=False):
-    """Generates a digitally modulated signal with a given modulation
-    and filter type using PRBS data at baseband."""
+    """
+    Generates a digitally modulated signal with a given modulation
+    and filter type using PRBS data at baseband.
+    Args:
+        fs (float): Sample rate used to create the signal in Hz.
+        modType (function handle): Type of modulation.
+            (bksp_modulator, qpsk_modulator, psk8_modulator,
+            qam16_modulator, qam32_modulator, qam64_modulator,
+            qam128_modulator, qam256_modulator)
+        symRate (float): Symbol rate in Hz.
+        prbsOrder (int): Order of the pseudorandom bit sequence used
+            for the underlying data. (7, 9, 11, 13)
+        filt (function handle): Reference filter type. (rrc_filter, rc_filter)
+        alpha (float): Excess filter bandwidth specification. Also
+            known as roll-off factor, alpha, or beta.
+        zeroLast (bool): Force last sample point to 0.
+
+    Returns:
+        (NumPy array): Array containing the complex or real values of the waveform.
+    """
 
     if wfmFormat.lower() != 'iq':
         raise error.WfmBuilderError('Digital modulation currently supports IQ waveform format only.')
@@ -913,17 +999,51 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     return iq
 
 
-def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
+def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
                   cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
-    """Creates a 16-QAM signal from a signal generator at a
+    """
+    Creates a 16-QAM signal from a signal generator at a
     user-selected center frequency and sample rate. Symbol rate and
     effective bandwidth of the calibration signal is determined by
     the oversampling rate in VSA. Creates a VSA instrument, which
     receives the 16-QAM signal and extracts & inverts an equalization
-    filter and applies it to the user-defined waveform."""
+    filter and applies it to the user-defined waveform.
+    Args:
+        iq (NumPy array): Array containing the complex values of the
+            signal to be corrected.
+        inst (pyarbtools.instrument.XXX): Instrument class for the
+            signal generator to be used in the calibration. Must
+            already be connected and configured.
+        vsaIPAddress (str): IP address of the VSA instance to be used
+            in the calibration.
+        vsaHardware (str): Name of the hardware to be used by VSA.
+            Name must be surrounded by double quotes inside the string.
+        cf (float): Center frequency at which the calibration takes place.
+        osFactor (int): Oversampling factor used by the digital
+            demodulator in VSA. Large osFactor corresponds to a small
+            calibration bandwidth.
+        thresh (float): target EVM value to be reached before
+            extracting equalizer impulse response.
+        convergence (float): Equalizer convergence value. High values
+            settle more quickly but may become unstable. Low values
+            take longer to settle but tend to have better stability
+
+    Returns:
+
+    """
 
     if osFactor not in [2, 4, 5, 10, 20]:
         raise ValueError('Oversampling factor invalid. Choose 2, 4, 5, 10, or 20.')
+
+    # Connect to VSA
+    vsa = communications.SocketInstrument(vsaIPAddress, 5025)
+    vsa.write('system:preset')
+    vsa.query('*opc?')
+    hwList = vsa.query('system:vsa:hardware:configuration:catalog?').split(',')
+    if vsaHardware not in hwList:
+        raise ValueError('Selected hardware not present in VSA hardware list.')
+    vsa.write(f'system:vsa:hardware:configuration:select {vsaHardware}')
+    vsa.query('*opc?')
 
     # Use M8190A baseband sample rate if present
     if hasattr(inst, 'bbfs'):
@@ -933,28 +1053,26 @@ def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"
 
     # Create, load, and play calibration signal
     symRate = fs / osFactor
-    iCal, qCal = digmod_prbs_generator(fs=fs, modType='qam16', symRate=symRate)
-    wfmId = inst.download_iq_wfm(iCal, qCal)
+    iqCal = digmod_prbs_generator(fs=fs, modType='qam16', symRate=symRate)
+    wfmId = inst.download_wfm(iqCal)
     inst.play(wfmId)
 
-    # Connect to VSA
-    vsa = communications.SocketInstrument(vsaIPAddress, 5025)
-    vsa.write('*rst')
-    vsa.query('*opc?')
-    hwList = vsa.query('system:vsa:hardware:configuration:catalog?').split(',')
-    if vsaHardware not in hwList:
-        raise ValueError('Selected hardware not present in VSA hardware list.')
-    vsa.write(f'system:vsa:hardware:configuration:select {vsaHardware}')
-    vsa.query('*opc?')
+    # setupFile = 'C:\\Temp\\temp.setx'
+    # vsa.write(f'mmemory:store:setup "{setupFile}"')
+    # vsa.query('*opc?')
 
     # Configure basic settings
     vsa.write('measure:nselect 1')
+    vsa.write('initiate:abort')
+    vsa.write('input:trigger:style "Auto"')
     vsa.write('measure:configure ddemod')
     vsa.write('trace1:data:name "Error Vector Time1"')
+    vsa.write('trace2:data:name "Spectrum1"')
     vsa.write('trace3:data:name "Eq Impulse Response1"')
+    vsa.write('trace4:data:name "Syms/Errs1"')
     vsa.write('format:trace:data real64')  # This is float64/double, not int64
     vsa.write(f'sense:frequency:center {cf}')
-    vsa.write('input:analog:range:auto')
+    vsa.write(f'sense:frequency:span {symRate * 1.5}')
     vsa.write('display:layout 2, 2')
 
     # Configure digital demod parameters and enable equalizer
@@ -965,6 +1083,10 @@ def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"
     vsa.write('ddemod:filter:abt 0.35')
     vsa.write(f'ddemod:compensate:equalize:convergence {convergence}')
     vsa.write('ddemod:compensate:equalize 1')
+    vsa.write('ddemod:compensate:equalize:reset')
+
+    vsa.write('input:analog:range:auto')
+    vsa.query('*opc?')
 
     # Acquire data until EVM drops below a certain threshold
     evm = 100
@@ -981,27 +1103,111 @@ def iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"
     eqQ = vsa.binblockread(dtype=np.float64).byteswap()
     vsa.write('ddemod:compensate:equalize 0')
 
-    vsa.err_check()
-    inst.err_check()
-
     # Invert the phase of the equalizer impulse response
     equalizer = np.array(eqI - eqQ*1j)
 
     # Pseudo circular convolution to mitigate zeroing of samples due to filter delay
-    rawIQ = np.array(i + q*1j)
+    # iq = np.array(i + q*1j)
     taps = len(equalizer)
-    circIQ = np.concatenate((rawIQ[-int(taps / 2):], rawIQ, rawIQ[:int(taps / 2)]))
+    circIQ = np.concatenate((iq[-int(taps / 2):], iq, iq[:int(taps / 2)]))
 
     # Apply filter, trim off delayed samples, and normalize
-    iq = np.convolve(equalizer, circIQ)
-    iq = iq[taps-1:-taps+1]
-    sFactor = abs(np.amax(iq))
-    iq = iq / sFactor * 0.707
+    iqCorr = np.convolve(equalizer, circIQ)
+    iqCorr = iqCorr[taps-1:-taps+1]
+    sFactor = abs(np.amax(iqCorr))
+    iqCorr = iqCorr / sFactor * 0.707
 
+    # vsa.write('*rst')
+    # vsa.write(f'mmemory:load:setup "{setupFile}"')
+    # vsa.query('*opc?')
+
+    try:
+        vsa.err_check()
+        inst.err_check()
+    except error.SockInstError as e:
+        print(str(e))
+
+    vsa.disconnect()
+
+    return iqCorr
+
+
+def channel_quality_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
+                               cf=1e9, span=40e6, toneSpacing=1e6):
+    """IQ correction using the channel quality measurement in VSA."""
+
+    name = 'corr'
+    numTones = int(span / toneSpacing) + 1
+    iqCorr = multitone(fs=inst.fs, spacing=toneSpacing, num=numTones,
+                       phase='zero', cf=cf, wfmFormat='iq')
+
+    inst.download_wfm(iqCorr, name)
+    inst.play(name)
+
+    vsa = communications.SocketInstrument(vsaIPAddress, 5025)
+    hwList = vsa.query('system:vsa:hardware:configuration:catalog?').split(',')
+    if vsaHardware not in hwList:
+        raise ValueError('Selected hardware not present in VSA hardware list.')
+    vsa.write(f'system:vsa:hardware:configuration:select {vsaHardware}')
+    vsa.query('*opc?')
+
+    # Configure basic settings
+    vsa.write('measure:nselect 1')
+    vsa.write('measure:configure cquality')
+    vsa.query('*opc?')
+    vsa.write('sense:cquality:preset')
+
+    vsa.write(f'sense:frequency:center {cf}')
+    vsa.write(f'sense:frequency:span {span}')
+    vsa.write(f'sense:cquality:mtone:configure {toneSpacing}, {numTones}')
+    vsa.write('sense:cquality:analysis:interval 10e-3')
+    vsa.write('input:analog:range:auto')
+    vsa.query('*opc?')
+
+    # print(vsa.query('trace1:data:name:list?'))
+    vsa.write('trace1:data:name "Ch Frequency Response1"')
+    vsa.write('trace1:format "Real"')
+    vsa.write('trace2:data:name "Ch Frequency Response1"')
+    vsa.write('trace2:format "Imaginary"')
+    vsa.write('trace3:add')
+    vsa.write('trace3:data:name "Spectrum1"')
+    vsa.write('trace3:format "LogMagnitude"')
+    vsa.write('trace4:add')
+    vsa.write('trace4:data:name "Ch Frequency Response1"')
+    vsa.write('trace4:format "IQ"')
+    vsa.write('display:layout 2, 2')
+    vsa.write('initiate:continuous off')
+    vsa.write('initiate:immediate')
+    vsa.query('*opc?')
+    sleep(1)
+
+    vsa.write('format:trace:data real64')
+    vsa.write('trace4:data:x?')
+    eqI = vsa.binblockread(dtype=np.float64).byteswap()
+    vsa.write('trace4:data:y?')
+    eqQ = vsa.binblockread(dtype=np.float64).byteswap()
+
+    equalizer = np.array(eqI - eqQ * 1j)
+
+    # Pseudo circular convolution to mitigate zeroing of samples due to filter delay
+    # iq = np.array(i + q*1j)
+    taps = len(equalizer)
+    circIQ = np.concatenate((iq[-int(taps / 2):], iq, iq[:int(taps / 2)]))
+
+    # Apply filter, trim off delayed samples, and normalize
+    iqCorr = np.convolve(equalizer, circIQ)
+    iqCorr = iqCorr[taps - 1:-taps + 1]
+    sFactor = abs(np.amax(iqCorr))
+    iqCorr = iqCorr / sFactor * 0.707
+
+    vsa.write('measure:configure vector')
     vsa.write('*rst')
     vsa.disconnect()
 
-    iCorr = iq.real
-    qCorr = iq.imag
+    # vsa.write('trace3:data:name "Eq Impulse Response1"')
+    # vsa.write('format:trace:data real64')  # This is float64/double, not int64
+    # vsa.write(f'sense:frequency:center {cf}')
+    # vsa.write('input:analog:range:auto')
 
-    return iCorr, qCorr
+    return iqCorr
+

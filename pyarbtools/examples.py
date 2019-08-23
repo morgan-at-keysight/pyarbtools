@@ -96,11 +96,12 @@ def m8190a_simple_wfm_example(ipAddress):
     res = 'wsp'
     fs = 10e9
     output = 'ac'
+    amp = 0.6
     cf = 1e9
     wfmName = 'sine'
 
     awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
-    awg.configure(res=res, fs=fs, out1=output)
+    awg.configure(res=res, fs=fs, out1=output, amp1=amp)
 
     # Create simple sinusoidal waveform
     real = pyarbtools.wfmBuilder.sine_generator(fs=awg.fs, freq=cf, wfmFormat='real')
@@ -178,12 +179,10 @@ def m8190a_iq_correction_example(instIPAddress, vsaIPAddress, vsaHardware):
     awg = pyarbtools.instruments.M8190A(instIPAddress, reset=True)
     awg.configure('intx3', fs=7.2e9, out1='ac', cf1=1e9)
 
-    i, q = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam32', symRate=40e6)
+    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam32', symRate=40e6)
+    iqCorr = pyarbtools.wfmBuilder.iq_correction(iq, awg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20, convergence=5e-9)
 
-    iCorr, qCorr = pyarbtools.wfmBuilder.iq_correction(
-        i, q, awg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20)
-
-    wfmID = awg.download_iq_wfm(iCorr, qCorr)
+    wfmID = awg.download_wfm(iqCorr)
     awg.play(wfmID=wfmID)
     awg.err_check()
     awg.disconnect()
@@ -193,14 +192,15 @@ def m8195a_simple_wfm_example(ipAddress):
     """Sets up the M8195A and creates, downloads, assigns, and plays
     out a simple sine waveform from the AC output port."""
 
-    dacMode = 'single'
+    dacMode = 'dual'
     fs = 64e9
-
+    refSrc = 'ext'
+    refFreq = 200e6
     cf = 1e9
     wfmName = 'sine'
 
     awg = pyarbtools.instruments.M8195A(ipAddress, reset=True)
-    awg.configure(dacMode=dacMode, fs=fs)
+    awg.configure(dacMode=dacMode, fs=fs, refSrc=refSrc, refFreq=refFreq)
 
     # Define a waveform, ensuring min length and granularity requirements are met
     real = pyarbtools.wfmBuilder.sine_generator(fs=fs, freq=cf, wfmFormat='real')
@@ -368,10 +368,10 @@ def main():
     replace the IP address with one that is appropriate for your
     instrument(s)."""
 
-    # m8190a_simple_wfm_example('141.121.210.171')
+    m8190a_simple_wfm_example('141.121.210.171')
     # m8190a_duc_dig_mod_example('141.121.210.171')
     # m8190a_duc_chirp_example('141.121.210.171')
-    # m8190a_iq_correction_example('141.121.210.241', '127.0.0.1', '"PXA"')
+    # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
     # m8195a_simple_wfm_example('141.121.210.245')
     # vsg_dig_mod_example('141.121.210.122')
     # vsg_chirp_example('141.121.210.122')
@@ -379,7 +379,7 @@ def main():
     # vsg_mtone_example('141.121.210.122')
     # vector_uxg_arb_example('141.121.210.131')
     # vector_uxg_pdw_example('141.121.210.131')
-    vector_uxg_lan_streaming_example('141.121.210.131')
+    # vector_uxg_lan_streaming_example('141.121.210.131')
     # analog_uxg_pdw_example('141.121.210.201')
 
 
