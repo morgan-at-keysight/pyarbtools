@@ -36,3 +36,8 @@ History
 -------------------
 
 * Added GUI. Adjusted several functions to streamline waveform creation and download between all instrument types.
+
+0.0.14 (2019-11-12)
+-------------------
+
+* Fixed bug in UXG classes that emitted a long CW pulse prior to starting streaming. Added "pri" argument to pulse creation methods.

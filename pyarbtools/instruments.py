@@ -1138,6 +1138,10 @@ class AnalogUXG(communications.SocketInstrument):
         self.mode = self.query('instrument?').strip()
         self.binMult = 32767
 
+        # Stream state should be turned off until streaming is needed.
+        self.write('stream:state off')
+        self.streamState = self.query('stream:state?').strip()
+
         # Set up separate socket for LAN PDW streaming
         self.lanStream = communications.socket.socket(
             communications.socket.AF_INET, communications.socket.SOCK_STREAM)
@@ -1146,7 +1150,7 @@ class AnalogUXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, mode='stream'):
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-20):
         """
         Sets the basic configuration for the UXG and populates class
         attributes accordingly. It should be called any time these
@@ -1176,11 +1180,6 @@ class AnalogUXG(communications.SocketInstrument):
 
         self.write(f'instrument {mode}')
         self.mode = self.query('instrument?').strip()
-
-        if 'str' in self.mode.lower():
-            # Stream state should be turned off until streaming is needed.
-            self.write('stream:state off')
-            self.streamState = self.query('stream:state?').strip()
 
         self.err_check()
 
@@ -1472,10 +1471,7 @@ class AnalogUXG(communications.SocketInstrument):
         self.write(f'stream:source:file:name "{pdwID}"')
         self.err_check()
 
-        # Turn on output, activate streaming, and send trigger command.
-        self.write('output on')
-        self.rfState = self.query('output?').strip()
-        self.err_check()
+        # Activate streaming, and send trigger command.
         self.write('output:modulation on')
         self.modState = self.query('output:modulation?').strip()
         self.write('source:stream:state on')
@@ -1526,6 +1522,10 @@ class VectorUXG(communications.SocketInstrument):
         if clearMemory:
             self.clear_all_wfm()
 
+        # Arb state can only be turned on after a waveform has been loaded/selected.
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
+
         # Set up separate socket for LAN PDW streaming
         self.lanStream = communications.socket.socket(
             communications.socket.AF_INET, communications.socket.SOCK_STREAM)
@@ -1534,7 +1534,7 @@ class VectorUXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, iqScale=70, mode='arb'):
+    def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, iqScale=70):
         """
         Sets the basic configuration for the UXG and populates class
         attributes accordingly. It should be called any time these
@@ -1546,11 +1546,7 @@ class VectorUXG(communications.SocketInstrument):
             cf (float): Sets the generator's carrier frequency.
             amp (int/float): Sets the generator's RF output power.
             iqScale (int): Scales the IQ modulator. Default/safe value is 70
-            mode (str): Selects the instrument's operating mode.
         """
-
-        if mode.lower() not in ['arb', 'stream']:
-            raise error.UXGError('Invalid mode selected. Use "arb" or "stream"')
 
         if not isinstance(cf, float) or cf <= 0:
             raise ValueError('Carrier frequency must be a positive floating point value.')
@@ -1569,14 +1565,6 @@ class VectorUXG(communications.SocketInstrument):
         self.amp = float(self.query('power?').strip())
         self.write(f'radio:arb:rscaling {iqScale}')
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
-
-        # Arb state can only be turned on after a waveform has been loaded/selected.
-        self.write('radio:arb:state off')
-        self.arbState = self.query('radio:arb:state?').strip()
-
-        # Stream state should be turned off until streaming is needed.
-        self.write('stream:state off')
-        self.streamState = self.query('stream:state?').strip()
 
         if self.errCheck:
             self.err_check()
@@ -2023,9 +2011,7 @@ class VectorUXG(communications.SocketInstrument):
         else:
             self.write(f'stream:windex:select "{wIndexID}"')
 
-        # Turn on output, activate streaming, and send trigger command.
-        self.write('output on')
-        self.rfState = self.query('output?').strip()
+        # Activate streaming, and send trigger command.
         self.write('output:modulation on')
         self.modState = self.query('output:modulation?').strip()
         self.write('stream:state on')

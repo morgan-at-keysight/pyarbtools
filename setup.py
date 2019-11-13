@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyarbtools',
-    version='0.0.13',
+    version='0.0.14',
     author='Morgan Allison',
     author_email='morgan.allison@keysight.com',
     description='Keysight signal generator tools.',

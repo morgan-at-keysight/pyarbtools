@@ -141,8 +141,8 @@ Defines and downloads a waveform into the lowest available segment slot.
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
 * ``name`` ``(str)``: Name for downloaded waveform segment.
 * ``wfmFormat`` ``(str)``: Format of the waveform being downloaded. Arguments are ``'iq'`` (default) or ``'real'``.
-* ``sampleMkr`` ``(int)``: Index of the beginning of the sample marker.
-* ``syncMkr`` ``(int)``: Index of the beginning of the sync marker.
+* ``sampleMkr`` ``(int)``: Index of the beginning of the sample marker. Currently, marker width is 240 samples.
+* ``syncMkr`` ``(int)``: Index of the beginning of the sync marker. Currently, marker width is 240 samples.
 
 **Returns**
 
@@ -159,7 +159,7 @@ Deletes a waveform segment from the waveform memory.
 **Arguments**
 
 * ``wfmID`` ``(int)``: Segment number used to specify which waveform is deleted.
-* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
+* ``ch`` ``(int)``: Channel from which waveform will be deleted. Arguments are ``1`` (default) or ``2``.
 
 **Returns**
 
@@ -191,7 +191,7 @@ Selects waveform, turns on analog output, and begins continuous playback.
 
 **Arguments**
 
-* ``wfmID`` ``(int)``: Segment index of the waveform to be loaded. Default is ``1``.
+* ``wfmID`` ``(int)``:  Waveform identifier, used to select waveform to be played. Default is ``1``.
 * ``ch`` ``(int)``: Channel to be used for playback. Default is ``1``.
 
 **Returns**
@@ -233,7 +233,7 @@ changed (ideally *once* directly after creating the M8195A object).
 **Arguments**
 
 * ``dacMode`` ``(str)``: Sets the DAC mode. Arguments are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
-* ``clkSrc`` ``(str)``: Sample clock source. Arguments are ``'int'`` (default), ``'ext'``, ``'sclk1'``, or ``'sclk2'``.
+* ``memDiv`` ``(str)``: Clock/memory divider rate. Arguments are ``1``, ``2``, or ``4``.
 * ``fs`` ``(float)``: Sample rate in Hz. Argument range is ``53.76e9`` to ``65e9``.
 * ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
 * ``refFreq`` ``(float)``: Reference clock frequency in Hz. Argument range is ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
@@ -272,7 +272,7 @@ Deletes a waveform segment from the waveform memory.
 **Arguments**
 
 * ``wfmID`` ``(int)``: Segment number used to specify which waveform is deleted.
-* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+* ``ch`` ``(int)``: Channel from which waveform will be deleted. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
 
 **Returns**
 
@@ -383,7 +383,7 @@ Deletes a waveform segment from the waveform memory.
 **Arguments**
 
 * ``wfmID`` ``(int)``: Segment number used to specify which waveform is deleted.
-* ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
+* ``ch`` ``(int)``: Channel from which waveform will be deleted. Arguments are ``1`` (default), ``2``, ``3``, ``4``.
 
 **Returns**
 
@@ -463,6 +463,7 @@ accordingly. It should be called any time these settings are changed
 * ``amp`` ``(float)``: Output power in dBm. Argument range is instrument dependent. Default is ``-130``.
     * EXG/MXG: ``-144`` to ``+26``
     * PSG: ``-130`` to ``+21``
+* ``alcState`` ``(int)``: Turns the ALC (automatic level control) on or off. Arguments are ``1`` or ``0`` (default).
 * ``iqScale`` ``(int)``: IQ scale factor in %. Argument range is ``1`` to ``100``. Default is ``70``.
 * ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
 * ``fs`` ``(float)``: Sample rate in Hz. Argument range is instrument dependent.
@@ -490,7 +491,7 @@ requirements.
 
 **Returns**
 
-* None
+* ``wfmID`` (string): Useful waveform name or identifier.
 
 **delete_wfm**
 --------------
@@ -551,6 +552,210 @@ Deactivates arb mode, RF output, and modulation.
 **Arguments**
 
 * None
+
+**Returns**
+
+* None
+
+.. _AnalogUXG:
+
+=============
+**AnalogUXG**
+=============
+
+**configure**
+-------------
+::
+
+    AnalogUXG.configure(rfState=0, modState=0, cf=1e9, amp=-130)
+
+
+Sets the basic configuration for the UXG and populates class attributes
+accordingly. It should be called any time these settings are changed
+(ideally *once* directly after creating the UXG object).
+
+**Arguments**
+
+* ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
+* ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
+* ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is ``10e6`` to ``40e9``. Default is ``1e9``.
+* ``amp`` ``(float)``: Output power in dBm. Argument range is ``-130`` to ``+10``. Default is ``-130``.
+
+**Returns**
+
+* None
+
+**open_lan_stream**
+-------------------
+::
+
+    AnalogUXG.open_lan_stream()
+
+Open connection to port 5033 for LAN streaming to the UXG. Use this
+directly prior to starting streaming control.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+
+**close_lan_stream**
+--------------------
+::
+
+    AnalogUXG.close_lan_stream()
+
+Close connection to port 5033 for LAN streaming on the UXG. Use this
+after streaming is complete.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**stream_play**
+---------------
+::
+
+    AnalogUXG.stream_play(pdwID='pdw')
+
+Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
+
+**Arguments**
+
+* ``pdwID`` ``(str)``: Name of the PDW file to be loaded. Default is ``'pdw'``.
+
+**Returns**
+
+* None
+
+**stream_stop**
+---------------
+::
+
+    AnalogUXG.stream_stop()
+
+Dectivates RF output, modulation, and streaming mode.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**bin_pdw_builder**
+-------------------
+::
+
+    AnalogUXG.bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, width=0, power=1, markers=0,
+                        pulseMode=2, phaseControl=0, bandAdjust=0, chirpControl=0, code=0,
+                        chirpRate=0, freqMap=0)
+
+Builds a single format-1 PDW from a set of input parameters.
+See User's Guide>Streaming Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
+
+**Arguments**
+    * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+    * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``10e6`` to ``40e9``.
+    * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
+    * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
+    * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
+    * ``relativePower`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
+    * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
+    * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
+    * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+    * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
+    * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
+    * ``phaseCode`` ``(int)``: Selects hard-coded frequency/phase coding table index.
+    * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
+    * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
+
+**Returns**
+    * ``(NumPy array)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
+::
+
+    # PDW parameters
+    numPdws = 1000
+    pri = 100e-6
+    width = 1e-6
+    cf = 1e9
+    pdw = []
+
+    # Build PDWs as an array
+    for i in range(numPdws):
+        if i == 0:
+            op = 1
+        else:
+            op = 0
+        # Use pyarbtools function to create PDWs
+        pdw.append(uxg.bin_pdw_builder(op, cf, 0, startTime, width, 1, 3, 2, 0, 0, 3, 0, 40000, 0))
+        startTime += pri
+
+**bin_pdw_file_builder**
+------------------------
+::
+
+    AnalogUXG.bin_pdw_file_builder(pdwList)
+
+Builds a binary PDW file with a padding block to ensure the PDW section
+begins at an offset of 4096 bytes (required by UXG).
+
+See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
+
+**Arguments**
+
+* ``pdwList`` ``(list(list))``: A list of PDWs. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
+    * PDW Fields:
+        * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+        * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``10e6`` to ``40e9``.
+        * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
+        * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
+        * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
+        * ``relativePower`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
+        * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
+        * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
+        * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+        * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
+        * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
+        * ``phaseCode`` ``(int)``: Selects hard-coded frequency/phase coding table index.
+        * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
+        * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
+
+
+::
+
+    pdwName = 'pdw'
+    pdwList = [[1, 980e6, 0, 0, 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
+               [2, 1e9, 0, 20e-6, 1e-6, 1, 0, 2, 0, 0, 0, 0, 0, 0]]
+    pdwFile = uxg.bin_pdw_file_builder(pdwList)
+    uxg.download_bin_pdw_file(pdwFile, pdwName=pdwName)
+
+**Returns**
+
+* ``(bytes)``: A binary file that can be sent directly to the UXG memory using ``AnalogUXG.bin_pdw_file_builder()`` method or sent to the LAN streaming port using ``AnalogUXG.lanStream.send()``
+
+**download_bin_pdw_file**
+-------------------------
+::
+
+    AnalogUXG.download_bin_pdw_file(pdwFile, pdwName='wfm')
+
+
+Downloads binary PDW file to PDW directory in UXG.
+
+**Arguments**
+
+* ``pdwFile`` ``(bytes)``: A binary PDW file, ideally generated and returned by ``AnalogUXG.bin_pdw_file_builder()``.
+* ``pdwName`` ``(str)``: The name of the PDW file.
 
 **Returns**
 
@@ -667,39 +872,6 @@ Dectivates RF output, modulation, and arb mode.
 
 * None
 
-**stream_play**
----------------
-::
-
-    VectorUXG.stream_play(pdwID='wfm', wIndexID=None)
-
-Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
-
-**Arguments**
-
-* ``pdwID`` ``(str)``: Name of the PDW file to be loaded. Default is ``'wfm'``.
-* ``wIndexID`` ``(str)``: Name of the waveform index file to be loaded. Default is ``None``, which loads a waveform index file with the same name as the PDW file.
-
-**Returns**
-
-* None
-
-**stream_stop**
----------------
-::
-
-    VectorUXG.stream_stop()
-
-Dectivates RF output, modulation, and streaming mode.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
 **open_lan_stream**
 -------------------
 ::
@@ -735,6 +907,29 @@ after streaming is complete.
 
 * None
 
+**bin_pdw_builder**
+-------------------
+::
+
+    VectorUXG.bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers, phaseControl, rfOff, wIndex, wfmMkrMask)
+
+Builds a single format-1 PDW from a set of parameters.
+See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
+
+**Arguments**
+* ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+* ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``50e6`` to ``20e9``.
+* ``phase`` ``(float)``: Phase of carrier in degrees. Argument range is ``0`` and ``360``.
+* ``startTimeSec`` ``(float)``: Pulse start time in seconds. Argument range is ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
+* ``power`` ``(float)``: Power in dBm. Argument range is ``-140`` and ``+23.835``.
+* ``markers`` ``(int)``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
+* ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+* ``rfOff`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
+* ``wIndex`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
+* ``wfmMkrMask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
+
+**Returns**
+* ``(NumPy Array)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
 
 **bin_pdw_file_builder**
 ------------------------
@@ -795,7 +990,7 @@ Write header fields separated by commas and terminated with ``\n``
 -------------------------
 ::
 
-    VectorUXG.csv_pdw_file_download(fileName, fields=('Operation', 'Time'), data=([1, 0], [2, 100e-6]))
+    VectorUXG.csv_pdw_file_download(fileName, fields=['Operation', 'Time'], data=[[1, 0], [2, 100e-6]])
 
 Builds a CSV PDW file, sends it into the UXG, and converts it to a
 binary PDW file. There are *a lot* of fields to choose from, but *you
@@ -848,47 +1043,18 @@ section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <htt
 
 * None
 
-
-.. _AnalogUXG:
-
-=============
-**AnalogUXG**
-=============
-
-**configure**
--------------
-::
-
-    AnalogUXG.configure(rfState=0, modState=0, cf=1e9, amp=-130, mode='streaming')
-
-
-Sets the basic configuration for the UXG and populates class attributes
-accordingly. It should be called any time these settings are changed
-(ideally *once* directly after creating the UXG object).
-
-**Arguments**
-
-* ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
-* ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
-* ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is ``10e6`` to ``40e9``. Default is ``1e9``.
-* ``amp`` ``(float)``: Output power in dBm. Argument range is ``-130`` to ``+10``. Default is ``-130``.
-* ``mode`` ``(str)``: Instrument mode. Arguments are ``'streaming'`` (default), ``'normal'``, ``'list'``, ``'fcwswitching'``, ``'vlo'``
-
-**Returns**
-
-* None
-
 **stream_play**
 ---------------
 ::
 
-    AnalogUXG.stream_play(pdwID='wfm')
+    VectorUXG.stream_play(pdwID='wfm', wIndexID=None)
 
 Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
 
 **Arguments**
 
 * ``pdwID`` ``(str)``: Name of the PDW file to be loaded. Default is ``'wfm'``.
+* ``wIndexID`` ``(str)``: Name of the waveform index file to be loaded. Default is ``None``, which loads a waveform index file with the same name as the PDW file.
 
 **Returns**
 
@@ -898,7 +1064,7 @@ Assigns pdw/windex, activates RF output, modulation, and streaming mode, and tri
 ---------------
 ::
 
-    AnalogUXG.stream_stop()
+    VectorUXG.stream_stop()
 
 Dectivates RF output, modulation, and streaming mode.
 
@@ -909,102 +1075,6 @@ Dectivates RF output, modulation, and streaming mode.
 **Returns**
 
 * None
-
-**open_lan_stream**
--------------------
-::
-
-    AnalogUXG.open_lan_stream()
-
-Open connection to port 5033 for LAN streaming to the UXG. Use this
-directly prior to starting streaming control.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-
-**close_lan_stream**
---------------------
-::
-
-    AnalogUXG.close_lan_stream()
-
-Close connection to port 5033 for LAN streaming on the UXG. Use this
-after streaming is complete.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-**download_bin_pdw_file**
--------------------------
-::
-
-    AnalogUXG.download_bin_pdw_file(pdwFile, pdwName='wfm')
-
-
-Downloads binary PDW file to PDW directory in UXG.
-
-**Arguments**
-
-* ``pdwFile`` ``(bytes)``: A binary PDW file, ideally generated and returned by ``AnalogUXG.bin_pdw_file_builder()``.
-* ``pdwName`` ``(str)``: The name of the PDW file.
-
-**Returns**
-
-* None
-
-**bin_pdw_file_builder**
-------------------------
-::
-
-    AnalogUXG.bin_pdw_file_builder(pdwList)
-
-Builds a binary PDW file with a padding block to ensure the PDW section
-begins at an offset of 4096 bytes (required by UXG).
-
-See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
-
-**Arguments**
-
-* ``pdwList`` ``(list(list))``: A list of PDWs. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
-    * PDW Fields:
-        * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-        * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``10e6`` to ``40e9``.
-        * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
-        * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
-        * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
-        * ``relativePower`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
-        * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
-        * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
-        * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-        * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
-        * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
-        * ``phaseCode`` ``(int)``: Selects hard-coded frequency/phase coding table index.
-        * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
-        * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
-
-
-::
-
-    pdwName = 'pdw'
-    pdwList = [[1, 980e6, 0, 0, 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
-               [2, 1e9, 0, 20e-6, 1e-6, 1, 0, 2, 0, 0, 0, 0, 0, 0]]
-    pdwFile = uxg.bin_pdw_file_builder(pdwList)
-    uxg.download_bin_pdw_file(pdwFile, pdwName=pdwName)
-
-**Returns**
-
-* ``pdwFile`` ``(bytes)``: A binary file that can be sent directly to the UXG memory using ``AnalogUXG.bin_pdw_file_builder()`` method or sent to the LAN streaming port using ``AnalogUXG.lanStream.send()``
 
 
 .. _wfmBuilder:
@@ -1017,10 +1087,10 @@ In addition to instrument control and communication, pyarbtools allows
 you to create waveforms and load them into your signal generator or use
 them as generic signals for DSP work::
 
-    iChirp, qChirp = pyarbtools.wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6)
+    iq = pyarbtools.wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6)
     fs = 100e6
     symRate = 1e6
-    i, q = digmod_prbs_generator(qpsk_modulator, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
+    iq = digmod_prbs_generator(qpsk_modulator, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
 
 
 
@@ -1028,7 +1098,7 @@ them as generic signals for DSP work::
 ------------------
 ::
 
-    sine_generator(fs=100e6, freq=0, phase=0, format='iq', zeroLast=False):
+    sine_generator(fs=100e6, freq=0, phase=0, wfmFormat='iq', zeroLast=False):
 
 Generates a sine wave with configurable frequency and initial phase at baseband or RF.
 
@@ -1042,13 +1112,13 @@ Generates a sine wave with configurable frequency and initial phase at baseband 
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the sine wave.
+* ``(NumPy array)``: Array containing the complex or real values of the sine wave.
 
 **am_generator**
 ----------------
 ::
 
-    am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq'):
+    am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq', zeroLast=False):
 
 Generates a linear sinusoidal AM signal of specified depth and modulation rate at baseband or RF.
 
@@ -1063,7 +1133,7 @@ Generates a linear sinusoidal AM signal of specified depth and modulation rate a
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the AM waveform.
+* ``(NumPy array)``: Array containing the complex or real values of the AM waveform.
 
 **chirp_generator**
 -------------------
@@ -1077,8 +1147,8 @@ Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction 
 **Arguments**
 
 * ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
-* ``pWidth`` ``(float)``: Length of the chirp in seconds. Default is ``10e-6``.
-* ``pri`` ``(float)``: Pulse repetition interval in seconds. Default is ``100e-6``.
+* ``pWidth`` ``(float)``: Length of the pulse in seconds. Default is ``10e-6``. The pulse width will never be shorter than ``pWidth``, even if ``pri`` < ``pWidth``.
+* ``pri`` ``(float)``: Pulse repetition interval in seconds. Default is ``100e-6``. If ``pri`` > ``pWidth``, the dead time will be included in the waveform.
 * ``chirpBw`` ``(float)``: Total bandwidth of the chirp. Frequency range of resulting signal is ``-chirpBw/2`` to ``chirpBw/2``. Default is ``20e6``.
 * ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
 * ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
@@ -1092,7 +1162,7 @@ Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction 
 --------------------
 ::
 
-    wfmBuilder.barker_generator(fs=100e6, pWidth=100e-6, code='b2', cf=1e9, wfmFormat='iq', zeroLast=False)
+    wfmBuilder.barker_generator(fs=100e6, pWidth=100e-6, pri=100e-6, code='b2', cf=1e9, wfmFormat='iq', zeroLast=False)
 
 Generates a Barker phase coded pulsed signal at RF or baseband.
 See `Wikipedia article <https://en.wikipedia.org/wiki/Barker_code>`_ for
@@ -1102,8 +1172,8 @@ more information on Barker coding.
 **Arguments**
 
 * ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
-* ``pWidth`` ``(float)``: Length of the chirp in seconds. Default is ``10e-6``.
-* ``pri`` ``(float)``: Pulse repetition interval in seconds. Default is ``100e-6``.
+* ``pWidth`` ``(float)``: Length of the pulse in seconds. Default is ``10e-6``. The pulse width will never be shorter than ``pWidth``, even if ``pri`` < ``pWidth``.
+* ``pri`` ``(float)``: Pulse repetition interval in seconds. Default is ``100e-6``. If ``pri`` > ``pWidth``, the dead time will be included in the waveform.
 * ``code`` ``(str)``: Barker code order. Arguments are ``'b2'`` (default), ``'b3'``, ``'b41'``, ``'b42'``, ``'b5'``, ``'b7'``, ``'b11'``, or ``'b13'``.
 * ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
 * ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
