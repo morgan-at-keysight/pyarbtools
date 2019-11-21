@@ -16,18 +16,16 @@ def vsg_chirp_example(ipAddress):
 
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, reset=True)
     vsg.configure(amp=-20, fs=50e6, cf=1e9)
+    vsg.clear_all_wfm()
     vsg.sanity_check()
 
     name = 'chirp'
     pWidth = 10e-6
     bw = 40e6
     pri = 100e-6
-    i, q = pyarbtools.wfmBuilder.chirp_generator(fs=vsg.fs, pWidth=pWidth, pri=pri, chirpBw=bw)
+    iq = pyarbtools.wfmBuilder.chirp_generator(fs=vsg.fs, pWidth=pWidth, pri=pri, chirpBw=bw)
 
-    i = np.append(i, np.zeros(5000))
-    q = np.append(q, np.zeros(5000))
-    vsg.write('mmemory:delete:wfm')
-    vsg.download_iq_wfm(i, q, name)
+    vsg.download_wfm(iq, name)
     vsg.play(name)
     vsg.err_check()
     vsg.disconnect()
@@ -60,11 +58,11 @@ def vsg_am_example(ipAddress):
     fs = 100e6
 
     vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
-    vsg.configure(cf=1e9, amp=0, fs=fs, iqScale=70, refSrc='ext')
+    vsg.configure(cf=1e9, amp=0, fs=fs, iqScale=70, refSrc='int')
 
-    i, q = pyarbtools.wfmBuilder.am_generator(fs=fs, amDepth=amDepth, modRate=amRate)
+    iq = pyarbtools.wfmBuilder.am_generator(fs=fs, amDepth=amDepth, modRate=amRate)
 
-    vsg.download_iq_wfm(i, q, wfmID='custom_am')
+    vsg.download_wfm(iq, wfmID='custom_am')
     vsg.play('custom_am')
 
     vsg.err_check()
@@ -78,11 +76,11 @@ def vsg_mtone_example(ipAddress):
     fs = 100e6
 
     vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
-    vsg.configure(cf=1e9, amp=0, fs=fs, refSrc='ext')
+    vsg.configure(cf=1e9, amp=0, fs=fs, refSrc='int')
 
-    i, q = pyarbtools.wfmBuilder.multitone(fs=fs, spacing=toneSpacing, num=numTones)
+    iq = pyarbtools.wfmBuilder.multitone(fs=fs, spacing=toneSpacing, num=numTones)
 
-    vsg.download_iq_wfm(i, q, wfmID='mtone')
+    vsg.download_wfm(iq, wfmID='mtone')
     vsg.play('mtone')
 
     vsg.err_check()
@@ -344,8 +342,8 @@ def analog_uxg_pdw_example(ipAddress):
     """Defines a pdw file for a chirp, and loads the
      pdw file into the UXG, and plays it out."""
 
-    uxg = pyarbtools.instruments.AnalogUXG(ipAddress, port=5025, timeout=10, reset=True)
-    uxg.configure(rfState=1, modState=1, cf=1e9, amp=0, mode='streaming')
+    uxg = pyarbtools.instruments.AnalogUXG(ipAddress, port=5025, timeout=10, reset=False)
+    uxg.configure(rfState=0, modState=1, cf=1e9, amp=0)
     uxg.err_check()
 
     # Define and generate binary pdw file
@@ -368,19 +366,19 @@ def main():
     replace the IP address with one that is appropriate for your
     instrument(s)."""
 
-    m8190a_simple_wfm_example('141.121.210.171')
+    # m8190a_simple_wfm_example('141.121.210.171')
     # m8190a_duc_dig_mod_example('141.121.210.171')
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
     # m8195a_simple_wfm_example('141.121.210.245')
-    # vsg_dig_mod_example('141.121.210.122')
-    # vsg_chirp_example('141.121.210.122')
-    # vsg_am_example('141.121.210.122')
-    # vsg_mtone_example('141.121.210.122')
+    # vsg_dig_mod_example('192.168.50.124')
+    # vsg_chirp_example('192.168.50.124')
+    # vsg_am_example('192.168.50.124')
+    vsg_mtone_example('192.168.50.124')
     # vector_uxg_arb_example('141.121.210.131')
     # vector_uxg_pdw_example('141.121.210.131')
     # vector_uxg_lan_streaming_example('141.121.210.131')
-    # analog_uxg_pdw_example('141.121.210.201')
+    # analog_uxg_pdw_example('141.121.231.135')
 
 
 if __name__ == '__main__':

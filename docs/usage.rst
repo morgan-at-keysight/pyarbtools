@@ -36,10 +36,11 @@ Supported instruments include:
 
 To use/control a signal generator, create a class of the signal
 generator's instrument type and enter the instrument's IP address
-as the first argument::
+as the first argument. There are additional keyword arguments you
+can add to set things like timeout and preset::
 
     m8190a = pyarbtools.instruments.M8910A('192.168.1.12')
-    n5182b = pyarbtools.instruments.VSG('192.168.1.13')
+    n5182b = pyarbtools.instruments.VSG('192.168.1.13', port=5025, timeout=10, reset=True)
 
 Every class is built on a robust socket connection that allows the user
 to send SCPI commands/queries, send/receive data using IEEE 488.2
@@ -146,7 +147,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-* ``segment`` ``(int)``: Segment identifier used to specify which waveform is played using the ``.play()`` method.
+* ``(int)``: Segment identifier used to specify which waveform is played using the ``.play()`` method.
 
 **delete_segment**
 ------------------
@@ -259,7 +260,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-* ``segment``: Segment number used to specify which waveform is played using the ``.play()`` method.
+* ``(int)``: Segment number used to specify which waveform is played using the ``.play()`` method.
 
 **delete_segment**
 ------------------
@@ -370,7 +371,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-* ``segment`` ``(int)``: Segment number used to specify which waveform is played using the ``.play()`` method.
+* ``(int)``: Segment number used to specify which waveform is played using the ``.play()`` method.
 
 **delete_segment**
 ------------------
@@ -447,7 +448,7 @@ Turns off analog output and stops playback.
 -------------
 ::
 
-    VSG.configure(rfState=0, modState=0, cf=1e9, amp=-130, iqScale=70, refSrc='int', fs=200e6)
+    VSG.configure(rfState=0, modState=0, cf=1e9, amp=-130, alcState=0, iqScale=70, refSrc='int', fs=200e6)
 
 Sets the basic configuration for the VSG and populates class attributes
 accordingly. It should be called any time these settings are changed
@@ -630,7 +631,7 @@ Assigns pdw/windex, activates RF output, modulation, and streaming mode, and tri
 
 **Arguments**
 
-* ``pdwID`` ``(str)``: Name of the PDW file to be loaded. Default is ``'pdw'``.
+* ``pdwID`` ``(str)``: Name of the PDW file to be played. Default is ``'pdw'``.
 
 **Returns**
 
@@ -669,13 +670,13 @@ See User's Guide>Streaming Use>PDW Definitions section of Keysight UXG X-Series 
     * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
     * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
     * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
-    * ``relativePower`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
+    * ``power`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
     * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
     * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
     * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
     * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
     * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
-    * ``phaseCode`` ``(int)``: Selects hard-coded frequency/phase coding table index.
+    * ``code`` ``(int)``: Selects hard-coded frequency/phase coding table index.
     * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
     * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
 
@@ -720,13 +721,13 @@ See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Se
         * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
         * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
         * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
-        * ``relativePower`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
+        * ``power`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
         * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
         * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
         * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
         * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
         * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
-        * ``phaseCode`` ``(int)``: Selects hard-coded frequency/phase coding table index.
+        * ``code`` ``(int)``: Selects hard-coded frequency/phase coding table index.
         * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
         * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
 
@@ -806,7 +807,7 @@ requirements.
 
 **Returns**
 
-* ``wfmID`` ``(str)``: Name of waveform that has been downloaded.
+* ``(str)``: Name of waveform that has been downloaded.
 
 **delete_wfm**
 --------------
@@ -917,19 +918,19 @@ Builds a single format-1 PDW from a set of parameters.
 See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
-* ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-* ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``50e6`` to ``20e9``.
-* ``phase`` ``(float)``: Phase of carrier in degrees. Argument range is ``0`` and ``360``.
-* ``startTimeSec`` ``(float)``: Pulse start time in seconds. Argument range is ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
-* ``power`` ``(float)``: Power in dBm. Argument range is ``-140`` and ``+23.835``.
-* ``markers`` ``(int)``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
-* ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-* ``rfOff`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
-* ``wIndex`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
-* ``wfmMkrMask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
+    * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
+    * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``50e6`` to ``20e9``.
+    * ``phase`` ``(float)``: Phase of carrier in degrees. Argument range is ``0`` and ``360``.
+    * ``startTimeSec`` ``(float)``: Pulse start time in seconds. Argument range is ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
+    * ``power`` ``(float)``: Power in dBm. Argument range is ``-140`` and ``+23.835``.
+    * ``markers`` ``(int)``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
+    * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
+    * ``rfOff`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
+    * ``wIndex`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
+    * ``wfmMkrMask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
 
 **Returns**
-* ``(NumPy Array)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
+    * ``(NumPy Array)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
 
 **bin_pdw_file_builder**
 ------------------------
@@ -966,7 +967,7 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series 
 
 **Returns**
 
-* ``pdwFile`` ``(bytes)``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``VectorUXG.lanStream.send()``
+* ``(bytes)``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``VectorUXG.lanStream.send()``
 
 
 **csv_windex_file_download**
@@ -1236,7 +1237,7 @@ transmit filter using PRBS data.
 
 **Returns**
 
-* ``iq`` ``(NumPy array)``: Array contianing the complex values of the digitally modulated signal.
+* ``(NumPy array)``: Array contianing the complex values of the digitally modulated signal.
 
 **iq_correction**
 -----------------
@@ -1265,4 +1266,4 @@ waveform.
 
 **Returns**
 
-* ``iqCorr`` ``(NumPy array)``: Array containing the complex values of corrected signal.
+* ``(NumPy array)``: Array containing the complex values of corrected signal.

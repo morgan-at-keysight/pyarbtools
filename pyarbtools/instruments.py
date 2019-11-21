@@ -1135,7 +1135,6 @@ class AnalogUXG(communications.SocketInstrument):
         self.amp = float(self.query('power?').strip())
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = 10e6
-        self.mode = self.query('instrument?').strip()
         self.binMult = 32767
 
         # Stream state should be turned off until streaming is needed.
@@ -1161,7 +1160,6 @@ class AnalogUXG(communications.SocketInstrument):
             modState (int): Turns the modulator on or off. (1, 0)
             cf (float): Sets the generator's carrier frequency.
             amp (int/float): Sets the generator's RF output power.
-            mode (str): Selects the instrument's operating mode. ('normal', 'list', 'fcwswitching', 'streaming', 'vlo')
         """
 
         if not isinstance(cf, float) or cf <= 0:
@@ -1178,9 +1176,6 @@ class AnalogUXG(communications.SocketInstrument):
         self.write(f'power {amp}')
         self.amp = float(self.query('power?').strip())
 
-        self.write(f'instrument {mode}')
-        self.mode = self.query('instrument?').strip()
-
         self.err_check()
 
     def sanity_check(self):
@@ -1190,7 +1185,6 @@ class AnalogUXG(communications.SocketInstrument):
         print('Center Frequency:', self.cf)
         print('Output Amplitude:', self.amp)
         print('Reference source:', self.refSrc)
-        print('Instrument mode:', self.mode)
         self.err_check()
 
     def open_lan_stream(self):
@@ -1511,7 +1505,6 @@ class VectorUXG(communications.SocketInstrument):
         self.iqScale = float(self.query('radio:arb:rscaling?').strip())
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = 10e6
-        self.mode = self.query('instrument:select?').strip()
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
         self.gran = int(self.query('radio:arb:information:quantum?').strip())
         self.minLen = int(self.query('radio:arb:information:slength:minimum?').strip())
@@ -1674,7 +1667,6 @@ class VectorUXG(communications.SocketInstrument):
         _power = int((power + 140) / 0.005 + 0.5)
         _loLead = int(loLead / 4e-9)
         _newWfm = 1
-        _wfmType
 
         # Build PDW
         pdw = np.zeros(11, dtype=np.uint32)
