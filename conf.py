@@ -24,9 +24,9 @@ copyright = '2018, Morgan Allison'
 author = 'Morgan Allison'
 
 # The short X.Y version
-version = '0.0.14'
+version = '0.0.14.1'
 # The full version, including alpha/beta/rc tags
-release = '0.0.14'
+release = '0.0.14.1'
 
 
 # -- General configuration ---------------------------------------------------

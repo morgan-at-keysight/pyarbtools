@@ -1,5 +1,6 @@
 include LICENSE
 include README.rst
 
-recursive-exclude *__pychache__
+global-exclude *playground.py
+recursive-exclude * *__pychache__
 recursive-exclude * *.py[co]
