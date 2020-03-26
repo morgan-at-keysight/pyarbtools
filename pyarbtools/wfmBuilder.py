@@ -11,6 +11,30 @@ from pyarbtools import error
 from time import sleep
 
 
+def export_wfm(data, fileName):
+    """
+    Takes in waveform data and exports it to a file as plain text.
+
+    Args:
+        data (NumPy array): NumPy array containing the waveform samples.
+        fileName (str): Absolute file name of the exported waveform.
+    """
+
+    try:
+        with open(fileName, 'w') as f:
+            # f.write('# Waveform created with pyarbtools: https://github.com/morgan-at-keysight/pyarbtools')
+            if data.dtype == np.float64:
+                for d in data:
+                    f.write(f'{d}\n')
+            elif data.dtype == np.complex128:
+                for d in data:
+                    f.write(f'{d.real}, {d.imag}\n')
+            else:
+                raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
+    except AttributeError:
+        raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
+
+
 def sine_generator(fs=100e6, freq=0, phase=0, wfmFormat='iq', zeroLast=False):
     """
     Generates a sine wave with optional frequency offset and initial
@@ -27,7 +51,7 @@ def sine_generator(fs=100e6, freq=0, phase=0, wfmFormat='iq', zeroLast=False):
     """
 
     if abs(freq) > fs / 2:
-        raise error.WfmBuilderError('Frequency violates Nyquist.')
+        raise error.WfmBuilderError('Frequency violates Nyquist. Decrease frequency or increase sample rate')
 
     if freq:
         time = 100 / freq
@@ -66,7 +90,7 @@ def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq', ze
     if amDepth <= 0 or amDepth > 100:
         raise error.WfmBuilderError('AM Depth out of range, must be 0 - 100.')
     if modRate > fs:
-        raise error.WfmBuilderError('Modulation rate violates Nyquist.')
+        raise error.WfmBuilderError('Modulation rate violates Nyquist. Decrease modulation rate or increase sample rate.')
 
     time = 1 / modRate
     t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
@@ -90,6 +114,47 @@ def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq', ze
     else:
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
+
+def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False):
+    """
+    Generates an unmodulated cw pulse at baseband or RF.
+    Args:
+        fs (float): Sample rate used to create the signal.
+        pWidth (float): Length of the pulse in seconds.
+        pri (float): Pulse repetition interval in seconds.
+        freqOffset (float): Frequency offset from cf.
+        cf (float): Carrier frequency of the pulse in Hz (only used if generating a 'real' waveform).
+        wfmFormat (str): Waveform format. ('iq' or 'real')
+        zeroLast (bool): Force the last sample point to 0.
+
+    Returns:
+        (NumPy array): Array containing the complex or real values of the waveform.
+    """
+
+    if freqOffset > fs:
+        raise error.WfmBuilderError('Frequency offset violates Nyquist. Reduce freqOffset or increase sample rate.')
+    rl = int(fs * pWidth)
+    t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
+
+    if wfmFormat.lower() == 'iq':
+        iq = np.exp(2 * np.pi * freqOffset * 1j * t)
+        if zeroLast:
+            iq[-1] = 0
+        if pri> pWidth:
+            deadTime = np.zeros(int(fs * pri - rl))
+            iq = np.append(iq, deadTime)
+
+        return iq
+    elif wfmFormat.lower() == 'real':
+        if pri <= pWidth:
+            real = np.cos(2 * np.pi * cf * t)
+        else:
+            deadTime = np.zeros(int(fs * pri - rl))
+            real = np.append(np.cos(2 * np.pi * (cf + freqOffset) * t), deadTime)
+
+        return real
+    else:
+        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wfmFormat='iq', zeroLast=False):
     """

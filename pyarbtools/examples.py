@@ -8,6 +8,7 @@ Tested on N5182B, M8190A
 
 import pyarbtools
 import numpy as np
+import csv
 
 
 def vsg_chirp_example(ipAddress):
@@ -36,13 +37,19 @@ def vsg_dig_mod_example(ipAddress):
     @ 1 GHz CF with a generic VSG."""
 
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
-    vsg.configure(amp=-5, fs=50e6)
+    vsg.configure(amp=-5, fs=100e6)
     vsg.sanity_check()
     vsg.err_check()
 
-    name = '10MHZ_16QAM'
-    symRate = 10e6
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
+    name = '1GHz_16QAM'
+    symRate = 200e6
+    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=2.56e9, modType='qam16',symRate=symRate, prbsOrder=15)
+
+    fileName = 'C:\\users\\moalliso\\Desktop\\200MHz_16QAM.csv'
+    with open(fileName, 'w', newline='\n') as f:
+        w = csv.writer(f)
+        for sample in iq:
+            w.writerow([str(sample.real), str(sample.imag)])
 
     vsg.clear_all_wfm()
     vsg.download_wfm(iq, wfmID=name)
@@ -371,10 +378,10 @@ def main():
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
     # m8195a_simple_wfm_example('141.121.210.245')
-    # vsg_dig_mod_example('192.168.50.124')
+    vsg_dig_mod_example('192.168.50.124')
     # vsg_chirp_example('192.168.50.124')
     # vsg_am_example('192.168.50.124')
-    vsg_mtone_example('192.168.50.124')
+    # vsg_mtone_example('192.168.50.124')
     # vector_uxg_arb_example('141.121.210.131')
     # vector_uxg_pdw_example('141.121.210.131')
     # vector_uxg_lan_streaming_example('141.121.210.131')
