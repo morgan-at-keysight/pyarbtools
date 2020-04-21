@@ -367,10 +367,10 @@ def analog_uxg_pdw_example(ipAddress):
     pdwName = 'analog'
 
     #Last PDW with operation = 2 does not play since it is marked as end of PDW list
-    pdwList = [[1, 980e6, 0, 0    , 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
-               [0, 1e9  , 0, 20e-6, 15e-6 , 1, 0, 2, 0, 0, 0, 1, 0,       0],
-               [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
-               [2, 1e9,   0, 80e-6, 5e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0]]
+    pdwList = [[1, 980e6 , 0, 0    , 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
+               [0, 1e9   , 0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0      , 0],
+               [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0,       0],
+               [2, 1e9   , 0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0,      0]]
     pdwFile = uxg.bin_pdw_file_builder(pdwList)
     uxg.download_bin_pdw_file(pdwFile, pdwName=pdwName)
     uxg.err_check()

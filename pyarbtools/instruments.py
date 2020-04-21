@@ -1442,19 +1442,19 @@ class AnalogUXG(communications.SocketInstrument):
              TODO - Combination of simultaneous phase and frequency modulation not yet implemented
         """
         if ((len(hexPatternString) % 2) != 0):
-            raise Exception('Hex pattern length must be a multiple of 2: Length is ' + str(len(hexPatternString)))
+            raise error.UXGError('Hex pattern length must be a multiple of 2: Length is ' + str(len(hexPatternString)))
 
         hexPatternBytes = bytearray.fromhex(hexPatternString)
         numBitsInPattern = 8 * len(hexPatternBytes)
 
         if (codingType !=0 and codingType !=1):
-            raise Exception('Only phase and frequency coding via streaming has been implemented in this example')
+            raise error.UXGError('Only phase and frequency coding via streaming has been implemented in this example')
         if (numBitsPerSubpulse != 1):
-            raise Exception('Only one bit per subpulse has been implemented in this example')
+            raise error.UXGError('Only one bit per subpulse has been implemented in this example')
         if (len(hexPatternBytes) > 8192):
-            raise Exception('Pattern must be less than 8192 bytes')
+            raise error.UXGError('Pattern must be less than 8192 bytes')
         if (len(comment) > 60):
-            raise Exception('Comment must be less than 60 characters long')
+            raise error.UXGError('Comment must be less than 60 characters long')
 
         entryState = onOffState.to_bytes(1, byteorder='little')
         numBitsPerSub = numBitsPerSubpulse.to_bytes(1, byteorder='little')
@@ -1489,9 +1489,9 @@ http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/
 
              Args:
                  none: currently hardcoded to create FCP block with 3 fixed entries
-                       first entry is index 0 in FPC table - no coding
+                       first  entry is index 0 in FPC table - no coding
                        second entry is index 1 in FPC table - PSK
-                       third entry is index 2 in FPC table - FSK
+                       third  entry is index 2 in FPC table - FSK
 
              Returns:
                  binary byte array containing full FCP block with header
