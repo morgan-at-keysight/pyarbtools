@@ -9,9 +9,91 @@ from scipy.signal import max_len_seq
 from pyarbtools import communications
 from pyarbtools import error
 from time import sleep
+import channelQualityCorrection
+import matplotlib.pyplot as plt
+import os
+
+class WFM:
+    """
+    Class to hold waveform data created by wfmBuilder.
+
+    Attributes:
+        data (NumPy ndarray): Array of real or complex values that holds the waveform data.
+        wfmFormat (str): Format of the waveform data ('iq' or 'real'). Determines data type of 'data' attribute.
+        fs (float): Sample rate used to create the waveform data.
+        wfmID (str): Waveform name/identifier.
+    """
+
+    def __init__(self, data=[], wfmFormat='iq', fs=100e6, wfmID='wfm'):
+        """
+        Initializes the WFM.
+
+        Args:
+            data (NumPy ndarray): Array of real or complex values that holds the waveform data.
+            wfmFormat (str): Format of the waveform data ('iq' or 'real'). Determines data type of 'data' attribute.
+            fs (float): Sample rate used to create the waveform data.
+            wfmID (str): Waveform name/identifier.
+        """
+        self.data = data
+        self.wfmFormat = wfmFormat
+        self.fs = fs
+        self.wfmID = wfmID
+
+    def export(self, path='C:\\temp\\', vsaCompatible=False):
+        """
+            Exports waveform data to a csv file.
+
+            Args:
+                path (str): Absolute destination directory of the exported waveform (should end in '\').
+                vsaCompatible (bool): Determines if header information will be included to ensure correct behavior when loading into VSA.
+            """
+        if path[-1] is not '\\':
+            path.append('\\')
+
+        if os.path.exists(path):
+            print('path exists')
+        else:
+            print('path not exist no')
+
+        self.fileName = path + self.wfmID + '.csv'
+        print(self.fileName)
+
+        try:
+            with open(self.fileName, 'w') as f:
+                # f.write('# Waveform created with pyarbtools: https://github.com/morgan-at-keysight/pyarbtools')
+                if vsaCompatible:
+                    f.write(f'XDelta, {1 / self.fs}\n')
+                if self.wfmFormat == 'real':
+                    for d in self.data:
+                        f.write(f'{d}\n')
+                elif self.wfmFormat == 'iq':
+                    for d in self.data:
+                        f.write(f'{d.real}, {d.imag}\n')
+                else:
+                    raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
+        except AttributeError:
+            raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
+
+    def repeat(self, numRepeats=2):
+        """
+        Replaces original waveform data with repeated data.
+
+        Args:
+            numRepeats (int): Number of times to repeat waveform.
+        """
+
+        self.data = np.tile(self.data, numRepeats)
+
+    def plot_fft(self):
+        """Plots the frequency domain representation of the waveform."""
+
+        freqData = np.abs(np.fft.fft(self.data))
+        freq = np.fft.fftfreq(len(freqData), 1 / self.fs)
+        plt.plot(freq, freqData)
+        plt.show()
 
 
-def export_wfm(data, fileName):
+def export_wfm(data, fileName, vsaCompatible=False, fs=0):
     """
     Takes in waveform data and exports it to a file as plain text.
 
@@ -23,6 +105,8 @@ def export_wfm(data, fileName):
     try:
         with open(fileName, 'w') as f:
             # f.write('# Waveform created with pyarbtools: https://github.com/morgan-at-keysight/pyarbtools')
+            if vsaCompatible:
+                f.write(f'XDelta, {1 / fs}\n')
             if data.dtype == np.float64:
                 for d in data:
                     f.write(f'{d}\n')
@@ -281,6 +365,7 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9, wfmF
 
 def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq'):
     """
+    IQTOOLS PLACES THE TONES IN THE FREQUENCY DOMAIN AND THEN IFFTS TO THE TIME DOMAIN
     Generates a multitone signal with given tone spacing, number of
     tones, sample rate, and phase relationship at baseband or RF.
     Args:
@@ -295,13 +380,14 @@ def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='
     Returns:
         (NumPy array): Array containing the complex or real values of the waveform.
     """
+
     if spacing * num > fs:
         raise error.WfmBuilderError('Multitone spacing and number of tones violates Nyquist.')
 
     # Determine start frequency based on parity of the number of tones
     if num % 2 != 0:
-        # Freq offset is integer mult of spacing, so time can be 1/spacing
-        f = - (num - 1) * spacing / 2
+        # For odd number of tones, freq offset is integer mult of spacing, so time can be 1/spacing
+        f = -(num - 1) * spacing / 2
         time = 1 / spacing
     else:
         # Freq offset is integer mult of spacing/2, so time must be 2/spacing
@@ -309,41 +395,83 @@ def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='
         time = 2 / spacing
 
     # Create time vector and record length
-    t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
-    rl = len(t)
+    # t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
+    t = np.linspace(0, time, int(time * fs), endpoint=True)
 
     # Define phase relationship
     if phase == 'random':
-        phase = np.random.random_sample(size=rl) * 360
+        phaseArray = np.random.random_sample(size=num) * 2 * np.pi
     elif phase == 'zero':
-        phase = np.zeros(num)
+        phaseArray = np.zeros(num)
     elif phase == 'increasing':
-        phase = 180 * np.linspace(-1, 1, rl, endpoint=False)
+        phaseArray = np.linspace(-np.pi, np.pi, num, endpoint=False)
     elif phase == 'parabolic':
-        phase = np.cumsum(180 * np.linspace(-1, 1, rl, endpoint=False))
+        phaseArray = np.cumsum(np.pi * np.linspace(-1, 1, num, endpoint=False))
+    else:
+        raise error.WfmBuilderError('Invalid phase selected. Use "random", "zero", "increasing", or "parabolic".')
 
     if wfmFormat.lower() == 'iq':
-        # Preallocate 2D array for tones
-        tones = np.zeros((num, len(t)), dtype=np.complex)
+        # Freq domain method
+        # time == 2 / freqSpacing or 1 / freqSpacing
+        numSamples = int(time * fs)
+        freqToIndex = numSamples / fs
 
-        # Create tones at each frequency and sum all together
-        for n in range(num):
-            tones[n] = np.exp(2j * np.pi * f * (t + phase[n]))
-            f += spacing
-        iq = tones.sum(axis=0)
+        toneFrequencies = np.arange(f, f + (num * spacing), spacing)
+        fdPhase = np.zeros(numSamples)
+        fdMag = np.zeros(numSamples)
 
-        # Normalize and return values
-        sFactor = abs(np.amax(iq))
-        iq = iq / sFactor * 0.707
+        tonePlacement = np.mod(toneFrequencies * freqToIndex + numSamples / 2, numSamples) + 1
+        tonePlacement = [int(t) for t in tonePlacement]
+        fdPhase[tonePlacement] = phaseArray
+        fdMag[tonePlacement] = 1
 
-        return iq
+        fdIQ = fdMag * np.exp(1j * fdPhase)
+        tdIQ = np.fft.ifft(np.fft.fftshift(fdIQ)) * numSamples
+
+        sFactor = abs(np.amax(tdIQ))
+        tdIQ = tdIQ / sFactor * 0.707
+
+        # plt.subplot(211)
+        # plt.plot(freqArray, fdPhase)
+        # plt.subplot(212)
+        # plt.plot(tdIQ.real)
+        # plt.plot(tdIQ.imag)
+        # plt.show()
+
+        return tdIQ
+
+        # # Time domain method
+        # # Preallocate 2D array for tones
+        # tones = np.zeros((num, len(t)), dtype=np.complex)
+        #
+        # # Create tones at each frequency and sum all together
+        # for n in range(num):
+        #     tones[n] = np.exp(2j * np.pi * f * (t + phaseArray[n]))
+        #     f += spacing
+        # iq = tones.sum(axis=0)
+        #
+        # # Normalize and return values
+        # sFactor = abs(np.amax(iq))
+        # iq = iq / sFactor * 0.707
+        #
+        # iqFD = np.fft.fftshift(np.fft.fft(iq))
+        # freq = np.fft.fftshift(np.fft.fftfreq(len(iq), 1 / fs))
+        #
+        # plt.subplot(211)
+        # plt.title(phase)
+        # plt.plot(freq, np.abs(iqFD))
+        # plt.subplot(212)
+        # plt.plot(freq, np.unwrap(np.angle(iqFD)))
+        # plt.show()
+        #
+        # return iq
     elif wfmFormat.lower() == 'real':
         # Preallocate 2D array for tones
         tones = np.zeros((num, len(t)))
 
         # Create tones at each frequency and sum all together
         for n in range(num):
-            tones[n] = np.cos(2 * np.pi * (cf + f) * (t + phase[n]))
+            tones[n] = np.cos(2 * np.pi * (cf + f) * (t + phaseArray[n]))
             f += spacing
         real = tones.sum(axis=0)
 
@@ -353,7 +481,7 @@ def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='
 
         return real
     else:
-        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
+        raise error.WfmBuilderError('Invalid waveform format selected. Use "iq" or "real".')
 
 
 def rrc_filter(taps, a, symRate, fs):
@@ -1182,6 +1310,22 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     sFactor = abs(np.amax(iqCorr))
     iqCorr = iqCorr / sFactor * 0.707
 
+    import matplotlib.pyplot as plt
+
+    plt.subplot(221)
+    plt.plot(iq.real)
+    plt.plot(iq.imag)
+    plt.subplot(222)
+    plt.plot(circIQ.real)
+    plt.plot(circIQ.imag)
+    plt.subplot(223)
+    plt.plot(equalizer.real)
+    plt.plot(equalizer.imag)
+    plt.subplot(224)
+    plt.plot(iqCorr.real)
+    plt.plot(iqCorr.imag)
+    plt.show()
+
     # vsa.write('*rst')
     # vsa.write(f'mmemory:load:setup "{setupFile}"')
     # vsa.query('*opc?')
@@ -1196,83 +1340,4 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
 
     return iqCorr
 
-
-def channel_quality_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
-                               cf=1e9, span=40e6, toneSpacing=1e6):
-    """IQ correction using the channel quality measurement in VSA."""
-
-    name = 'corr'
-    numTones = int(span / toneSpacing) + 1
-    iqCorr = multitone(fs=inst.fs, spacing=toneSpacing, num=numTones,
-                       phase='zero', cf=cf, wfmFormat='iq')
-
-    inst.download_wfm(iqCorr, name)
-    inst.play(name)
-
-    vsa = communications.SocketInstrument(vsaIPAddress, 5025)
-    hwList = vsa.query('system:vsa:hardware:configuration:catalog?').split(',')
-    if vsaHardware not in hwList:
-        raise ValueError('Selected hardware not present in VSA hardware list.')
-    vsa.write(f'system:vsa:hardware:configuration:select {vsaHardware}')
-    vsa.query('*opc?')
-
-    # Configure basic settings
-    vsa.write('measure:nselect 1')
-    vsa.write('measure:configure cquality')
-    vsa.query('*opc?')
-    vsa.write('sense:cquality:preset')
-
-    vsa.write(f'sense:frequency:center {cf}')
-    vsa.write(f'sense:frequency:span {span}')
-    vsa.write(f'sense:cquality:mtone:configure {toneSpacing}, {numTones}')
-    vsa.write('sense:cquality:analysis:interval 10e-3')
-    vsa.write('input:analog:range:auto')
-    vsa.query('*opc?')
-
-    # print(vsa.query('trace1:data:name:list?'))
-    vsa.write('trace1:data:name "Ch Frequency Response1"')
-    vsa.write('trace1:format "Real"')
-    vsa.write('trace2:data:name "Ch Frequency Response1"')
-    vsa.write('trace2:format "Imaginary"')
-    vsa.write('trace3:add')
-    vsa.write('trace3:data:name "Spectrum1"')
-    vsa.write('trace3:format "LogMagnitude"')
-    vsa.write('trace4:add')
-    vsa.write('trace4:data:name "Ch Frequency Response1"')
-    vsa.write('trace4:format "IQ"')
-    vsa.write('display:layout 2, 2')
-    vsa.write('initiate:continuous off')
-    vsa.write('initiate:immediate')
-    vsa.query('*opc?')
-    sleep(1)
-
-    vsa.write('format:trace:data real64')
-    vsa.write('trace4:data:x?')
-    eqI = vsa.binblockread(dtype=np.float64).byteswap()
-    vsa.write('trace4:data:y?')
-    eqQ = vsa.binblockread(dtype=np.float64).byteswap()
-
-    equalizer = np.array(eqI - eqQ * 1j)
-
-    # Pseudo circular convolution to mitigate zeroing of samples due to filter delay
-    # iq = np.array(i + q*1j)
-    taps = len(equalizer)
-    circIQ = np.concatenate((iq[-int(taps / 2):], iq, iq[:int(taps / 2)]))
-
-    # Apply filter, trim off delayed samples, and normalize
-    iqCorr = np.convolve(equalizer, circIQ)
-    iqCorr = iqCorr[taps - 1:-taps + 1]
-    sFactor = abs(np.amax(iqCorr))
-    iqCorr = iqCorr / sFactor * 0.707
-
-    vsa.write('measure:configure vector')
-    vsa.write('*rst')
-    vsa.disconnect()
-
-    # vsa.write('trace3:data:name "Eq Impulse Response1"')
-    # vsa.write('format:trace:data real64')  # This is float64/double, not int64
-    # vsa.write(f'sense:frequency:center {cf}')
-    # vsa.write('input:analog:range:auto')
-
-    return iqCorr
 
