@@ -11,19 +11,20 @@ N5182B, E8257D, M9383A, N5193A, N5194A
 
 import numpy as np
 import math
+import struct
 from pyarbtools import communications
 from pyarbtools import error
 
 """
 TODO:
 * Bugfix: fix zero/hold behavior on VectorUXG LAN pdw streaming
-* Add check to each instrument class to ensure that the correct 
+* Add check to each instrument class to ensure that the correct
     instrument is connected
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
 * DONE -- Separate out configure() into individual methods that update class attributes
 * Add a check for PDW length (600k limit?)
-* Add a multi-binblockwrite feature for download_wfm in the case of 
+* Add a multi-binblockwrite feature for download_wfm in the case of
     waveform size > 1 GB
 """
 
@@ -1611,6 +1612,13 @@ class AnalogUXG(communications.SocketInstrument):
         if clearMemory:
             self.clear_memory()
         self.host = host
+
+        #Check N5193A to make sure Streaming mode is selected
+        mode = self.query('inst:select?').strip()
+        if (mode != "STR"):
+            self.write('inst:select str')
+            self.query('*IDN?')
+
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.streamState = self.query('stream:state?').strip()
@@ -1909,6 +1917,138 @@ class AnalogUXG(communications.SocketInstrument):
 
         return pdw
 
+
+    def paddingBlock(self, sizeOfPaddingAndHeaderInBytes):
+        """Creates an analog UXG binary padding block with header.  The padding block
+            is used to align binary blocks as needed so each block starts on a 16 byte
+            boundary.  This padding block is also used to align PDW streaming data on
+            4096 byte boundaries.
+
+            Args:
+                sizeOfPaddingAndHeaderInBytes (int): Total size of resulting padding
+                    binary block and header combined.
+            Returns:
+                binary block containing padding header and padded data
+        """
+
+        paddingHeaderSize = 16
+        paddingFillerSize = sizeOfPaddingAndHeaderInBytes - paddingHeaderSize
+
+        padBlockId = (1).to_bytes(4, byteorder='little')
+        res3 = (0).to_bytes(4, byteorder='little')
+        size = (paddingFillerSize).to_bytes(8, byteorder='little')
+        # Padding Header Above = 16 bytes
+
+        # X bytes of padding required to ensure PDW stream contents
+        # (not PDW header) starts @ byte 4097 or (multiple of 4096)+1
+        padData = (0).to_bytes(paddingFillerSize, byteorder='little')
+        padding = [padBlockId, res3, size, padData]
+
+        return padding
+
+
+    def bin_freqPhaseCodingSingleEntry(self, onOffState=0, numBitsPerSubpulse=1, codingType=0,
+                                       stateMapping=[0,180], hexPatternString="E2",
+                                       comment="default Comment"):
+        """Creates a single entry binary frequency and phase coding block
+         for analog UXG streaming.  This is only part of a full frequency and phase coding
+         block with multiple entries for each pattern to be streamed to UXG.
+             Args:
+                 onOffState (int): Activation state for current FPC entry
+                 numBitsPerSubpulse (int): = number of bits per subpulse.  E.g. For BPSK, this is 1
+                 codingType (int): 0=phase coding, 1= frequency coding, 2 = both phase and frequency coding
+                 stateMapping (double array): 2^numBitsPerSubpulse entries of phase / freq states
+                 hexPatternString (string):  Hex values to encode in FPC table e.g. "A2F4" multiple of 2 in length
+                 comment (string): FPC entry name
+
+             Returns:
+                 binary array containing bytes for a single frequency phase entry
+
+             TODO - Combination of simultaneous phase and frequency modulation not yet implemented
+        """
+        if ((len(hexPatternString) % 2) != 0):
+            raise error.UXGError('Hex pattern length must be a multiple of 2: Length is ' + str(len(hexPatternString)))
+
+        hexPatternBytes = bytearray.fromhex(hexPatternString)
+        numBitsInPattern = 8 * len(hexPatternBytes)
+
+        if (codingType !=0 and codingType !=1):
+            raise error.UXGError('Only phase and frequency coding via streaming has been implemented in this example')
+        if (numBitsPerSubpulse != 1):
+            raise error.UXGError('Only one bit per subpulse has been implemented in this example')
+        if (len(hexPatternBytes) > 8192):
+            raise error.UXGError('Pattern must be less than 8192 bytes')
+        if (len(comment) > 60):
+            raise error.UXGError('Comment must be less than 60 characters long')
+
+        entryState = onOffState.to_bytes(1, byteorder='little')
+        numBitsPerSub = numBitsPerSubpulse.to_bytes(1, byteorder='little')
+        modType = codingType.to_bytes(1, byteorder='little')
+        numBytesInComment = len(comment).to_bytes(1, byteorder='little')
+        numBitsInPat = numBitsInPattern.to_bytes(4, byteorder='little')
+
+        fpcBin = entryState + numBitsPerSub + modType + numBytesInComment + numBitsInPat
+
+
+        # Convert double array to little endian byte array - 8 bytes per double value
+        for phaseOrFreq in stateMapping:
+            doubleByteArrayPhase = bytearray(struct.pack("<d", phaseOrFreq))
+            arraySize = len(doubleByteArrayPhase)
+            fpcBin = fpcBin + doubleByteArrayPhase
+
+        fpcBin = fpcBin + hexPatternBytes
+
+        # Translate comment to char[]
+        commentEncoded = bytearray(comment, 'utf-8')
+        fpcBin = fpcBin + commentEncoded
+
+        return fpcBin
+
+    def bin_pdw_freqPhaseCodingBlock(self):
+        """Creates a complete frequency and phase coding block containing header and data
+         for analog UXG streaming.
+         This block is used to describe variable length pulse frequency/phase coding setups.
+         This allows frequency and phase coding tables to be updated over ethernet streaming
+         instead of having to send SCPI commands.
+http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/Streaming%20Mode%20File%20Format%20Definition.htm%3FTocPath%3DUser's%2520Guide%7CStreaming%2520Mode%2520Use%7C_____5
+
+             Args:
+                 none: currently hardcoded to create FCP block with 3 fixed entries
+                       first  entry is index 0 in FPC table - no coding
+                       second entry is index 1 in FPC table - PSK
+                       third  entry is index 2 in FPC table - FSK
+
+             Returns:
+                 binary byte array containing full FCP block with header
+        """
+        numEntries = 3
+
+        freqPhaseBlockId = (13).to_bytes(4, byteorder='little')
+        reserved1 = (0).to_bytes(4, byteorder='little')
+        # Size calculated last
+        version = (2).to_bytes(4, byteorder='little')
+        numberOfEntries = numEntries.to_bytes(4, byteorder='little')
+
+        entry0 = self.bin_freqPhaseCodingSingleEntry(0, 1, 0, [0, 180], "", "NoCodingFirstEntry")
+        entry1 = self.bin_freqPhaseCodingSingleEntry(1, 1, 0, [0, 180], "2A61D327", "PSKcode32bits")
+        entry2 = self.bin_freqPhaseCodingSingleEntry(1, 1, 1, [-10e6,10e6], "5AC4", "FSKcodeTest16bits")
+
+        # Size does not include blockID and reserved fields 8 bytes
+        sizeInBytes = len(version) + len(numberOfEntries) + len(entry0) + len(entry1) + len(entry2)
+        sizeBlock = sizeInBytes.to_bytes(8, byteorder='little')
+
+        returnBlock = [freqPhaseBlockId, reserved1, sizeBlock, version, numberOfEntries, entry0, entry1, entry2]
+
+        #fpcBlock size must be a multiple of 16 to be on proper byte boundary - Add padding as needed
+        tempSize = len(b''.join(returnBlock))
+        sizeOfEndBufferBytes = 16 - (tempSize % 16)
+        endFpcBlockBufferBytes  = (0).to_bytes(sizeOfEndBufferBytes, byteorder='little')
+
+        returnBlockWithPadding = [freqPhaseBlockId, reserved1, sizeBlock, version, numberOfEntries,
+                                  entry0, entry1, entry2, endFpcBlockBufferBytes]
+
+        return returnBlockWithPadding
+
     # noinspection PyRedundantParentheses
     def bin_pdw_file_builder(self, pdwList):
         """
@@ -1926,12 +2066,18 @@ class AnalogUXG(communications.SocketInstrument):
             (bytes): Binary data that contains a full PDW file that can
                 be downloaded to and played out of the UXG.
         """
+        #Include frequency phase coding block flag: 1 = yes, 0 = no
+        includeFpcBlock = 1
 
         # Header section, all fixed values
         fileId = b'STRM'
         version = (1).to_bytes(4, byteorder='little')
-        # No reason to have > one 4096 byte offset to PDW data.
-        offset = ((1 << 1) & 0x3fffff).to_bytes(4, byteorder='little')
+
+        # First field is first block of 4096 bytes.  If frequency phase coding block is large,
+        # this offset to the start of PDW data might extend past first 4096 sized block
+        fieldBlock = 1
+        offset = ((fieldBlock >> 1) & 0x3fffff).to_bytes(4, byteorder='little')
+
         magic = b'KEYS'
         res0 = (0).to_bytes(16, byteorder='little')
         flags = (0).to_bytes(4, byteorder='little')
@@ -1939,23 +2085,27 @@ class AnalogUXG(communications.SocketInstrument):
         dataId = (16).to_bytes(4, byteorder='little')
         res1 = (0).to_bytes(4, byteorder='little')
         header = [fileId, version, offset, magic, res0, flags, uniqueId, dataId, res1]
+        tempHeaderSize = len(b''.join(header))
 
-        # Padding block, all fixed values
-        padBlockId = (1).to_bytes(4, byteorder='little')
-        res3 = (0).to_bytes(4, byteorder='little')
-        size = (4016).to_bytes(8, byteorder='little')
-        # 4016 bytes of padding ensures that the first PDw begins @ byte 4097
-        padData = (0).to_bytes(4016, byteorder='little')
-        padding = [padBlockId, res3, size, padData]
+        # FPC Block - skip fpcBlock if flag is zero
+        fpcBlock = [b'']
+        if (includeFpcBlock):
+            fpcBlock = self.bin_pdw_freqPhaseCodingBlock()
+        fpcBlockSize = len(b''.join(fpcBlock))
 
-        # PDW block
+        #PDW block header must start at byte 4080 so PDW stream data starts at byte 4097
+        paddingSize = 4080 - tempHeaderSize - fpcBlockSize
+        paddingBlock = self.paddingBlock(paddingSize)
+
+        # PDW block header = 16 bytes
         pdwBlockId = (16).to_bytes(4, byteorder='little')
         res4 = (0).to_bytes(4, byteorder='little')
         pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
         pdwBlock = [pdwBlockId, res4, pdwSize]
 
         # Build PDW file from header, padBlock, pdwBlock, and PDWs
-        pdwFile = header + padding + pdwBlock
+        pdwFile = header + fpcBlock + paddingBlock + pdwBlock
+
         pdwFile += [self.bin_pdw_builder(*p) for p in pdwList]
         pdwFile += [(0).to_bytes(24, byteorder='little')]
         # Convert arrays of data to a single byte-type variable
@@ -2183,7 +2333,7 @@ class VectorUXG(communications.SocketInstrument):
             if trigOutPort < 1 or trigOutPort > 10:
                 raise error.UXGError('trigOutPort must be an integer between 1 and 10.')
             self.write('stream:markers:pdw1:mode stime')
-            self.write(f'rout:trigger{trigOut}:output pmarker1')
+            self.write(f'rout:trigger{trigOutPort}:output pmarker1')
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -2238,7 +2388,6 @@ class VectorUXG(communications.SocketInstrument):
         Returns:
             (NumPy array): Single PDW that can be used to build a PDW file or streamed directly to the UXG.
         """
-
         pdwFormat = 3
         _freq = int(freq * 1024 + 0.5)
         _phase = int(phase * 4096 / 360 + 0.5)
@@ -2249,6 +2398,7 @@ class VectorUXG(communications.SocketInstrument):
         _power = int((power + 140) / 0.005 + 0.5)
         _loLead = int(loLead / 4e-9)
         _newWfm = 1
+        _wfmType = 0
 
         # Build PDW
         pdw = np.zeros(11, dtype=np.uint32)
@@ -2277,6 +2427,7 @@ class VectorUXG(communications.SocketInstrument):
                         phaseControl, rfOff, wIndex, wfmMkrMask):
         """
         This function builds a single format-1 PDW from a list of parameters.
+        PDW format-1 is now deprecated.  This format is still supported as legacy
 
         See User's Guide>Streaming Use>PDW Definitions section of
         Keysight UXG X-Series Agile Vector Adapter Online Documentation
@@ -2407,7 +2558,7 @@ class VectorUXG(communications.SocketInstrument):
 
         """Note: memory:import:stream imports/converts csv to pdw AND
         assigns the resulting pdw and waveform index files as the stream
-        source. There is no need to send the stream:source:file or 
+        source. There is no need to send the stream:source:file or
         stream:source:file:name commands because they are sent
         implicitly by memory:import:stream."""
 
@@ -2432,7 +2583,7 @@ class VectorUXG(communications.SocketInstrument):
 
         """Note: memory:import:windex imports/converts csv to waveform
         index file AND assigns the resulting file as the waveform index
-        manager. There is no need to send the stream:windex:select 
+        manager. There is no need to send the stream:windex:select
         command because it is sent implicitly by memory:import:windex."""
         self.write(f'memory:import:windex "{windex["fileName"]}.csv", "{windex["fileName"]}"')
         self.query('*opc?')
