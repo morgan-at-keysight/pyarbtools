@@ -16,7 +16,8 @@ def vsg_chirp_example(ipAddress):
     a generic VSG."""
 
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, reset=True)
-    vsg.configure(amp=-20, fs=50e6, cf=1e9)
+    vsg.configure(amp=-10, fs=50e6, cf=6e9)
+
     vsg.clear_all_wfm()
     vsg.sanity_check()
 
@@ -37,23 +38,17 @@ def vsg_dig_mod_example(ipAddress):
     @ 1 GHz CF with a generic VSG."""
 
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
-    vsg.configure(amp=-5, fs=100e6)
-    vsg.sanity_check()
+    vsg.configure(amp=-5, cf=1e9, fs=200e6)
     vsg.err_check()
 
-    name = '1GHz_16QAM'
-    symRate = 200e6
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=2.56e9, modType='qam16',symRate=symRate, prbsOrder=15)
-
-    fileName = 'C:\\users\\moalliso\\Desktop\\200MHz_16QAM.csv'
-    with open(fileName, 'w', newline='\n') as f:
-        w = csv.writer(f)
-        for sample in iq:
-            w.writerow([str(sample.real), str(sample.imag)])
+    name = '40MHz_16QAM'
+    symRate = 40e6
+    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate, prbsOrder=9, alpha=0.35)
 
     vsg.clear_all_wfm()
     vsg.download_wfm(iq, wfmID=name)
     vsg.play(name)
+    vsg.sanity_check()
     vsg.err_check()
     vsg.disconnect()
 
@@ -78,20 +73,38 @@ def vsg_am_example(ipAddress):
 
 def vsg_mtone_example(ipAddress):
     """Generates a mutlitone signal on a generic VSG."""
-    numTones = 41
-    toneSpacing = 750e3
-    fs = 100e6
+    numTones = 1000
+    toneSpacing = 10e3
+    fs = 200e6
 
     vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
     vsg.configure(cf=1e9, amp=0, fs=fs, refSrc='int')
 
-    iq = pyarbtools.wfmBuilder.multitone(fs=fs, spacing=toneSpacing, num=numTones)
+    iq = pyarbtools.wfmBuilder.multitone(fs=fs, spacing=toneSpacing, num=numTones, phase='zero')
 
     vsg.download_wfm(iq, wfmID='mtone')
     vsg.play('mtone')
 
     vsg.err_check()
     vsg.disconnect()
+
+
+def vxg_mtone_example(ipAddress):
+    """Generates a mutlitone signal on a generic VSG."""
+    numTones = 1001
+    toneSpacing = 50e3
+    fs = 100e6
+
+    vxg = pyarbtools.instruments.VXG(ipAddress, reset=True)
+    vxg.configure(cf=1e9, amp=0, fs=fs, refSrc='int')
+
+    iq = pyarbtools.wfmBuilder.multitone(fs=fs, spacing=toneSpacing, num=numTones)
+
+    vxg.download_wfm(iq, wfmID='mtone')
+    vxg.play('mtone')
+
+    vxg.err_check()
+    vxg.disconnect()
 
 
 def m8190a_simple_wfm_example(ipAddress):
@@ -368,6 +381,18 @@ def analog_uxg_pdw_example(ipAddress):
     uxg.disconnect()
 
 
+def vsg_iq_correction_example(ipAddress, vsaIPAddress, vsaHardware):
+    vsg = pyarbtools.instruments.VSG(ipAddress)
+    vsg.configure(rfState=1, amp=0, cf=1e9, fs=200e6)
+    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam32', symRate=40e6)
+    iqCorr = pyarbtools.wfmBuilder.iq_correction(iq, vsg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20, convergence=5e-9)
+
+    wfmID = vsg.download_wfm(iqCorr)
+    vsg.play(wfmID=wfmID)
+    vsg.err_check()
+    vsg.disconnect()
+
+
 def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
@@ -378,14 +403,16 @@ def main():
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
     # m8195a_simple_wfm_example('141.121.210.245')
-    vsg_dig_mod_example('192.168.50.124')
-    # vsg_chirp_example('192.168.50.124')
-    # vsg_am_example('192.168.50.124')
-    # vsg_mtone_example('192.168.50.124')
+    # vsg_dig_mod_example('141.121.39.174')
+    # vsg_chirp_example('141.121.39.174')
+    # vsg_am_example('141.121.39.174')
+    # vsg_mtone_example('141.121.39.174')
+    vsg_mtone_example('141.121.39.174')
     # vector_uxg_arb_example('141.121.210.131')
     # vector_uxg_pdw_example('141.121.210.131')
     # vector_uxg_lan_streaming_example('141.121.210.131')
     # analog_uxg_pdw_example('141.121.231.135')
+    # vsg_iq_correction_example('141.121.39.174', '127.0.0.1', '"Santa Clara PXA"')
 
 
 if __name__ == '__main__':

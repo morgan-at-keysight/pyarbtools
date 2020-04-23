@@ -41,3 +41,8 @@ History
 -------------------
 
 * Fixed bug in UXG classes that emitted a long CW pulse prior to starting streaming. Added "pri" argument to pulse creation methods.
+
+2020.04.0 (2020-04-22)
+----------------------
+
+* .configure() methods now use **kwargs to prevent the function from changing any settings not explicitly specified back to default values. Changed multitone waveform creation method to frequency domain. Working to add channel quality correction.

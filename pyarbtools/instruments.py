@@ -21,7 +21,7 @@ TODO:
     instrument is connected
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
-* Separate out configure() into individual methods that update class attributes
+* DONE -- Separate out configure() into individual methods that update class attributes
 * Add a check for PDW length (600k limit?)
 * Add a multi-binblockwrite feature for download_wfm in the case of 
     waveform size > 1 GB
@@ -92,11 +92,12 @@ class M8190A(communications.SocketInstrument):
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
 
-    def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
-                  out2='dac', amp1=0.65, amp2=0.65, func1='arb', func2='arb', cf1=1e9, cf2=1e9):
+    # def configure(self, res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac',
+    #               out2='dac', amp1=0.65, amp2=0.65, func1='arb', func2='arb', cf1=1e9, cf2=1e9):
+    def configure(self, **kwargs):
         """
         Sets basic configuration for M8190A and populates class attributes accordingly.
-        Args:
+        Keyword Arguments:
             res (str): DAC resolution
             clkSrc (str): Sample clock source
             fs (float): Sample clock rate
@@ -113,19 +114,35 @@ class M8190A(communications.SocketInstrument):
         """
 
         self.write('abort')
-        self.set_resolution(res)
-        self.set_clkSrc(clkSrc)
-        self.set_fs(fs)
-        self.set_output(1, out1)
-        self.set_output(2, out2)
-        self.set_amp(1, amp1)
-        self.set_amp(2, amp2)
-        self.set_func(1, func1)
-        self.set_func(2, func2)
-        self.set_cf(1, cf1)
-        self.set_cf(2, cf2)
-        self.set_refSrc(refSrc)
-        self.set_refFreq(refFreq)
+        for key, value in kwargs.items():
+            if key == 'res':
+                self.set_resolution(value)
+            elif key == 'clkSrc':
+                self.set_clkSrc(value)
+            elif key == 'fs':
+                self.set_fs(value)
+            elif key == 'refSrc':
+                self.set_refSrc(value)
+            elif key == 'refFreq':
+                self.set_refFreq(value)
+            elif key == 'out1':
+                self.set_output(1, value)
+            elif key == 'out2':
+                self.set_output(2, value)
+            elif key == 'amp1':
+                self.set_amp(1, value)
+            elif key == 'amp2':
+                self.set_amp(2, value)
+            elif key == 'func1':
+                self.set_func(1, value)
+            elif key == 'func2':
+                self.set_func(2, value)
+            elif key == 'cf1':
+                self.set_cf(1, value)
+            elif key == 'cf2':
+                self.set_cf(2, value)
+            else:
+                raise KeyError('Invalid keyword argument.')
         self.err_check()
 
     def set_clkSrc(self, clkSrc):
@@ -492,10 +509,11 @@ class M8195A(communications.SocketInstrument):
         self.binMult = 127
         self.binShift = 0
 
-    def configure(self, dacMode='single', memDiv=1, fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
+    # def configure(self, dacMode='single', memDiv=1, fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
+    def configure(self, **kwargs):
         """
         Sets basic configuration for M8195A and populates class attributes accordingly.
-        Args:
+        Keyword Arguments:
             dacMode (str): DAC operation mode. ('single', 'dual', 'four', 'marker', 'dcd', 'dcmarker')
             memDiv (int): Clock/memory divider rate. (1, 2, 4)
             fs (float): AWG sample rate.
@@ -503,13 +521,21 @@ class M8195A(communications.SocketInstrument):
             refFreq (float): Reference clock frequency.
             func (str): AWG mode, either arb or sequencing. ('arb', 'sts', 'stsc')
         """
-
-        self.set_dacMode(dacMode)
-        self.set_memDiv(memDiv)
-        self.set_fs(fs)
-        self.set_func(func)
-        self.set_refSrc(refSrc)
-        self.set_refFreq(refFreq)
+        for key, value in kwargs.items():
+            if key == 'dacMode':
+                self.set_dacMode(value)
+            elif key == 'memDiv':
+                self.set_memDiv(value)
+            elif key == 'fs':
+                self.set_fs(value)
+            elif key == 'refSrc':
+                self.set_refSrc(value)
+            elif key == 'refFreq':
+                self.set_refFreq(value)
+            elif key == 'func':
+                self.set_func(value)
+            else:
+                raise KeyError('Invalid keyword argument. Use "dacMode", "memDiv", "fs", "refSrc", "refFreq", or "func".')
 
         self.err_check()
 
@@ -711,7 +737,8 @@ class M8196A(communications.SocketInstrument):
         self.binMult = 127
         self.binShift = 0
 
-    def configure(self, dacMode='single', fs=92e9, refSrc='axi', refFreq=100e6):
+    # def configure(self, dacMode='single', fs=92e9, refSrc='axi', refFreq=100e6):
+    def configure(self, **kwargs):
         """
         Sets basic configuration for M8196A and populates class attributes accordingly.
         Args:
@@ -727,14 +754,68 @@ class M8196A(communications.SocketInstrument):
         if not isinstance(refFreq, float) or refFreq <= 0:
             raise ValueError('Reference frequency must be a positive floating point value.')
 
+        for key, value in kwargs.items():
+            if key == 'dacMode':
+                self.set_dacMode(value)
+                # self.dacMode = self.query('inst:dacm?').strip().lower()
+            elif key == 'fs':
+                self.set_fs(value)
+                # self.fs = float(self.query('frequency:raster?').strip())
+            elif key == 'refSrc':
+                self.set_refSrc(value)
+            elif key == 'refFreq':
+                self.set_refFreq(value)
+            else:
+                raise KeyError('Invalid keyword argument.')
+
+        self.err_check()
+
+    def set_dacMode(self, dacMode='single'):
+        """
+        Sets and reads DAC mode for the M8196A
+        Args:
+            dacMode (str): DAC operation mode. ('single', 'dual', 'four', 'marker', 'dcd', 'dcmarker')
+        """
+
+        if dacMode not in ['single', 'dual', 'four', 'marker', 'dcmarker']:
+            raise ValueError("Invalid DAC mode. Must be 'single', 'dual', 'four', 'marker', or 'dcmarker'")
+
         self.write(f'inst:dacm {dacMode}')
         self.dacMode = self.query('inst:dacm?').strip().lower()
 
+    def set_fs(self, fs=92e9):
+        """
+        Sets and reads sample rate.
+        Args:
+            fs (float): AWG sample rate.
+        """
+
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
         self.write(f'frequency:raster {fs}')
         self.fs = float(self.query('frequency:raster?').strip())
 
+    def set_refSrc(self, refSrc='axi'):
+        """
+        Sets and reads reference source.
+        Args:
+            refSrc (str): Reference clock source. ('axi', 'int', 'ext')
+        """
+
+        if refSrc.lower() not in ['axi', 'int', 'ext']:
+            raise ValueError("'refSrc' must be 'axi', 'int', or 'ext'")
+        self.write(f'roscillator:source {refSrc}')
+        self.refSrc = self.query('roscillator:source?').strip()
+
+    def set_refFreq(self, refFreq=100e6):
+        """
+        Sets and reads reference frequency.
+        Args:
+            refFreq (float): Reference clock frequency.
+        """
+
         # Check for valid refSrc arguments and assign
-        if refSrc.lower() not in ['int', 'ext', 'axi']:
+        if self.refSrc.lower() not in ['int', 'ext', 'axi']:
             raise error.AWGError('Invalid reference source selection.')
         self.write(f'roscillator:source {refSrc}')
         self.refSrc = self.query('roscillator:source?').strip().lower()
@@ -760,8 +841,6 @@ class M8196A(communications.SocketInstrument):
                 raise error.AWGError('Selected reference clock frequency outside allowable range.')
             self.write(f'roscillator:frequency {refFreq}')
         self.refFreq = float(self.query('roscillator:frequency?').strip())
-
-        self.err_check()
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -872,7 +951,7 @@ class VSG(communications.SocketInstrument):
         self.alcState = self.query('power:alc?')
         self.refSrc = self.query('roscillator:source?').strip()
         self.arbState = self.query('radio:arb:state?').strip()
-        self.fs = float(self.query('radio:arb:sclock:rate?').strip())
+        # self.fs = float(self.query('radio:arb:sclock:rate?').strip())
 
         if 'int' in self.refSrc.lower():
             self.refFreq = 10e6
@@ -894,10 +973,11 @@ class VSG(communications.SocketInstrument):
         else:
             self.gran = 4
 
-    def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
+    # def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
+    def configure(self, **kwargs):
         """
         Sets basic configuration for VSG and populates class attributes accordingly.
-        Args:
+        Keyword Arguments:
             rfState (int): Turns the RF output on or off. (1, 0)
             modState (int): Turns the baseband modulator on or off. (1, 0)
             cf (float): Sets the generator's carrier frequency.
@@ -908,25 +988,109 @@ class VSG(communications.SocketInstrument):
             fs (float): Sets the sample rate of the baseband generator.
         """
 
-        if not isinstance(fs, float) or fs <= 0:
-            raise ValueError('Sample rate must be a positive floating point value.')
-        if not isinstance(cf, float) or cf <= 0:
-            raise ValueError('Carrier frequency must be a positive floating point value.')
-        if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
-            raise ValueError('iqScale argument must be an integer between 1 and 100.')
-        if not isinstance(amp, int):
-            raise ValueError('Amp argument must be an integer.')
+        for key, value in kwargs.items():
+            if key == 'rfState':
+                self.set_rfState(value)
+            elif key == 'modState':
+                self.set_modState(value)
+            elif key == 'cf':
+                self.set_cf(value)
+            elif key == 'amp':
+                self.set_amp(value)
+            elif key == 'alcState':
+                self.set_alcState(value)
+            elif key == 'iqScale':
+                self.set_iqScale(value)
+            elif key == 'refSrc':
+                self.set_refSrc(value)
+            elif key == 'fs':
+                self.set_fs(value)
+            else:
+                raise KeyError('Invalid keyword argument.')
+
+        # Arb state can only be turned on after a waveform has been loaded/selected
+        # self.write(f'radio:arb:state {arbState}')
+        # self.arbState = self.query('radio:arb:state?').strip()
+
+        self.err_check()
+
+    def set_rfState(self, rfState):
+        """
+        Sets and reads the state of the RF output.
+        Args:
+            rfState (int): Turns the RF output on or off. (1, 0)
+        """
 
         self.write(f'output {rfState}')
         self.rfState = int(self.query('output?').strip())
+
+    def set_modState(self, modState):
+        """
+        Sets and reads the state of the internal baseband modulator.
+        Args:
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+        """
+
         self.write(f'output:modulation {modState}')
         self.modState = int(self.query('output:modulation?').strip())
+
+    def set_cf(self, cf):
+        """
+        Sets and reads the center frequency of the signal generator.
+        Args:
+            cf (float): Sets the generator's carrier frequency.
+        """
+
+        if not isinstance(cf, float) or cf <= 0:
+            raise ValueError('Carrier frequency must be a positive floating point value.')
         self.write(f'frequency {cf}')
         self.cf = float(self.query('frequency?').strip())
+
+    def set_amp(self, amp):
+        """
+        Sets and reads the output amplitude of signal generator.
+        Args:
+            amp (int/float): Sets the generator's RF output power.
+        """
+
+        if not isinstance(amp, int):
+            raise ValueError('Amp argument must be an integer.')
         self.write(f'power {amp}')
         self.amp = float(self.query('power?').strip())
+
+    def set_alcState(self, alcState):
+        """
+        Sets and reads the state of the ALC (automatic level control). This should be turned off
+        for narrow pulses and signals with rapid amplitude changes.
+        Args:
+            alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
+        """
+
         self.write(f'power:alc {alcState}')
         self.alcState = int(self.query('power:alc?').strip())
+
+    def set_iqScale(self, iqScale):
+        """
+        Sets and reads the scaling of the baseband IQ waveform. Default should be about 70 percent to avoid clipping.
+        Args:
+            iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
+        """
+
+        if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
+            raise ValueError('iqScale argument must be an integer between 1 and 100.')
+
+        # M9381/3A don't have an IQ scaling command.
+        if 'M938' not in self.instId:
+            self.write(f'radio:arb:rscaling {iqScale}')
+            self.iqScale = float(self.query('radio:arb:rscaling?').strip())
+
+    def set_refSrc(self, refSrc):
+        """
+        Sets and reads the reference clock source.
+        Args:
+            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
+        """
+
         self.write(f'roscillator:source {refSrc}')
         self.refSrc = self.query('roscillator:source?').strip()
         if 'int' in self.refSrc.lower():
@@ -937,19 +1101,18 @@ class VSG(communications.SocketInstrument):
             self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
         else:
             raise error.VSGError('Unknown refSrc selected.')
+
+    def set_fs(self, fs):
+        """
+        Sets and reads sample  rate of internal arb.
+        Args:
+            fs (float): Sample rate.
+        """
+
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
         self.write(f'radio:arb:sclock:rate {fs}')
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
-
-        # M9381/3A don't have an IQ scaling command
-        if 'M938' not in self.instId:
-            self.write(f'radio:arb:rscaling {iqScale}')
-            self.iqScale = float(self.query('radio:arb:rscaling?').strip())
-
-        # Arb state can only be turned on after a waveform has been loaded/selected
-        # self.write(f'radio:arb:state {arbState}')
-        # self.arbState = self.query('radio:arb:state?').strip()
-
-        self.err_check()
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -1115,6 +1278,326 @@ class VSG(communications.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
 
 
+class VXG(communications.SocketInstrument):
+    def __init__(self, host, port=5025, timeout=10, reset=False):
+        """Generic class for controlling the M9384B VXG signal generator."""
+
+        super().__init__(host, port, timeout)
+        if reset:
+            self.write('*rst')
+            self.query('*opc?')
+        self.rf1State = self.query('rf1:output?').strip()
+        self.mod1State = self.query('rf1:output:modulation?').strip()
+        self.cf1 = float(self.query('source:rf1:frequency?').strip())
+        self.amp1 = float(self.query('power?').strip())
+
+        self.arbState = self.query('radio:arb:state?').strip()
+
+        self.alcState = self.query('power:alc?')
+        self.refSrc = self.query('roscillator:source?').strip()
+        self.fs = float(self.query('signal:waveform:sclock:rate?').strip())
+
+        if 'int' in self.refSrc.lower():
+            self.refFreq = 10e6
+        elif 'ext' in self.refSrc.lower():
+            self.refFreq = float(self.query('roscillator:frequency:external?').strip())
+        elif 'bbg' in self.refSrc.lower():
+            if 'M938' not in self.instId:
+                self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
+            else:
+                raise error.VSGError('Invalid reference source chosen, select \'int\' or \'ext\'.')
+        else:
+            raise error.VSGError('Unknown refSrc selected.')
+
+        self.minLen = 512
+        self.binMult = 32767
+        self.gran = 8
+
+    # def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
+    def configure(self, **kwargs):
+        """
+        Sets basic configuration for VSG and populates class attributes accordingly.
+        Keyword Arguments:
+            rfState (int): Turns the RF output on or off. (1, 0)
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+            cf (float): Sets the generator's carrier frequency.
+            amp (int/float): Sets the generator's RF output power.
+            alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
+            iqScale (int): Scales the IQ modulator. Default/safe value is 70
+            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
+            fs (float): Sets the sample rate of the baseband generator.
+        """
+
+        for key, value in kwargs.items():
+            if key == 'rfState':
+                self.set_rfState(value)
+            elif key == 'modState':
+                self.set_modState(value)
+            elif key == 'cf':
+                self.set_cf(value)
+            elif key == 'amp':
+                self.set_amp(value)
+            elif key == 'alcState':
+                self.set_alcState(value)
+            elif key == 'iqScale':
+                self.set_iqScale(value)
+            elif key == 'refSrc':
+                self.set_refSrc(value)
+            elif key == 'fs':
+                self.set_fs(value)
+            else:
+                raise KeyError('Invalid keyword argument.')
+
+        # Arb state can only be turned on after a waveform has been loaded/selected
+        # self.write(f'radio:arb:state {arbState}')
+        # self.arbState = self.query('radio:arb:state?').strip()
+
+        self.err_check()
+
+    def set_rfState(self, rfState):
+        """
+        Sets and reads the state of the RF output.
+        Args:
+            rfState (int): Turns the RF output on or off. (1, 0)
+        """
+
+        self.write(f'output {rfState}')
+        self.rfState = int(self.query('output?').strip())
+
+    def set_modState(self, modState):
+        """
+        Sets and reads the state of the internal baseband modulator.
+        Args:
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+        """
+
+        self.write(f'rf1:output:modulation {modState}')
+        self.modState = int(self.query('rf1:output:modulation?').strip())
+
+    def set_cf(self, cf):
+        """
+        Sets and reads the center frequency of the signal generator.
+        Args:
+            cf (float): Sets the generator's carrier frequency.
+        """
+
+        if not isinstance(cf, float) or cf <= 0:
+            raise ValueError('Carrier frequency must be a positive floating point value.')
+        self.write(f'frequency {cf}')
+        self.cf = float(self.query('frequency?').strip())
+
+    def set_amp(self, amp):
+        """
+        Sets and reads the output amplitude of signal generator.
+        Args:
+            amp (int/float): Sets the generator's RF output power.
+        """
+
+        if not isinstance(amp, int):
+            raise ValueError('Amp argument must be an integer.')
+        self.write(f'power {amp}')
+        self.amp = float(self.query('power?').strip())
+
+    def set_alcState(self, alcState):
+        """
+        Sets and reads the state of the ALC (automatic level control). This should be turned off
+        for narrow pulses and signals with rapid amplitude changes.
+        Args:
+            alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
+        """
+
+        self.write(f'power:alc {alcState}')
+        self.alcState = int(self.query('power:alc?').strip())
+
+    def set_iqScale(self, iqScale):
+        """
+        Sets and reads the scaling of the baseband IQ waveform. Default should be about 70 percent to avoid clipping.
+        Args:
+            iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
+        """
+
+        if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
+            raise ValueError('iqScale argument must be an integer between 1 and 100.')
+
+        # M9381/3A don't have an IQ scaling command.
+        if 'M938' not in self.instId:
+            self.write(f'signal:waveform:scale {iqScale}')
+            self.iqScale = float(self.query('radio:arb:rscaling?').strip())
+
+    def set_refSrc(self, refSrc):
+        """
+        Sets and reads the reference clock source.
+        Args:
+            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
+        """
+
+        self.write(f'roscillator:source {refSrc}')
+        self.refSrc = self.query('roscillator:source?').strip()
+        if 'int' in self.refSrc.lower():
+            self.refFreq = 10e6
+        elif 'ext' in self.refSrc.lower():
+            self.refFreq = float(self.query('roscillator:frequency:external?').strip())
+        elif 'bbg' in self.refSrc.lower():
+            self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
+        else:
+            raise error.VSGError('Unknown refSrc selected.')
+
+    def set_fs(self, fs):
+        """
+        Sets and reads sample  rate of internal arb.
+        Args:
+            fs (float): Sample rate.
+        """
+
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
+        self.write(f'signal:waveform:sclock:rate {fs}')
+        self.fs = float(self.query('signal:waveform:sclock:rate?').strip())
+
+    def sanity_check(self):
+        """Prints out initialized values."""
+        print('RF State:', self.rfState)
+        print('Modulation State:', self.modState)
+        print('Center Frequency:', self.cf)
+        print('Output Amplitude:', self.amp)
+        print('ALC state:', self.alcState)
+        print('Reference Source:', self.refSrc)
+        print('Internal Arb State:', self.arbState)
+        print('Internal Arb Sample Rate:', self.fs)
+        if 'M938' not in self.instId:
+            print('IQ Scaling:', self.iqScale)
+
+    def download_wfm(self, wfmData, wfmID='wfm'):
+        """
+        Defines and downloads a waveform into the waveform memory.
+        Returns useful waveform identifier.
+        Args:
+            wfmData (NumPy array): Complex waveform values.
+            wfmID (str): Waveform name.
+
+        Returns:
+            (str): Useful waveform identifier/name.
+        """
+
+        self.write('radio:arb:state off')
+        self.write('rf1:output:modulation off')
+        self.arbState = self.query('radio:arb:state?').strip()
+
+        if wfmData.dtype != np.complex:
+            raise TypeError('Invalid wfm type. IQ waveforms must be an array of complex values.')
+        else:
+            i = self.check_wfm(np.real(wfmData))
+            q = self.check_wfm(np.imag(wfmData))
+
+            wfm = self.iq_wfm_combiner(i, q)
+
+        try:
+            self.write(f'mmemory:delete "C:\\Temp\\{wfmID}"')
+            self.query('*opc?')
+            self.err_check()
+        except error.SockInstError:
+            # print('Waveform doesn\'t exist, skipping delete operation.')
+            pass
+        self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
+        self.write(f'memory:copy "C:\\Temp\\{wfmID}","SWFM1:{wfmID}"')
+        self.write(f'source:signal:waveform "WFM1:{wfmID}"')
+
+        return wfmID
+
+    @staticmethod
+    def iq_wfm_combiner(i, q):
+        """
+        Combines i and q wfms into a single interleaved wfm for download to generator.
+        Args:
+            i (NumPy array): Array of real waveform samples.
+            q (NumPy array): Array of imaginary waveform samples.
+
+        Returns:
+            (NumPy array): Array of interleaved IQ values.
+        """
+
+        iq = np.empty(2 * len(i), dtype=np.int16)
+        iq[0::2] = i
+        iq[1::2] = q
+        return iq
+
+    def check_wfm(self, wfm):
+        """
+        Checks minimum size and granularity and returns waveform with
+        appropriate binary formatting. Note that sig gens expect big endian
+        byte order.
+
+        See pages 205-256 in Keysight X-Series Signal Generators Programming
+        Guide (November 2014 Edition) for more info.
+        Args:
+            wfm (NumPy array): Unscaled/unformatted waveform data.
+            bigEndian (bool): Determines whether waveform is big endian.
+
+        Returns:
+            (NumPy array): Waveform data that has been scaled and
+                formatted appropriately for download to AWG
+        """
+
+        repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
+        wfm = np.tile(wfm, repeats)
+        rl = len(wfm)
+        if rl < self.minLen:
+            raise error.VSGError(f'Waveform length: {rl}, must be at least {self.minLen}.')
+        if rl % self.gran != 0:
+            raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
+
+        return np.array(self.binMult * wfm, dtype=np.int16).byteswap()
+
+    def delete_wfm(self, wfmID):
+        """
+        Stops output and deletes specified waveform.
+        Args:
+            wfmID (str): Name of waveform to be deleted.
+        """
+
+        self.stop()
+        if 'M938' in self.instId:
+            self.write(f'memory:delete "{wfmID}"')
+        else:
+            self.write(f'memory:delete "WFM1:{wfmID}"')
+        self.err_check()
+
+    def clear_all_wfm(self):
+        """Stops output and deletes all iq waveforms."""
+        self.stop()
+        self.write('mmemory:delete:wfm')
+        self.err_check()
+
+    def play(self, wfmID='wfm'):
+        """
+        Selects waveform and activates arb mode, RF output, and modulation.
+        Args:
+            wfmID (str): Waveform identifier, used to select waveform to be played.
+        """
+
+        self.write(f'source:signal:waveform "WFM1:{wfmID}"')
+
+        # New command
+        # self.write('signal1:state on')
+        # Backwards compatibility
+        self.write('radio:arb:state on')
+        self.arbState = self.query('radio:arb:state?').strip()
+        self.write('rf1:output on')
+        self.rfState = self.query('rf1:output?').strip()
+        self.write('rf1:output:modulation on')
+        self.modState = self.query('rf1:output:modulation?').strip()
+        self.err_check()
+
+    def stop(self):
+        """Dectivates arb mode, RF output, and modulation."""
+        self.write('radio:arb:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
+        self.write('output off')
+        self.rfState = self.query('output?').strip()
+        self.write('output:modulation off')
+        self.modState = self.query('output:modulation?').strip()
+
+
 # noinspection PyUnusedLocal
 class AnalogUXG(communications.SocketInstrument):
     """Generic class for controlling the N5193A Analog UXG agile signal generators."""
@@ -1149,7 +1632,8 @@ class AnalogUXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-20):
+    # def configure(self, rfState=0, modState=0, cf=1e9, amp=-20):
+    def configure(self, **kwargs):
         """
         Sets the basic configuration for the UXG and populates class
         attributes accordingly. It should be called any time these
@@ -1162,21 +1646,62 @@ class AnalogUXG(communications.SocketInstrument):
             amp (int/float): Sets the generator's RF output power.
         """
 
-        if not isinstance(cf, float) or cf <= 0:
-            raise ValueError('Carrier frequency must be a positive floating point value.')
-        if not isinstance(amp, int):
-            raise ValueError('Amp argument must be an integer.')
+        for key, value in kwargs.items():
+            if key == 'rfState':
+                self.set_rfState(value)
+            elif key == 'modState':
+                self.set_modState(value)
+            elif key == 'cf':
+                self.set_cf(value)
+            elif key == 'amp':
+                self.set_amp(value)
+            else:
+                raise KeyError('Invalid keyword argument.')
+        self.err_check()
+
+    def set_rfState(self, rfState):
+        """
+        Sets and reads the state of the RF output.
+        Args:
+            rfState (int): Turns the RF output on or off. (1, 0)
+        """
 
         self.write(f'output {rfState}')
-        self.rfState = self.query('output?').strip()
+        self.rfState = int(self.query('output?').strip())
+
+    def set_modState(self, modState):
+        """
+        Sets and reads the state of the internal baseband modulator.
+        Args:
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+        """
+
         self.write(f'output:modulation {modState}')
-        self.modState = self.query('output:modulation?').strip()
+        self.modState = int(self.query('output:modulation?').strip())
+
+    def set_cf(self, cf):
+        """
+        Sets and reads the center frequency of the signal generator.
+        Args:
+            cf (float): Sets the generator's carrier frequency.
+        """
+
+        if not isinstance(cf, float) or cf <= 0:
+            raise ValueError('Carrier frequency must be a positive floating point value.')
         self.write(f'frequency {cf}')
         self.cf = float(self.query('frequency?').strip())
+
+    def set_amp(self, amp):
+        """
+        Sets and reads the output amplitude of signal generator.
+        Args:
+            amp (int/float): Sets the generator's RF output power.
+        """
+
+        if not isinstance(amp, int):
+            raise ValueError('Amp argument must be an integer.')
         self.write(f'power {amp}')
         self.amp = float(self.query('power?').strip())
-
-        self.err_check()
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -1527,7 +2052,8 @@ class VectorUXG(communications.SocketInstrument):
         # Can't connect until LAN streaming is turned on
         # self.lanStream.connect((host, 5033))
 
-    def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, iqScale=70):
+    # def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, iqScale=70):
+    def configure(self, **kwargs):
         """
         Sets the basic configuration for the UXG and populates class
         attributes accordingly. It should be called any time these
@@ -1541,26 +2067,82 @@ class VectorUXG(communications.SocketInstrument):
             iqScale (int): Scales the IQ modulator. Default/safe value is 70
         """
 
+        for key, value in kwargs.items():
+            if key == 'rfState':
+                self.set_rfState(value)
+            elif key == 'modState':
+                self.set_modState(value)
+            elif key == 'cf':
+                self.set_cf(value)
+            elif key == 'amp':
+                self.set_amp(value)
+            elif key == 'iqScale':
+                self.set_iqScale(value)
+            else:
+                raise KeyError('Invalid keyword argument.')
+
+            # Arb state can only be turned on after a waveform has been loaded/selected  # self.write(f'radio:arb:state {arbState}')  # self.arbState = self.query('radio:arb:state?').strip()
+
+        self.err_check()
+
+    def set_rfState(self, rfState):
+        """
+        Sets and reads the state of the RF output.
+        Args:
+            rfState (int): Turns the RF output on or off. (1, 0)
+        """
+
+        self.write(f'output {rfState}')
+        self.rfState = int(self.query('output?').strip())
+
+    def set_modState(self, modState):
+        """
+        Sets and reads the state of the internal baseband modulator.
+        Args:
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+        """
+
+        self.write(f'output:modulation {modState}')
+        self.modState = int(self.query('output:modulation?').strip())
+
+    def set_cf(self, cf):
+        """
+        Sets and reads the center frequency of the signal generator.
+        Args:
+            cf (float): Sets the generator's carrier frequency.
+        """
+
         if not isinstance(cf, float) or cf <= 0:
             raise ValueError('Carrier frequency must be a positive floating point value.')
+        self.write(f'frequency {cf}')
+        self.cf = float(self.query('frequency?').strip())
+
+    def set_amp(self, amp):
+        """
+        Sets and reads the output amplitude of signal generator.
+        Args:
+            amp (int/float): Sets the generator's RF output power.
+        """
+
         if not isinstance(amp, int):
             raise ValueError('Amp argument must be an integer.')
+        self.write(f'power {amp}')
+        self.amp = float(self.query('power?').strip())
+
+    def set_iqScale(self, iqScale):
+        """
+        Sets and reads the scaling of the baseband IQ waveform. Default should be about 70 percent to avoid clipping.
+        Args:
+            iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
+        """
+
         if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
             raise ValueError('iqScale argument must be an integer between 1 and 100.')
 
-        self.write(f'output {rfState}')
-        self.rfState = self.query('output?').strip()
-        self.write(f'output:modulation {modState}')
-        self.modState = self.query('output:modulation?').strip()
-        self.write(f'frequency {cf}')
-        self.cf = float(self.query('frequency?').strip())
-        self.write(f'power {amp}')
-        self.amp = float(self.query('power?').strip())
-        self.write(f'radio:arb:rscaling {iqScale}')
-        self.iqScale = float(self.query('radio:arb:rscaling?').strip())
-
-        if self.errCheck:
-            self.err_check()
+        # M9381/3A don't have an IQ scaling command.
+        if 'M938' not in self.instId:
+            self.write(f'radio:arb:rscaling {iqScale}')
+            self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
     def stream_configure(self, source='file', trigState=True, trigSource='bus', trigInPort=None, trigPeriod=1e-3, trigOutPort=None):
         """
