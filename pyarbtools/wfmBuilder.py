@@ -9,7 +9,6 @@ from scipy.signal import max_len_seq
 from pyarbtools import communications
 from pyarbtools import error
 from time import sleep
-import channelQualityCorrection
 import matplotlib.pyplot as plt
 import os
 
