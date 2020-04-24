@@ -14,19 +14,32 @@ def vsg_chirp_example(ipAddress):
     """Creates downloads, assigns, and plays out a chirp waveform with
     a generic VSG."""
 
+    # Create VSG object
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, reset=True)
-    vsg.configure(amp=-20, fs=50e6, cf=1e9)
-    vsg.clear_all_wfm()
+
+    # Signal generator configuration variables
+    amplitude = -5
+    sampleRate = 50e6
+    freq = 1e9
+
+    # Configure signal generator
+    vsg.configure(amp=amplitude, fs=sampleRate, cf=freq)
     vsg.sanity_check()
 
+    # Waveform definition variables
     name = 'chirp'
     pWidth = 10e-6
     bw = 40e6
     pri = 100e-6
+
+    # Create waveform
     iq = pyarbtools.wfmBuilder.chirp_generator(fs=vsg.fs, pWidth=pWidth, pri=pri, chirpBw=bw)
 
+    # Download and play waveform
     vsg.download_wfm(iq, name)
     vsg.play(name)
+
+    # Check for erros and gracefully disconnect
     vsg.err_check()
     vsg.disconnect()
 
@@ -35,54 +48,96 @@ def vsg_dig_mod_example(ipAddress):
     """Generates and plays 1 MHz 16 QAM signal with 0.35 alpha RRC filter
     @ 1 GHz CF with a generic VSG."""
 
+    # Create VSG object
     vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
-    vsg.configure(amp=-5, fs=50e6)
+
+    # Signal generator configuration variables
+    amplitude = -5
+    sampleRate = 100e6
+    freq = 1e9
+
+    # Configure signal generator
+    vsg.configure(amp=amplitude, fs=sampleRate, cf=freq)
     vsg.sanity_check()
     vsg.err_check()
 
+    # Waveform definition variables
     name = '10MHZ_16QAM'
     symRate = 10e6
+
+    # Create waveform
     iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
 
-    vsg.clear_all_wfm()
+    # Download and play waveform
     vsg.download_wfm(iq, wfmID=name)
     vsg.play(name)
+
+    # Check for erros and gracefully disconnect
     vsg.err_check()
     vsg.disconnect()
 
 
 def vsg_am_example(ipAddress):
     """Generates an AM tone with the IQ modulator in a generic VSG."""
+
+    # Create VSG object
+    vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
+
+    # Signal generator configuration variables
+    amplitude = -5
+    sampleRate = 100e6
+    freq = 1e9
+
+    # Configure signal generator
+    vsg.configure(amp=amplitude, fs=sampleRate, cf=freq)
+    vsg.sanity_check()
+    vsg.err_check()
+
+    # Waveform definition variables
+    name = 'CUSTOM_AM'
     amRate = 100e3
     amDepth = 75
-    fs = 100e6
 
-    vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
-    vsg.configure(cf=1e9, amp=0, fs=fs, iqScale=70, refSrc='int')
+    # Create waveform
+    iq = pyarbtools.wfmBuilder.am_generator(fs=vsg.fs, amDepth=amDepth, modRate=amRate)
 
-    iq = pyarbtools.wfmBuilder.am_generator(fs=fs, amDepth=amDepth, modRate=amRate)
+    # Download and play waveform
+    vsg.download_wfm(iq, wfmID=name)
+    vsg.play(name)
 
-    vsg.download_wfm(iq, wfmID='custom_am')
-    vsg.play('custom_am')
-
+    # Check for errors and gracefully disconnect
     vsg.err_check()
     vsg.disconnect()
 
 
 def vsg_mtone_example(ipAddress):
     """Generates a mutlitone signal on a generic VSG."""
-    numTones = 41
-    toneSpacing = 750e3
-    fs = 100e6
 
     vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
-    vsg.configure(cf=1e9, amp=0, fs=fs, refSrc='int')
 
-    iq = pyarbtools.wfmBuilder.multitone(fs=fs, spacing=toneSpacing, num=numTones)
+    # Signal generator configuration variables
+    amplitude = -5
+    sampleRate = 100e6
+    freq = 1e9
 
-    vsg.download_wfm(iq, wfmID='mtone')
-    vsg.play('mtone')
+    # Configure signal generator
+    vsg.configure(amp=amplitude, fs=sampleRate, cf=freq)
+    vsg.sanity_check()
+    vsg.err_check()
 
+    # Waveform definition variables
+    name = 'MULTITONE'
+    numTones = 400
+    toneSpacing = 100e3
+
+    # Create waveform
+    iq = pyarbtools.wfmBuilder.multitone(fs=vsg.fs, spacing=toneSpacing, num=numTones)
+
+    # Download and play waveform
+    vsg.download_wfm(iq, wfmID=name)
+    vsg.play(name)
+
+    # Check for errors and gracefully disconnect
     vsg.err_check()
     vsg.disconnect()
 
@@ -175,7 +230,7 @@ def m8190a_iq_correction_example(instIPAddress, vsaIPAddress, vsaHardware):
     """Performs IQ calibration on a digitally modulated signal using VSA."""
 
     awg = pyarbtools.instruments.M8190A(instIPAddress, reset=True)
-    awg.configure('intx3', fs=7.2e9, out1='ac', cf1=1e9)
+    awg.configure(res='intx3', fs=7.2e9, out1='ac', cf1=1e9)
 
     iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam32', symRate=40e6)
     iqCorr = pyarbtools.wfmBuilder.iq_correction(iq, awg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20, convergence=5e-9)
@@ -389,14 +444,14 @@ def main():
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
     # m8195a_simple_wfm_example('141.121.210.245')
-    # vsg_dig_mod_example('192.168.50.124')
-    # vsg_chirp_example('192.168.50.124')
-    # vsg_am_example('192.168.50.124')
-    # vsg_mtone_example('192.168.50.124')
+    # vsg_chirp_example('141.121.198.207')
+    # vsg_dig_mod_example('141.121.198.207')
+    # vsg_am_example('141.121.198.207')
+    vsg_mtone_example('141.121.198.207')
     # vector_uxg_arb_example('10.0.0.52')
     # vector_uxg_pdw_example('10.0.0.52')
     # vector_uxg_lan_streaming_example('10.0.0.52')
-    analog_uxg_pdw_example('10.0.0.109')
+    # analog_uxg_pdw_example('10.0.0.109')
 
 if __name__ == '__main__':
     main()
