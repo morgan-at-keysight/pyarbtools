@@ -12,7 +12,7 @@ N5182B, E8257D, M9383A, N5193A, N5194A
 import numpy as np
 import math
 import struct
-from pyarbtools import communications
+import socketscpi
 from pyarbtools import error
 
 """
@@ -51,7 +51,7 @@ def wraparound_calc(length, gran, minLen):
     return repeats
 
 
-class M8190A(communications.SocketInstrument):
+class M8190A(socketscpi.SocketInstrument):
     """Generic class for controlling a Keysight M8190A AWG."""
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
@@ -490,7 +490,7 @@ class M8190A(communications.SocketInstrument):
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
-class M8195A(communications.SocketInstrument):
+class M8195A(socketscpi.SocketInstrument):
     """Generic class for controlling Keysight M8195A AWG."""
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
@@ -719,7 +719,7 @@ class M8195A(communications.SocketInstrument):
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
-class M8196A(communications.SocketInstrument):
+class M8196A(socketscpi.SocketInstrument):
     """Generic class for controlling Keysight M8196A AWG."""
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
@@ -936,7 +936,7 @@ class M8196A(communications.SocketInstrument):
         self.write(f'output{ch}:state off')
 
 
-class VSG(communications.SocketInstrument):
+class VSG(socketscpi.SocketInstrument):
     def __init__(self, host, port=5025, timeout=10, reset=False):
         """Generic class for controlling the EXG, MXG, PSG, and M938X
         family signal generators."""
@@ -1279,7 +1279,7 @@ class VSG(communications.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
 
 
-class VXG(communications.SocketInstrument):
+class VXG(socketscpi.SocketInstrument):
     def __init__(self, host, port=5025, timeout=10, reset=False):
         """Generic class for controlling the M9384B VXG signal generator."""
 
@@ -1600,7 +1600,7 @@ class VXG(communications.SocketInstrument):
 
 
 # noinspection PyUnusedLocal
-class AnalogUXG(communications.SocketInstrument):
+class AnalogUXG(socketscpi.SocketInstrument):
     """Generic class for controlling the N5193A Analog UXG agile signal generators."""
 
     def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False):
@@ -1633,8 +1633,8 @@ class AnalogUXG(communications.SocketInstrument):
         self.streamState = self.query('stream:state?').strip()
 
         # Set up separate socket for LAN PDW streaming
-        self.lanStream = communications.socket.socket(
-            communications.socket.AF_INET, communications.socket.SOCK_STREAM)
+        self.lanStream = socketscpi.socket.socket(
+            socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM)
         self.lanStream.setblocking(False)
         self.lanStream.settimeout(timeout)
         # Can't connect until LAN streaming is turned on
@@ -1729,7 +1729,7 @@ class AnalogUXG(communications.SocketInstrument):
 
     def close_lan_stream(self):
         """Close LAN streaming port."""
-        self.lanStream.shutdown(communications.socket.SHUT_RDWR)
+        self.lanStream.shutdown(socketscpi.socket.SHUT_RDWR)
         self.lanStream.close()
 
     @staticmethod
@@ -2160,7 +2160,7 @@ http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/
         self.err_check()
 
 
-class VectorUXG(communications.SocketInstrument):
+class VectorUXG(socketscpi.SocketInstrument):
     """Generic class for controlling the N5194A + N5193A (Vector + Analog)
     UXG agile signal generators."""
 
@@ -2195,8 +2195,8 @@ class VectorUXG(communications.SocketInstrument):
         self.arbState = self.query('radio:arb:state?').strip()
 
         # Set up separate socket for LAN PDW streaming
-        self.lanStream = communications.socket.socket(
-            communications.socket.AF_INET, communications.socket.SOCK_STREAM)
+        self.lanStream = socketscpi.socket.socket(
+            socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM)
         self.lanStream.setblocking(False)
         self.lanStream.settimeout(timeout)
         # Can't connect until LAN streaming is turned on
@@ -2355,7 +2355,7 @@ class VectorUXG(communications.SocketInstrument):
 
     def close_lan_stream(self):
         """Close LAN streaming port."""
-        self.lanStream.shutdown(communications.socket.SHUT_RDWR)
+        self.lanStream.shutdown(socketscpi.socket.SHUT_RDWR)
         self.lanStream.close()
 
     @staticmethod

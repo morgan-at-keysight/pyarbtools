@@ -245,24 +245,26 @@ def m8195a_simple_wfm_example(ipAddress):
     """Sets up the M8195A and creates, downloads, assigns, and plays
     out a simple sine waveform from the AC output port."""
 
+    # Create M8195A object
+    awg = pyarbtools.instruments.M8195A(ipAddress, reset=True)
+
+    # AWG configuration variables
     dacMode = 'dual'
     fs = 64e9
-    refSrc = 'ext'
-    refFreq = 200e6
-    cf = 1e9
-    wfmName = 'sine'
+    awg.configure(dacMode=dacMode, fs=fs)
 
-    awg = pyarbtools.instruments.M8195A(ipAddress, reset=True)
-    awg.configure(dacMode=dacMode, fs=fs, refSrc=refSrc, refFreq=refFreq)
+    # Waveform definition variables
+    sineFreq = 1e9
+    wfmFormat = 'real'
 
     # Define a waveform, ensuring min length and granularity requirements are met
-    real = pyarbtools.wfmBuilder.sine_generator(fs=fs, freq=cf, wfmFormat='real')
+    real = pyarbtools.wfmBuilder.sine_generator(fs=awg.fs, freq=sineFreq, wfmFormat=wfmFormat)
 
-    # Define segment 1 and populate it with waveform data.
-    segment = awg.download_wfm(real, ch=1, name=wfmName)
+    # Download waveform to AWG and get waveform identifier
+    wfmID = awg.download_wfm(real, ch=1)
 
-    # Assign segment to channel 1 and start playback.
-    awg.play(wfmID=segment, ch=1)
+    # Play waveform using identifier
+    awg.play(wfmID=wfmID, ch=1)
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
@@ -422,10 +424,10 @@ def analog_uxg_pdw_example(ipAddress):
     pdwName = 'analog'
 
     #Last PDW with operation = 2 does not play since it is marked as end of PDW list
-    pdwList = [[1, 980e6 , 0, 0    , 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
-               [0, 1e9   , 0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0      , 0],
+    pdwList = [[1, 980e6,  0, 0,     10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
+               [0, 1e9,    0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0,       0],
                [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0,       0],
-               [2, 1e9   , 0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0,      0]]
+               [2, 1e9,    0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0,       0]]
     pdwFile = uxg.bin_pdw_file_builder(pdwList)
     uxg.download_bin_pdw_file(pdwFile, pdwName=pdwName)
     uxg.err_check()
@@ -443,11 +445,11 @@ def main():
     # m8190a_duc_dig_mod_example('141.121.210.171')
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
-    # m8195a_simple_wfm_example('141.121.210.245')
+    m8195a_simple_wfm_example('127.0.0.1')
     # vsg_chirp_example('141.121.198.207')
     # vsg_dig_mod_example('141.121.198.207')
     # vsg_am_example('141.121.198.207')
-    vsg_mtone_example('141.121.198.207')
+    # vsg_mtone_example('141.121.198.207')
     # vector_uxg_arb_example('10.0.0.52')
     # vector_uxg_pdw_example('10.0.0.52')
     # vector_uxg_lan_streaming_example('10.0.0.52')
