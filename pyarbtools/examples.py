@@ -457,30 +457,46 @@ def vector_uxg_lan_streaming_example(ipAddress):
     uxg.disconnect()
 
 
-def analog_uxg_pdw_example(ipAddress):
+def analog_uxg_pdw_example(ipAddress)
     """Defines a pdw file for a chirp, and loads the
      pdw file into the UXG, and plays it out."""
 
+    # Create analog UXG object
     uxg = pyarbtools.instruments.AnalogUXG(ipAddress, port=5025, timeout=10, reset=False)
-    uxg.configure(rfState=0, modState=1, cf=1e9, amp=0)
-    uxg.err_check()
+
+    # UXG configuration variables
+    output = 0
+    modulation = 1
+    freq = 1e9
+    amplitude = -5
+
+    # Configure UXG
+    uxg.configure(rfState=output, modState=modulation, cf=freq, amp=amplitude)
 
     # Define and generate binary pdw file
+    pdwName = 'analog'
+    # Fields:
     # operation, freq, phase, startTimeSec, width, power, markers,
     # pulseMode, phaseControl, bandAdjust, chirpControl, fpc_code_selection,
     # chirpRate, freqMap
-    pdwName = 'analog'
-
-    #Last PDW with operation = 2 does not play since it is marked as end of PDW list
     pdwList = [[1, 980e6,  0, 0,     10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
                [0, 1e9,    0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0,       0],
                [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0,       0],
                [2, 1e9,    0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0,       0]]
     pdwFile = uxg.bin_pdw_file_builder(pdwList)
+
+    # Note: the last PDW starting with a '2' in the 'Operation'
+    # field marks the end of the PDW stream and does not play
+
+    # Download PDW file
     uxg.download_bin_pdw_file(pdwFile, pdwName=pdwName)
     uxg.err_check()
 
+    # Begin streaming
     uxg.stream_play(pdwID=pdwName)
+
+    # Check for errors and gracefully disconnect
+    uxg.err_check()
     uxg.disconnect()
 
 
