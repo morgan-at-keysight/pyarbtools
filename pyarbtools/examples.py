@@ -457,7 +457,7 @@ def vector_uxg_lan_streaming_example(ipAddress):
     uxg.disconnect()
 
 
-def analog_uxg_pdw_example(ipAddress)
+def analog_uxg_pdw_example(ipAddress):
     """Defines a pdw file for a chirp, and loads the
      pdw file into the UXG, and plays it out."""
 
