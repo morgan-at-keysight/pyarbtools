@@ -6,7 +6,7 @@ Generic waveform creation capabilities for pyarbtools.
 
 import numpy as np
 from scipy.signal import max_len_seq
-from pyarbtools import communications
+import socketscpi
 from pyarbtools import error
 from time import sleep
 import matplotlib.pyplot as plt
@@ -19,7 +19,7 @@ class WFM:
     Attributes:
         data (NumPy ndarray): Array of real or complex values that holds the waveform data.
         wfmFormat (str): Format of the waveform data ('iq' or 'real'). Determines data type of 'data' attribute.
-        fs (float): Sample rate used to create the waveform data.
+        fs (float): Sample rate used to create the waveform.
         wfmID (str): Waveform name/identifier.
     """
 
@@ -1228,7 +1228,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
         raise ValueError('Oversampling factor invalid. Choose 2, 4, 5, 10, or 20.')
 
     # Connect to VSA
-    vsa = communications.SocketInstrument(vsaIPAddress, 5025)
+    vsa = socketscpi.SocketInstrument(vsaIPAddress, 5025)
     vsa.write('system:preset')
     vsa.query('*opc?')
     hwList = vsa.query('system:vsa:hardware:configuration:catalog?').split(',')
