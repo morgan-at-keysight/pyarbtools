@@ -31,6 +31,7 @@ TODO:
 
 def wraparound_calc(length, gran, minLen):
     """
+    HELPER FUNCTION
     Computes the number of times to repeat a waveform based on
     generator granularity requirements.
     Args:
@@ -40,7 +41,6 @@ def wraparound_calc(length, gran, minLen):
 
     Returns:
         (int) Number of repeats required to satisfy gran and minLen requirements
-
     """
 
     repeats = 1
@@ -52,7 +52,23 @@ def wraparound_calc(length, gran, minLen):
 
 
 class M8190A(socketscpi.SocketInstrument):
-    """Generic class for controlling a Keysight M8190A AWG."""
+    """Generic class for controlling a Keysight M8190A AWG.
+
+    Attributes:
+        res (str): DAC resolution. Possible values are 'wsp', 'wpr', 'intx3', 'intx12', 'intx24', and 'intx48'
+        clkSrc (str): Sample clock source
+        fs (float): Sample clock rate
+        refSrc (str): Reference clock source
+        refFreq (float): Reference clock frequency
+        out1 (str): Output path for channel 1
+        out2 (str): Output path for channel 2
+        amp1 (float): Output amplitude for channel 1
+        amp2 (float): Output amplitude for channel 2
+        func1 (str): AWG function for channel 1
+        func2 (str): AWG function for channel 2
+        cf1 (float): Carrier frequency for channel 1
+        cf2 (float): Carrier frequency for channel 2
+    """
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
         super().__init__(host, port, timeout)
@@ -60,15 +76,10 @@ class M8190A(socketscpi.SocketInstrument):
             self.write('*rst')
             self.query('*opc?')
             self.write('abort')
+        # Query all settings from AWG and store them as class attributes
         self.res = self.query('trace1:dwidth?').strip().lower()
         self.func1 = self.query('func1:mode?').strip()
         self.func2 = self.query('func2:mode?').strip()
-        self.gran = 0
-        self.minLen = 0
-        self.binMult = 0
-        self.binShift = 0
-        self.intFactor = 1
-        self.idleGran = 0
         self.clkSrc = self.query('frequency:raster:source?').strip().lower()
         self.fs = float(self.query('frequency:raster?').strip())
         self.bbfs = self.fs
@@ -80,10 +91,19 @@ class M8190A(socketscpi.SocketInstrument):
         self.func2 = self.query('func2:mode?').strip()
         self.cf1 = float(self.query('carrier1:freq?').strip().split(',')[0])
         self.cf2 = float(self.query('carrier2:freq?').strip().split(',')[0])
+
+        # Initialize waveform format constants and populate them with check_resolution()
+        self.gran = 0
+        self.minLen = 0
+        self.binMult = 0
+        self.binShift = 0
+        self.intFactor = 1
+        self.idleGran = 0
         self.check_resolution()
 
     def sanity_check(self):
-        """Prints out initialized values."""
+        """Prints out user-accessible class attributes."""
+
         print('Sample rate:', self.fs)
         print('Baseband Sample Rate:', self.bbfs)
         print('Resolution:', self.res)
@@ -97,7 +117,7 @@ class M8190A(socketscpi.SocketInstrument):
     #               out2='dac', amp1=0.65, amp2=0.65, func1='arb', func2='arb', cf1=1e9, cf2=1e9):
     def configure(self, **kwargs):
         """
-        Sets basic configuration for M8190A and populates class attributes accordingly.
+        Sets basic configuration for M8190A and updates class attributes accordingly.
         Keyword Arguments:
             res (str): DAC resolution
             clkSrc (str): Sample clock source
@@ -114,7 +134,10 @@ class M8190A(socketscpi.SocketInstrument):
             cf2 (float): Carrier frequency for channel 2
         """
 
+        # Stop output before doing anything else
         self.write('abort')
+
+        # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == 'res':
                 self.set_resolution(value)
@@ -148,7 +171,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_clkSrc(self, clkSrc):
         """
-        Sets and reads clock source parameter.
+        Sets and reads clock source parameter using SCPI commands.
         Args:
             clkSrc (str): Sample clock source ('int', 'ext')
         """
@@ -160,7 +183,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_fs(self, fs):
         """
-        Sets and reads sample clock rate.
+        Sets and reads sample clock rate using SCPI commands.
         Args:
             fs (float): Sample clock rate.
         """
@@ -179,7 +202,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_output(self, ch, out):
         """
-        Sets and reads output signal path for a given channel.
+        Sets and reads output signal path for a given channel using SCPI commands.
         Args:
             ch (int): Channel to be configured
             out (str): Output path for channel ('dac', 'dc', 'ac')
@@ -197,7 +220,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_amp(self, ch, amp):
         """
-        Sets and reads amplitude (peak to peak value) of a given AWG channel.
+        Sets and reads amplitude (peak to peak value) of a given AWG channel using SCPI commands.
         Args:
             ch (int): Channel to be configured.
             amp (float): Output amplitude for channel
@@ -217,7 +240,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_func(self, ch, func):
         """
-        Sets and reads function (arb/sequence) of given AWG channel.
+        Sets and reads function (arb/sequence) of given AWG channel using SCPI commands.
         Args:
             ch (int): Channel to be configured
             func (str): AWG function for channel ('arb', 'sts', 'stsc')
@@ -236,7 +259,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_cf(self, ch, cf):
         """
-        Sets and reads center frequency of a given channel.
+        Sets and reads center frequency of a given channel using SCPI commands.
         Args:
             ch (int): Channel to be configured
             cf (float): Carrier frequency of channel
@@ -254,7 +277,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_refSrc(self, refSrc):
         """
-        Sets and reads reference clock source.
+        Sets and reads reference clock source using SCPI commands.
         Args:
             refSrc (str): Reference clock source ('axi', 'int', 'ext').
         """
@@ -267,7 +290,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_refFreq(self, refFreq):
         """
-        Sets and reads reference frequency.
+        Sets and reads reference frequency using SCPI commands.
         Args:
             refFreq (float): Reference clock frequency
         """
@@ -280,7 +303,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def set_resolution(self, res='wsp'):
         """
-        Sets and reads resolution based on user input.
+        Sets and reads resolution based on user input using SCPI commands.
         Args:
             res (str): DAC resolution of AWG ('wsp', 'wpr', 'intx3', 'intx12', 'intx24', 'intx48')
         """
@@ -293,19 +316,24 @@ class M8190A(socketscpi.SocketInstrument):
         self.check_resolution()
 
     def check_resolution(self):
-        """Populates gran, minLen, binMult, binShift, plus intFactor &
-        idleGran if using DUC. Values are chosen based on resolution setting."""
+        """
+        HELPER FUNCTION
+        Populates waveform formatting constants based on 'res' (DAC resolution) attribute.
+        """
 
+        # 'wpr' = Performance (14 bit)
         if self.res == 'wpr':
             self.gran = 48
             self.minLen = 240
             self.binMult = 8191
             self.binShift = 2
+        # 'wsp' = Speed (12 bits)
         elif self.res == 'wsp':
             self.gran = 64
             self.minLen = 320
             self.binMult = 2047
             self.binShift = 4
+        # 'intxX' = Digital Upconverter (DUC) (also 14 bits)
         elif 'intx' in self.res:
             # Granularity, min length, and binary format are the same for all interpolated modes.
             self.gran = 24
@@ -313,6 +341,7 @@ class M8190A(socketscpi.SocketInstrument):
             self.binMult = 16383
             self.binShift = 1
             self.intFactor = int(self.res.split('x')[-1])
+            # THIS IS IMPORTANT. If using the DUC, 'bbfs' should be used rather than 'fs' when creating waveforms.
             self.bbfs = self.fs / self.intFactor
             if self.intFactor == 3:
                 self.idleGran = 8
@@ -336,16 +365,19 @@ class M8190A(socketscpi.SocketInstrument):
             syncMkr (int): Index of the beginning of the sync marker.
 
         Returns:
-            (int): Segment number of the downloaded waveform.
+            (int): Segment number of the downloaded waveform. Use this as the waveform identifier for the .play() method.
         """
 
+        # Type checking
         if not isinstance(sampleMkr, int):
             raise TypeError('sampleMkr must be an int.')
         if not isinstance(syncMkr, int):
             raise TypeError('syncMkr must be an int.')
 
+        # Stop output before doing anything else
         self.write('abort')
         self.query('*opc?')
+        # IQ format is a little complex (hahaha)
         if wfmFormat.lower() == 'iq':
             if wfmData.dtype != np.complex:
                 raise TypeError('Invalid wfm type. IQ waveforms must be an array of complex values.')
@@ -353,23 +385,28 @@ class M8190A(socketscpi.SocketInstrument):
                 i = self.check_wfm(np.real(wfmData))
                 q = self.check_wfm(np.imag(wfmData))
 
+                # Create a 240-sample pulse in the sample marker waveform starting at the selected index
                 if sampleMkr:
                     markerData = np.zeros(len(i), dtype=np.int16)
                     markerData[sampleMkr:sampleMkr + 240] = 1
                     i += sampleMkr
+                # Create a 240-sample pulse in the sync marker waveform starting at the selected index
                 if syncMkr:
                     markerData = np.zeros(len(q), dtype=np.int16)
                     markerData[syncMkr:syncMkr + 240] = 1
                     q += syncMkr
 
+                # Interleave the I and Q arrays and adjust the length to compensate
                 wfm = self.iq_wfm_combiner(i, q)
                 length = len(wfm) / 2
+        # Real format is straightforward
         elif wfmFormat.lower() == 'real':
             wfm = self.check_wfm(wfmData)
             length = len(wfm)
         else:
             raise error.SockInstError('Invalid wfmFormat chosen. Use "iq" or "real".')
 
+        # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segment}, {length}')
         self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
@@ -400,7 +437,8 @@ class M8190A(socketscpi.SocketInstrument):
     @staticmethod
     def iq_wfm_combiner(i, q):
         """
-        Combines i and q wfms into a single interleaved wfm for download to AWG.
+        HELPER FUNCTION
+        Interleaves i and q wfms into a single array for download to AWG.
         Args:
             i (NumPy array): Array of real waveform samples.
             q (NumPy array): Array of imaginary waveform samples.
@@ -416,6 +454,7 @@ class M8190A(socketscpi.SocketInstrument):
 
     def check_wfm(self, wfm):
         """
+        HELPER FUNCTION
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting based on the chosen DAC resolution.
 
@@ -431,6 +470,7 @@ class M8190A(socketscpi.SocketInstrument):
 
         self.check_resolution()
 
+        # If waveform length doesn't meet granularity or minimum length requirements, repeat the waveform until it does
         repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
@@ -440,6 +480,7 @@ class M8190A(socketscpi.SocketInstrument):
         if rem != 0:
             raise error.GranularityError(f'Waveform must have a granularity of {self.gran}. Extra samples: {rem}')
 
+        # Apply the binary multiplier, cast to int16, and shift samples over if required
         return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
 
     def delete_segment(self, wfmID=1, ch=1):
@@ -450,6 +491,7 @@ class M8190A(socketscpi.SocketInstrument):
             ch (int): AWG channel from which the segment will be deleted.
         """
 
+        # Type checking
         if type(wfmID) != int or wfmID < 1:
             raise error.SockInstError('Segment ID must be a positive integer.')
         if ch not in [1, 2]:
