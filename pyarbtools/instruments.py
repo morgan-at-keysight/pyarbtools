@@ -412,6 +412,7 @@ class M8190A(socketscpi.SocketInstrument):
         self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
+        # Use 'segment' as the waveform identifier for the .play() method.
         return segment
 
     # def download_iq_wfm(self, i, q, ch=1, name='wfm'):
@@ -491,7 +492,7 @@ class M8190A(socketscpi.SocketInstrument):
             ch (int): AWG channel from which the segment will be deleted.
         """
 
-        # Type checking
+        # Argument checking
         if type(wfmID) != int or wfmID < 1:
             raise error.SockInstError('Segment ID must be a positive integer.')
         if ch not in [1, 2]:
@@ -533,13 +534,25 @@ class M8190A(socketscpi.SocketInstrument):
 
 # noinspection PyUnusedLocal,PyUnusedLocal
 class M8195A(socketscpi.SocketInstrument):
-    """Generic class for controlling Keysight M8195A AWG."""
+    """
+    Generic class for controlling Keysight M8195A AWG.
+
+    Attributes:
+        dacMode (str): DAC operation mode. ('single', 'dual', 'four', 'marker', 'dcd', 'dcmarker')
+        memDiv (int): Clock/memory divider rate. (1, 2, 4)
+        fs (float): AWG sample rate.
+        refSrc (str): Reference clock source. ('axi', 'int', 'ext')
+        refFreq (float): Reference clock frequency.
+        func (str): AWG mode, either arb or sequencing. ('arb', 'sts', 'stsc')
+    """
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
             self.query('*opc?')
+
+        # Query all settings from AWG and store them as class attributes
         self.dacMode = self.query('inst:dacm?').strip()
         self.memDiv = 1
         self.fs = float(self.query('frequency:raster?').strip())
@@ -547,6 +560,8 @@ class M8195A(socketscpi.SocketInstrument):
         self.func = self.query('func:mode?').strip()
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = float(self.query('roscillator:frequency?').strip())
+
+        # Initialize waveform format constants and populate them with check_resolution()
         self.gran = 256
         self.minLen = 1280
         self.binMult = 127
@@ -564,6 +579,11 @@ class M8195A(socketscpi.SocketInstrument):
             refFreq (float): Reference clock frequency.
             func (str): AWG mode, either arb or sequencing. ('arb', 'sts', 'stsc')
         """
+
+        # Stop output before doing anything else
+        self.write('abort')
+
+        # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == 'dacMode':
                 self.set_dacMode(value)
@@ -584,7 +604,7 @@ class M8195A(socketscpi.SocketInstrument):
 
     def set_dacMode(self, dacMode='single'):
         """
-        Sets and reads DAC mode for the M8195A
+        Sets and reads DAC mode for the M8195A using SCPI commands.
         Args:
             dacMode (str): DAC operation mode. ('single', 'dual', 'four', 'marker', 'dcd', 'dcmarker')
         """
@@ -597,7 +617,7 @@ class M8195A(socketscpi.SocketInstrument):
 
     def set_memDiv(self, memDiv=1):
         """
-        Sets and reads memory divider rate.
+        Sets and reads memory divider rate using SCPI commands.
         Args:
             memDiv (int): Clock/memory divider rate. (1, 2, 4)
         """
@@ -609,7 +629,7 @@ class M8195A(socketscpi.SocketInstrument):
 
     def set_fs(self, fs=65e9):
         """
-        Sets and reads sample rate.
+        Sets and reads sample rate using SCPI commands.
         Args:
             fs (float): AWG sample rate.
         """
@@ -622,7 +642,7 @@ class M8195A(socketscpi.SocketInstrument):
 
     def set_func(self, func='arb'):
         """
-        Sets and reads AWG function.
+        Sets and reads AWG function using SCPI commands.
         Args:
             func (str): AWG mode, either arb or sequencing. ('arb', 'sts', 'stsc')
         """
@@ -634,7 +654,7 @@ class M8195A(socketscpi.SocketInstrument):
 
     def set_refSrc(self, refSrc='axi'):
         """
-        Sets and reads reference source.
+        Sets and reads reference source using SCPI commands.
         Args:
             refSrc (str): Reference clock source. ('axi', 'int', 'ext')
         """
@@ -646,7 +666,7 @@ class M8195A(socketscpi.SocketInstrument):
 
     def set_refFreq(self, refFreq=100e6):
         """
-        Sets and reads reference frequency.
+        Sets and reads reference frequency using SCPI commands.
         Args:
             refFreq (float): Reference clock frequency.
         """
@@ -657,7 +677,8 @@ class M8195A(socketscpi.SocketInstrument):
         self.refFreq = float(self.query('roscillator:frequency?').strip())
 
     def sanity_check(self):
-        """Prints out initialized values."""
+        """Prints out user-accessible class attributes."""
+
         print('Sample rate:', self.fs)
         print('DAC Mode:', self.dacMode)
         print('Function:', self.func)
@@ -676,22 +697,26 @@ class M8195A(socketscpi.SocketInstrument):
             # syncMkr (int): Index of the beginning of the sync marker.
 
         Returns:
-            (int): Segment number of the downloaded waveform.
+            (int): Segment number of the downloaded waveform. Use this as the waveform identifier for the .play() method.
         """
 
+        # Stop output before doing anything else
         self.write('abort')
         wfm = self.check_wfm(wfmData)
         length = len(wfmData)
 
+        # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
         self.write(f'trace{ch}:def {segment}, {length}')
         self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
+        # Use 'segment' as the waveform identifier for the .play() method.
         return segment
 
     def check_wfm(self, wfmData):
         """
+        HELPER FUNCTION
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting.
 
@@ -705,6 +730,7 @@ class M8195A(socketscpi.SocketInstrument):
                 formatted appropriately for download to AWG
         """
 
+        # If waveform length doesn't meet granularity or minimum length requirements, repeat the waveform until it does
         repeats = wraparound_calc(len(wfmData), self.gran, self.minLen)
         wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
@@ -713,6 +739,7 @@ class M8195A(socketscpi.SocketInstrument):
         if rl % self.gran != 0:
             raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
+        # Apply the binary multiplier, cast to int16, and shift samples over if required
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
 
     def delete_segment(self, wfmID=1, ch=1):
@@ -723,6 +750,7 @@ class M8195A(socketscpi.SocketInstrument):
             ch (int): AWG channel from which the segment will be deleted.
         """
 
+        # Argument checking
         if type(wfmID) != int or wfmID < 1:
             raise error.SockInstError('Segment ID must be a positive integer.')
         if ch not in [1, 2, 3, 4]:
@@ -762,18 +790,30 @@ class M8195A(socketscpi.SocketInstrument):
 
 # noinspection PyUnusedLocal,PyUnusedLocal
 class M8196A(socketscpi.SocketInstrument):
-    """Generic class for controlling Keysight M8196A AWG."""
+    """
+    Generic class for controlling Keysight M8196A AWG.
+
+    Attributes:
+        dacMode (str): DAC operation mode. ('single', 'dual', 'four', 'marker', 'dcmarker')
+        fs (float): AWG sample rate.
+        refSrc (str): Reference clock source. ('axi', 'int', 'ext')
+        refFreq (float): Reference clock frequency.
+    """
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
             self.query('*opc?')
+
+        # Query all settings from AWG and store them as class attributes
         self.dacMode = self.query('inst:dacm?').strip()
         self.fs = float(self.query('frequency:raster?').strip())
         self.amp = float(self.query('voltage?').strip())
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = float(self.query('roscillator:frequency?').strip())
+
+        # Initialize waveform format constants and populate them with check_resolution()
         self.gran = 128
         self.minLen = 128
         self.maxLen = 524288
@@ -791,12 +831,16 @@ class M8196A(socketscpi.SocketInstrument):
             refFreq (float): Reference clock frequency.
         """
 
+        # Stop output before doing anything else
+        self.write('abort')
+
         # Built-in type and range checking for dacMode, fs, and amplitude
         if not isinstance(fs, float) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
         if not isinstance(refFreq, float) or refFreq <= 0:
             raise ValueError('Reference frequency must be a positive floating point value.')
 
+        # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == 'dacMode':
                 self.set_dacMode(value)
@@ -809,13 +853,13 @@ class M8196A(socketscpi.SocketInstrument):
             elif key == 'refFreq':
                 self.set_refFreq(value)
             else:
-                raise KeyError('Invalid keyword argument.')
+                raise KeyError('Invalid keyword argument. Use "dacMode", "fs", "refSrc", "refFreq".')
 
         self.err_check()
 
     def set_dacMode(self, dacMode='single'):
         """
-        Sets and reads DAC mode for the M8196A
+        Sets and reads DAC mode for the M8196A using SCPI commands
         Args:
             dacMode (str): DAC operation mode. ('single', 'dual', 'four', 'marker', 'dcd', 'dcmarker')
         """
@@ -828,7 +872,7 @@ class M8196A(socketscpi.SocketInstrument):
 
     def set_fs(self, fs=92e9):
         """
-        Sets and reads sample rate.
+        Sets and reads sample rate using SCPI commands.
         Args:
             fs (float): AWG sample rate.
         """
@@ -840,7 +884,7 @@ class M8196A(socketscpi.SocketInstrument):
 
     def set_refSrc(self, refSrc='axi'):
         """
-        Sets and reads reference source.
+        Sets and reads reference source using SCPI commands.
         Args:
             refSrc (str): Reference clock source. ('axi', 'int', 'ext')
         """
@@ -852,7 +896,7 @@ class M8196A(socketscpi.SocketInstrument):
 
     def set_refFreq(self, refFreq=100e6):
         """
-        Sets and reads reference frequency.
+        Sets and reads reference frequency using SCPI commands.
         Args:
             refFreq (float): Reference clock frequency.
         """
@@ -886,7 +930,8 @@ class M8196A(socketscpi.SocketInstrument):
         self.refFreq = float(self.query('roscillator:frequency?').strip())
 
     def sanity_check(self):
-        """Prints out initialized values."""
+        """Prints out user-accessible class attributes."""
+
         print('Sample rate:', self.fs)
         print('DAC Mode:', self.dacMode)
         print('Ref source:', self.refSrc)
@@ -904,22 +949,27 @@ class M8196A(socketscpi.SocketInstrument):
             # syncMkr (int): Index of the beginning of the sync marker.
 
         Returns:
-            (int): Segment number of the downloaded waveform.
+            (int): Segment number of the downloaded waveform. Use this as the waveform identifier for the .play() method.
         """
 
+        # Stop output before doing anything else
+        self.write('abort')
         self.clear_all_wfm()
         wfm = self.check_wfm(wfmData)
         length = len(wfm)
 
+        # Initialize waveform segment, populate it with data, and provide a name
         segment = 1
         self.write(f'trace{ch}:def {segment}, {length}')
         self.binblockwrite(f'trace{ch}:data {segment}, 0, ', wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
+        # Use 'segment' as the waveform identifier for the .play() method.
         return segment
 
     def check_wfm(self, wfmData):
         """
+        HELPER FUNCTION
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting.
 
@@ -933,6 +983,7 @@ class M8196A(socketscpi.SocketInstrument):
                 formatted appropriately for download to AWG
         """
 
+        # If waveform length doesn't meet granularity or minimum length requirements, repeat the waveform until it does
         repeats = wraparound_calc(len(wfmData), self.gran, self.minLen)
         wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
@@ -943,10 +994,11 @@ class M8196A(socketscpi.SocketInstrument):
         if rl % self.gran != 0:
             raise error.GranularityError(f'Waveform must have a granularity of {self.gran}.')
 
+        # Apply the binary multiplier, cast to int16, and shift samples over if required
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
 
     def delete_segment(self):
-        """Deletes waveform segment"""
+        """Deletes waveform segment (M8196A only has one)."""
         self.clear_all_wfm()
 
     def clear_all_wfm(self):
@@ -980,13 +1032,27 @@ class M8196A(socketscpi.SocketInstrument):
 
 class VSG(socketscpi.SocketInstrument):
     def __init__(self, host, port=5025, timeout=10, reset=False):
-        """Generic class for controlling the EXG, MXG, PSG, and M938X
-        family signal generators."""
+        """
+        Generic class for controlling the EXG, MXG, PSG, and M938X
+        family signal generators.
+
+        Attributes:
+            rfState (int): Turns the RF output on or off. (1, 0)
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+            cf (float): Sets the generator's carrier frequency.
+            amp (int/float): Sets the generator's RF output power.
+            alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
+            iqScale (int): Scales the IQ modulator. Default/safe value is 70
+            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
+            fs (float): Sets the sample rate of the baseband generator.
+        """
 
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
             self.query('*opc?')
+
+        # Query all settings from VSG and store them as class attributes
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.cf = float(self.query('frequency?').strip())
@@ -995,7 +1061,6 @@ class VSG(socketscpi.SocketInstrument):
         self.refSrc = self.query('roscillator:source?').strip()
         self.arbState = self.query('radio:arb:state?').strip()
         # self.fs = float(self.query('radio:arb:sclock:rate?').strip())
-
         if 'int' in self.refSrc.lower():
             self.refFreq = 10e6
         elif 'ext' in self.refSrc.lower():
@@ -1008,6 +1073,7 @@ class VSG(socketscpi.SocketInstrument):
         else:
             raise error.VSGError('Unknown refSrc selected.')
 
+        # Initialize waveform format constants and populate them with check_resolution()
         self.minLen = 60
         self.binMult = 32767
         if 'M938' not in self.instId:
@@ -1031,6 +1097,7 @@ class VSG(socketscpi.SocketInstrument):
             fs (float): Sets the sample rate of the baseband generator.
         """
 
+        # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == 'rfState':
                 self.set_rfState(value)
@@ -1059,7 +1126,7 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_rfState(self, rfState):
         """
-        Sets and reads the state of the RF output.
+        Sets and reads the state of the RF output using SCPI commands.
         Args:
             rfState (int): Turns the RF output on or off. (1, 0)
         """
@@ -1069,7 +1136,7 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_modState(self, modState):
         """
-        Sets and reads the state of the internal baseband modulator.
+        Sets and reads the state of the internal baseband modulator output using SCPI commands.
         Args:
             modState (int): Turns the baseband modulator on or off. (1, 0)
         """
@@ -1079,7 +1146,7 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_cf(self, cf):
         """
-        Sets and reads the center frequency of the signal generator.
+        Sets and reads the center frequency of the signal generator output using SCPI commands.
         Args:
             cf (float): Sets the generator's carrier frequency.
         """
@@ -1091,7 +1158,7 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_amp(self, amp):
         """
-        Sets and reads the output amplitude of signal generator.
+        Sets and reads the output amplitude of signal generator output using SCPI commands.
         Args:
             amp (int/float): Sets the generator's RF output power.
         """
@@ -1103,8 +1170,8 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_alcState(self, alcState):
         """
-        Sets and reads the state of the ALC (automatic level control). This should be turned off
-        for narrow pulses and signals with rapid amplitude changes.
+        Sets and reads the state of the ALC (automatic level control) output using SCPI commands.
+        This should be turned off for narrow pulses and signals with rapid amplitude changes.
         Args:
             alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
         """
@@ -1114,7 +1181,8 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_iqScale(self, iqScale):
         """
-        Sets and reads the scaling of the baseband IQ waveform. Default should be about 70 percent to avoid clipping.
+        Sets and reads the scaling of the baseband IQ waveform output using SCPI commands.
+        Should be about 70 percent to avoid clipping.
         Args:
             iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
         """
@@ -1129,7 +1197,7 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_refSrc(self, refSrc):
         """
-        Sets and reads the reference clock source.
+        Sets and reads the reference clock source output using SCPI commands.
         Args:
             refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
         """
@@ -1147,7 +1215,7 @@ class VSG(socketscpi.SocketInstrument):
 
     def set_fs(self, fs):
         """
-        Sets and reads sample  rate of internal arb.
+        Sets and reads sample  rate of internal arb output using SCPI commands.
         Args:
             fs (float): Sample rate.
         """
@@ -1158,7 +1226,7 @@ class VSG(socketscpi.SocketInstrument):
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
 
     def sanity_check(self):
-        """Prints out initialized values."""
+        """Prints out user-accessible class attributes."""
         print('RF State:', self.rfState)
         print('Modulation State:', self.modState)
         print('Center Frequency:', self.cf)
@@ -1179,8 +1247,13 @@ class VSG(socketscpi.SocketInstrument):
             wfmID (str): Waveform name.
 
         Returns:
-            (str): Useful waveform identifier/name.
+            (str): Useful waveform identifier/name. Use this as the waveform identifier for the .play() method.
         """
+
+        # Stop output before doing anything else
+        self.write('radio:arb:state off')
+        self.write('modulation:state off')
+        self.arbState = self.query('radio:arb:state?').strip()
 
         # Adjust endianness for M9381/3A
         if 'M938' in self.instId:
@@ -1188,10 +1261,7 @@ class VSG(socketscpi.SocketInstrument):
         else:
             bigEndian = True
 
-        self.write('radio:arb:state off')
-        self.write('modulation:state off')
-        self.arbState = self.query('radio:arb:state?').strip()
-
+        # Waveform format checking. VSGs can only use 'iq' format waveforms.
         if wfmData.dtype != np.complex:
             raise TypeError('Invalid wfm type. IQ waveforms must be an array of complex values.')
         else:
@@ -1200,7 +1270,7 @@ class VSG(socketscpi.SocketInstrument):
 
             wfm = self.iq_wfm_combiner(i, q)
 
-        # M9381/3A Download Procedure
+        # M9381/3A download procedure is slightly different from X-series sig gens
         if 'M938' in self.instId:
             try:
                 self.write(f'memory:delete "{wfmID}"')
@@ -1213,16 +1283,19 @@ class VSG(socketscpi.SocketInstrument):
                 pass
             self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
             self.write(f'memory:copy "C:\\Temp\\{wfmID}","{wfmID}"')
-        # EXG/MXG/PSG Download Procedure
+
+        # EXG/MXG/PSG download procedure
         else:
             self.binblockwrite(f'mmemory:data "WFM1:{wfmID}", ', wfm)
             self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
+        # Use 'wfmID' as the waveform identifier for the .play() method.
         return wfmID
 
     @staticmethod
     def iq_wfm_combiner(i, q):
         """
+        HELPER FUNCTION
         Combines i and q wfms into a single interleaved wfm for download to generator.
         Args:
             i (NumPy array): Array of real waveform samples.
@@ -1239,6 +1312,7 @@ class VSG(socketscpi.SocketInstrument):
 
     def check_wfm(self, wfm, bigEndian=True):
         """
+        HELPER FUNCTION
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting. Note that sig gens expect big endian
         byte order.
@@ -1254,6 +1328,7 @@ class VSG(socketscpi.SocketInstrument):
                 formatted appropriately for download to AWG
         """
 
+        # If waveform length doesn't meet granularity or minimum length requirements, repeat the waveform until it does
         repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
@@ -1298,6 +1373,7 @@ class VSG(socketscpi.SocketInstrument):
             wfmID (str): Waveform identifier, used to select waveform to be played.
         """
 
+        # Waveform selection is slightly different between PXIe and standalone sig gens.
         if 'M938' in self.instId:
             self.write(f'radio:arb:waveform "{wfmID}"')
         else:
@@ -1323,12 +1399,32 @@ class VSG(socketscpi.SocketInstrument):
 
 class VXG(socketscpi.SocketInstrument):
     def __init__(self, host, port=5025, timeout=10, reset=False):
-        """Generic class for controlling the M9384B VXG signal generator."""
+        """
+        Generic class for controlling the M9384B VXG signal generator.
+
+        Attributes:
+            rfState (int): Turns the RF output on or off. (1, 0)
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+            cf (float): Sets the generator's carrier frequency.
+            amp (int/float): Sets the generator's RF output power.
+            alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
+            iqScale (int): Scales the IQ modulator. Default/safe value is 70
+            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
+            fs (float): Sets the sample rate of the baseband generator.
+        """
+
+        """
+        ************************************
+        THIS CLASS IS STILL LARGELY UNTESTED
+        ************************************
+        """
 
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
             self.query('*opc?')
+
+        # Query all settings from VXG and store them as class attributes
         self.rf1State = self.query('rf1:output?').strip()
         self.mod1State = self.query('rf1:output:modulation?').strip()
         self.cf1 = float(self.query('source:rf1:frequency?').strip())
@@ -1352,6 +1448,7 @@ class VXG(socketscpi.SocketInstrument):
         else:
             raise error.VSGError('Unknown refSrc selected.')
 
+        # Initialize waveform format constants and populate them with check_resolution()
         self.minLen = 512
         self.binMult = 32767
         self.gran = 8
@@ -1371,6 +1468,7 @@ class VXG(socketscpi.SocketInstrument):
             fs (float): Sets the sample rate of the baseband generator.
         """
 
+        # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == 'rfState':
                 self.set_rfState(value)
@@ -1399,7 +1497,7 @@ class VXG(socketscpi.SocketInstrument):
 
     def set_rfState(self, rfState):
         """
-        Sets and reads the state of the RF output.
+        Sets and reads the state of the RF output using SCPI commands.
         Args:
             rfState (int): Turns the RF output on or off. (1, 0)
         """
@@ -1409,17 +1507,17 @@ class VXG(socketscpi.SocketInstrument):
 
     def set_modState(self, modState):
         """
-        Sets and reads the state of the internal baseband modulator.
+        Sets and reads the state of the internal baseband modulator output using SCPI commands.
         Args:
             modState (int): Turns the baseband modulator on or off. (1, 0)
         """
 
-        self.write(f'rf1:output:modulation {modState}')
-        self.modState = int(self.query('rf1:output:modulation?').strip())
+        self.write(f'output:modulation {modState}')
+        self.modState = int(self.query('output:modulation?').strip())
 
     def set_cf(self, cf):
         """
-        Sets and reads the center frequency of the signal generator.
+        Sets and reads the center frequency of the signal generator output using SCPI commands.
         Args:
             cf (float): Sets the generator's carrier frequency.
         """
@@ -1431,7 +1529,7 @@ class VXG(socketscpi.SocketInstrument):
 
     def set_amp(self, amp):
         """
-        Sets and reads the output amplitude of signal generator.
+        Sets and reads the output amplitude of signal generator output using SCPI commands.
         Args:
             amp (int/float): Sets the generator's RF output power.
         """
@@ -1443,8 +1541,8 @@ class VXG(socketscpi.SocketInstrument):
 
     def set_alcState(self, alcState):
         """
-        Sets and reads the state of the ALC (automatic level control). This should be turned off
-        for narrow pulses and signals with rapid amplitude changes.
+        Sets and reads the state of the ALC (automatic level control) output using SCPI commands.
+        This should be turned off for narrow pulses and signals with rapid amplitude changes.
         Args:
             alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
         """
@@ -1454,7 +1552,8 @@ class VXG(socketscpi.SocketInstrument):
 
     def set_iqScale(self, iqScale):
         """
-        Sets and reads the scaling of the baseband IQ waveform. Default should be about 70 percent to avoid clipping.
+        Sets and reads the scaling of the baseband IQ waveform output using SCPI commands.
+        Should be about 70 percent to avoid clipping.
         Args:
             iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
         """
@@ -1464,12 +1563,12 @@ class VXG(socketscpi.SocketInstrument):
 
         # M9381/3A don't have an IQ scaling command.
         if 'M938' not in self.instId:
-            self.write(f'signal:waveform:scale {iqScale}')
+            self.write(f'radio:arb:rscaling {iqScale}')
             self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
     def set_refSrc(self, refSrc):
         """
-        Sets and reads the reference clock source.
+        Sets and reads the reference clock source output using SCPI commands.
         Args:
             refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
         """
@@ -1487,7 +1586,7 @@ class VXG(socketscpi.SocketInstrument):
 
     def set_fs(self, fs):
         """
-        Sets and reads sample  rate of internal arb.
+        Sets and reads sample  rate of internal arb using SCPI commands.
         Args:
             fs (float): Sample rate.
         """
@@ -1519,13 +1618,15 @@ class VXG(socketscpi.SocketInstrument):
             wfmID (str): Waveform name.
 
         Returns:
-            (str): Useful waveform identifier/name.
+            (str): Useful waveform identifier/name. Use this as the waveform identifier for the .play() method.
         """
 
+        # Stop output before doing anything else
         self.write('radio:arb:state off')
         self.write('rf1:output:modulation off')
         self.arbState = self.query('radio:arb:state?').strip()
 
+        # Waveform format checking. VXG can only use 'iq' format waveforms.
         if wfmData.dtype != np.complex:
             raise TypeError('Invalid wfm type. IQ waveforms must be an array of complex values.')
         else:
@@ -1566,6 +1667,7 @@ class VXG(socketscpi.SocketInstrument):
 
     def check_wfm(self, wfm):
         """
+        HELPER FUNCTION
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting. Note that sig gens expect big endian
         byte order.
@@ -1581,6 +1683,7 @@ class VXG(socketscpi.SocketInstrument):
                 formatted appropriately for download to AWG
         """
 
+        # If waveform length doesn't meet granularity or minimum length requirements, repeat the waveform until it does
         repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
@@ -1643,7 +1746,15 @@ class VXG(socketscpi.SocketInstrument):
 
 # noinspection PyUnusedLocal
 class AnalogUXG(socketscpi.SocketInstrument):
-    """Generic class for controlling the N5193A Analog UXG agile signal generators."""
+    """
+    Generic class for controlling the N5193A Analog UXG agile signal generators.
+
+    Attributes:
+        rfState (int): Turns the RF output on or off. (1, 0)
+        modState (int): Turns the modulator on or off. (1, 0)
+        cf (float): Sets the generator's carrier frequency.
+        amp (int/float): Sets the generator's RF output power.
+    """
 
     def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False):
         super().__init__(host, port, timeout)
@@ -1653,14 +1764,14 @@ class AnalogUXG(socketscpi.SocketInstrument):
         # Clear all files
         if clearMemory:
             self.clear_memory()
-        self.host = host
 
-        #Check N5193A to make sure Streaming mode is selected
+        # Check N5193A to make sure Streaming mode is selected
         mode = self.query('inst:select?').strip()
         if (mode != "STR"):
             self.write('inst:select str')
-            self.query('*IDN?')
+            self.query('*opc?')
 
+        # Query all settings from UXG and store them as class attributes
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.streamState = self.query('stream:state?').strip()
@@ -1673,6 +1784,9 @@ class AnalogUXG(socketscpi.SocketInstrument):
         # Stream state should be turned off until streaming is needed.
         self.write('stream:state off')
         self.streamState = self.query('stream:state?').strip()
+
+        # Set up host address for streaming purposes
+        self.host = host
 
         # Set up separate socket for LAN PDW streaming
         self.lanStream = socketscpi.socket.socket(
@@ -1696,6 +1810,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
             amp (int/float): Sets the generator's RF output power.
         """
 
+        # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == 'rfState':
                 self.set_rfState(value)
@@ -1711,7 +1826,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
     def set_rfState(self, rfState):
         """
-        Sets and reads the state of the RF output.
+        Sets and reads the state of the RF output using SCPI commands.
         Args:
             rfState (int): Turns the RF output on or off. (1, 0)
         """
@@ -1721,7 +1836,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
     def set_modState(self, modState):
         """
-        Sets and reads the state of the internal baseband modulator.
+        Sets and reads the state of the internal baseband modulator output using SCPI commands.
         Args:
             modState (int): Turns the baseband modulator on or off. (1, 0)
         """
@@ -1731,7 +1846,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
     def set_cf(self, cf):
         """
-        Sets and reads the center frequency of the signal generator.
+        Sets and reads the center frequency of the signal generator output using SCPI commands.
         Args:
             cf (float): Sets the generator's carrier frequency.
         """
@@ -1743,7 +1858,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
     def set_amp(self, amp):
         """
-        Sets and reads the output amplitude of signal generator.
+        Sets and reads the output amplitude of signal generator output using SCPI commands.
         Args:
             amp (int/float): Sets the generator's RF output power.
         """
@@ -1754,7 +1869,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
         self.amp = float(self.query('power?').strip())
 
     def sanity_check(self):
-        """Prints out initialized values."""
+        """Prints out user-accessible class attributes."""
         print('RF State:', self.rfState)
         print('Modulation State:', self.modState)
         print('Center Frequency:', self.cf)
@@ -1777,7 +1892,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
     @staticmethod
     def convert_to_floating_point(inputVal, exponentOffset, mantissaBits, exponentBits):
         """
-        THIS FUNCTION WAS NOT WRITTEN BY THE AUTHOR
+        HELPER FUNCTION NOT WRITTEN BY THE AUTHORS
         Computes modified floating point value represented by specified
         floating point parameters.
         fp = gain * mantissa^mantissaExponent * 2^exponentOffset
@@ -1825,7 +1940,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
     @staticmethod
     def closest_m_2_n(inputVal, mantissaBits, exponent_bits):
         """
-        THIS FUNCTION WAS NOT WRITTEN BY THE AUTHOR
+        HELPER FUNCTION NOT WRITTEN BY THE AUTHORS
         Converts the specified value to the hardware representation in Mantissa*2^Exponent form
         Args:
             inputVal:
@@ -1833,7 +1948,6 @@ class AnalogUXG(socketscpi.SocketInstrument):
             exponent_bits:
 
         Returns:
-
         """
 
         success = True
@@ -1867,7 +1981,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
     def chirp_closest_m_2_n(self, chirpRate, chirpRateRes=21.822):
         """
-        THIS FUNCTION WAS NOT WRITTEN BY THE AUTHOR
+        HELPER FUNCTION NOT WRITTEN BY THE AUTHORS
         Convert the specified value to the hardware representation in Mantissa*2^Exponent form for Chirp parameters
         NOTE: I am not sure why the conversion factor of 21.82 needs to be there, but the math works out perfectly
         Args:
@@ -1961,16 +2075,17 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
 
     def paddingBlock(self, sizeOfPaddingAndHeaderInBytes):
-        """Creates an analog UXG binary padding block with header.  The padding block
-            is used to align binary blocks as needed so each block starts on a 16 byte
-            boundary.  This padding block is also used to align PDW streaming data on
-            4096 byte boundaries.
+        """
+        Creates an analog UXG binary padding block with header. The padding block
+        is used to align binary blocks as needed so each block starts on a 16 byte
+        boundary.  This padding block is also used to align PDW streaming data on
+        4096 byte boundaries.
 
-            Args:
-                sizeOfPaddingAndHeaderInBytes (int): Total size of resulting padding
-                    binary block and header combined.
-            Returns:
-                binary block containing padding header and padded data
+        Args:
+            sizeOfPaddingAndHeaderInBytes (int): Total size of resulting padding
+                binary block and header combined.
+        Returns:
+            binary block containing padding header and padded data
         """
 
         paddingHeaderSize = 16
@@ -1992,19 +2107,20 @@ class AnalogUXG(socketscpi.SocketInstrument):
     def bin_freqPhaseCodingSingleEntry(self, onOffState=0, numBitsPerSubpulse=1, codingType=0,
                                        stateMapping=[0,180], hexPatternString="E2",
                                        comment="default Comment"):
-        """Creates a single entry binary frequency and phase coding block
-         for analog UXG streaming.  This is only part of a full frequency and phase coding
-         block with multiple entries for each pattern to be streamed to UXG.
-             Args:
-                 onOffState (int): Activation state for current FPC entry
-                 numBitsPerSubpulse (int): = number of bits per subpulse.  E.g. For BPSK, this is 1
-                 codingType (int): 0=phase coding, 1= frequency coding, 2 = both phase and frequency coding
-                 stateMapping (double array): 2^numBitsPerSubpulse entries of phase / freq states
-                 hexPatternString (string):  Hex values to encode in FPC table e.g. "A2F4" multiple of 2 in length
-                 comment (string): FPC entry name
+        """
+        Creates a single entry binary frequency and phase coding block
+        for analog UXG streaming.  This is only part of a full frequency and phase coding
+        block with multiple entries for each pattern to be streamed to UXG.
+            Args:
+                onOffState (int): Activation state for current FPC entry
+                numBitsPerSubpulse (int): = number of bits per subpulse.  E.g. For BPSK, this is 1
+                codingType (int): 0=phase coding, 1= frequency coding, 2 = both phase and frequency coding
+                stateMapping (double array): 2^numBitsPerSubpulse entries of phase / freq states
+                hexPatternString (string):  Hex values to encode in FPC table e.g. "A2F4" multiple of 2 in length
+                comment (string): FPC entry name
 
-             Returns:
-                 binary array containing bytes for a single frequency phase entry
+            Returns:
+                binary array containing bytes for a single frequency phase entry
 
              TODO - Combination of simultaneous phase and frequency modulation not yet implemented
         """
@@ -2047,22 +2163,24 @@ class AnalogUXG(socketscpi.SocketInstrument):
         return fpcBin
 
     def bin_pdw_freqPhaseCodingBlock(self):
-        """Creates a complete frequency and phase coding block containing header and data
-         for analog UXG streaming.
-         This block is used to describe variable length pulse frequency/phase coding setups.
-         This allows frequency and phase coding tables to be updated over ethernet streaming
-         instead of having to send SCPI commands.
-http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/Streaming%20Mode%20File%20Format%20Definition.htm%3FTocPath%3DUser's%2520Guide%7CStreaming%2520Mode%2520Use%7C_____5
+        """
+        Creates a complete frequency and phase coding block containing header and data
+        for analog UXG streaming.
+        This block is used to describe variable length pulse frequency/phase coding setups.
+        This allows frequency and phase coding tables to be updated over ethernet streaming
+        instead of having to send SCPI commands.
+        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/Streaming%20Mode%20File%20Format%20Definition.htm%3FTocPath%3DUser's%2520Guide%7CStreaming%2520Mode%2520Use%7C_____5
 
-             Args:
-                 none: currently hardcoded to create FCP block with 3 fixed entries
-                       first  entry is index 0 in FPC table - no coding
-                       second entry is index 1 in FPC table - PSK
-                       third  entry is index 2 in FPC table - FSK
+         Args:
+             none: currently hardcoded to create FCP block with 3 fixed entries
+                   first  entry is index 0 in FPC table - no coding
+                   second entry is index 1 in FPC table - PSK
+                   third  entry is index 2 in FPC table - FSK
 
              Returns:
                  binary byte array containing full FCP block with header
         """
+
         numEntries = 3
 
         freqPhaseBlockId = (13).to_bytes(4, byteorder='little')
@@ -2101,13 +2219,12 @@ http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/
         Keysight UXG X-Series Agile Signal Generator Online Documentation
         http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm
         Args:
-            pdwList (list): List of lists. Each inner list contains a single
-        pulse descriptor word.
+            pdwList (list): List of lists. Each inner list contains a single pulse descriptor word.
 
         Returns:
-            (bytes): Binary data that contains a full PDW file that can
-                be downloaded to and played out of the UXG.
+            (bytes): Binary data that contains a full PDW file that can be downloaded to and played out of the UXG.
         """
+
         #Include frequency phase coding block flag: 1 = yes, 0 = no
         includeFpcBlock = 1
 
@@ -2161,8 +2278,7 @@ http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/
         """
         Downloads binary PDW file to PDW directory in UXG.
         Args:
-            pdwFile (bytes): Binary data containing PDW file, generally
-                created by the bin_pdw_file_builder() method.
+            pdwFile (bytes): Binary data containing PDW file, generally created by the bin_pdw_file_builder() method.
             pdwName (str): Name of PDW file.
         """
 
@@ -2174,10 +2290,10 @@ http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/
         Assigns pdw/windex, activates RF output, modulation, and
         streaming mode, and triggers streaming output.
         Args:
-            pdwID (str): Name of PDW file used as the source of the
-                streaming data.
+            pdwID (str): Name of PDW file used as the source of the streaming data.
         """
 
+        # Assign pdw file
         self.write('stream:source file')
         self.write(f'stream:source:file:name "{pdwID}"')
         self.err_check()
@@ -2203,8 +2319,16 @@ http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/
 
 
 class VectorUXG(socketscpi.SocketInstrument):
-    """Generic class for controlling the N5194A + N5193A (Vector + Analog)
-    UXG agile signal generators."""
+    """
+    Generic class for controlling the N5194A + N5193A (Vector + Analog) UXG agile signal generators.
+
+    Attributes:
+        rfState (int): Turns the RF output on or off. (1, 0)
+        modState (int): Turns the modulator on or off. (1, 0)
+        cf (float): Sets the generator's carrier frequency.
+        amp (int/float): Sets the generator's RF output power.
+        iqScale (int): Scales the IQ modulator. Default/safe value is 70
+    """
 
     def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False, errCheck=True):
         super().__init__(host, port, timeout)
@@ -2212,7 +2336,7 @@ class VectorUXG(socketscpi.SocketInstrument):
             self.write('*rst')
             self.query('*opc?')
 
-        self.host = host
+        # Query all settings from VXG and store them as class attributes
         self.rfState = self.query('output?').strip()
         self.modState = self.query('output:modulation?').strip()
         self.arbState = self.query('radio:arb:state?').strip()
@@ -2235,6 +2359,9 @@ class VectorUXG(socketscpi.SocketInstrument):
         # Arb state can only be turned on after a waveform has been loaded/selected.
         self.write('radio:arb:state off')
         self.arbState = self.query('radio:arb:state?').strip()
+
+        # Set up host for streaming socket
+        self.host = host
 
         # Set up separate socket for LAN PDW streaming
         self.lanStream = socketscpi.socket.socket(
@@ -2259,6 +2386,7 @@ class VectorUXG(socketscpi.SocketInstrument):
             iqScale (int): Scales the IQ modulator. Default/safe value is 70
         """
 
+        # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == 'rfState':
                 self.set_rfState(value)
@@ -2279,7 +2407,7 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_rfState(self, rfState):
         """
-        Sets and reads the state of the RF output.
+        Sets and reads the state of the RF output using SCPI commands.
         Args:
             rfState (int): Turns the RF output on or off. (1, 0)
         """
@@ -2289,7 +2417,7 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_modState(self, modState):
         """
-        Sets and reads the state of the internal baseband modulator.
+        Sets and reads the state of the internal baseband modulator using SCPI commands.
         Args:
             modState (int): Turns the baseband modulator on or off. (1, 0)
         """
@@ -2299,7 +2427,7 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_cf(self, cf):
         """
-        Sets and reads the center frequency of the signal generator.
+        Sets and reads the center frequency of the signal generator using SCPI commands.
         Args:
             cf (float): Sets the generator's carrier frequency.
         """
@@ -2311,7 +2439,7 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_amp(self, amp):
         """
-        Sets and reads the output amplitude of signal generator.
+        Sets and reads the output amplitude of signal generator using SCPI commands.
         Args:
             amp (int/float): Sets the generator's RF output power.
         """
@@ -2323,7 +2451,8 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_iqScale(self, iqScale):
         """
-        Sets and reads the scaling of the baseband IQ waveform. Default should be about 70 percent to avoid clipping.
+        Sets and reads the scaling of the baseband IQ waveform using SCPI commands.
+        Should be about 70 percent to avoid clipping.
         Args:
             iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
         """
@@ -2338,6 +2467,7 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def stream_configure(self, source='file', trigState=True, trigSource='bus', trigInPort=None, trigPeriod=1e-3, trigOutPort=None):
         """
+        WORK IN PROGRESS
         Configures streaming on the UXG.
         Args:
             source (str): Selects the streaming source. ('file', 'lan')
@@ -2676,6 +2806,7 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def check_wfm(self, wfm, bigEndian=True):
         """
+        HELPER FUNCTION
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting. Note that sig gens expect big endian
         byte order.
@@ -2691,6 +2822,7 @@ class VectorUXG(socketscpi.SocketInstrument):
                 formatted appropriately for download to AWG
         """
 
+        # If waveform length doesn't meet granularity or minimum length requirements, repeat the waveform until it does
         repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
@@ -2769,6 +2901,7 @@ class VectorUXG(socketscpi.SocketInstrument):
                 with the same name as the PDW file.
         """
 
+        # Set up pdw streaming file
         self.write('stream:source file')
         self.write(f'stream:source:file:name "{pdwID}"')
 
