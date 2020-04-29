@@ -5,8 +5,7 @@ Builds instrument specific classes for each signal generator.
 The classes include minimum waveform length/granularity checks, binary
 waveform formatting, sequencer length/granularity checks, sample rate
 checks, etc. per instrument.
-Tested on M8190A, M8195A, M8196A,
-N5182B, E8257D, M9383A, N5193A, N5194A
+Tested on M8190A, M8195A, M8196A, N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
 import numpy as np
@@ -18,8 +17,7 @@ from pyarbtools import error
 """
 TODO:
 * Bugfix: fix zero/hold behavior on VectorUXG LAN pdw streaming
-* Add check to each instrument class to ensure that the correct
-    instrument is connected
+* Add check to each instrument class to ensure that the correct instrument is connected
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
 * DONE -- Separate out configure() into individual methods that update class attributes
@@ -543,6 +541,7 @@ class M8195A(socketscpi.SocketInstrument):
         fs (float): AWG sample rate.
         refSrc (str): Reference clock source. ('axi', 'int', 'ext')
         refFreq (float): Reference clock frequency.
+        amp1/2/3/4 (float): Output amplitude in volts pk-pk. (min=75 mV, max=1 V)
         func (str): AWG mode, either arb or sequencing. ('arb', 'sts', 'stsc')
     """
 
@@ -560,6 +559,10 @@ class M8195A(socketscpi.SocketInstrument):
         self.func = self.query('func:mode?').strip()
         self.refSrc = self.query('roscillator:source?').strip()
         self.refFreq = float(self.query('roscillator:frequency?').strip())
+        self.amp1 = float(self.query('voltage1?'))
+        self.amp2 = float(self.query('voltage2?'))
+        self.amp3 = float(self.query('voltage3?'))
+        self.amp4 = float(self.query('voltage4?'))
 
         # Initialize waveform format constants and populate them with check_resolution()
         self.gran = 256
@@ -567,7 +570,7 @@ class M8195A(socketscpi.SocketInstrument):
         self.binMult = 127
         self.binShift = 0
 
-    # def configure(self, dacMode='single', memDiv=1, fs=64e9, refSrc='axi', refFreq=100e6, func='arb'):
+    # def configure(self, dacMode='single', memDiv=1, fs=64e9, refSrc='axi', refFreq=100e6, amp1=300e-3, amp2=300e-3, amp3=300e-3, amp4=300e-3, func='arb'):
     def configure(self, **kwargs):
         """
         Sets basic configuration for M8195A and populates class attributes accordingly.
@@ -577,11 +580,13 @@ class M8195A(socketscpi.SocketInstrument):
             fs (float): AWG sample rate.
             refSrc (str): Reference clock source. ('axi', 'int', 'ext')
             refFreq (float): Reference clock frequency.
+            amp1/2/3/4 (float): Output amplitude in volts pk-pk. (min=75 mV, max=1 V)
             func (str): AWG mode, either arb or sequencing. ('arb', 'sts', 'stsc')
         """
 
-        # Stop output before doing anything else
-        self.write('abort')
+        # Stop output on all channels before doing anything else
+        for ch in range(1,5):
+            self.stop(ch=ch)
 
         # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
@@ -595,10 +600,18 @@ class M8195A(socketscpi.SocketInstrument):
                 self.set_refSrc(value)
             elif key == 'refFreq':
                 self.set_refFreq(value)
+            elif key == 'amp1':
+                self.set_amplitude(value, channel=1)
+            elif key == 'amp2':
+                self.set_amplitude(value, channel=2)
+            elif key == 'amp3':
+                self.set_amplitude(value, channel=3)
+            elif key == 'amp4':
+                self.set_amplitude(value, channel=4)
             elif key == 'func':
                 self.set_func(value)
             else:
-                raise KeyError('Invalid keyword argument. Use "dacMode", "memDiv", "fs", "refSrc", "refFreq", or "func".')
+                raise KeyError('Invalid keyword argument. Use "dacMode", "memDiv", "fs", "refSrc", "refFreq", "amp1/2/3/4", or "func".')
 
         self.err_check()
 
@@ -610,7 +623,7 @@ class M8195A(socketscpi.SocketInstrument):
         """
 
         if dacMode not in ['single', 'dual', 'four', 'marker', 'dcd', 'dcmarker']:
-            raise ValueError('INSERT ERRIOR HERE')
+            raise ValueError("'dacMode' must be 'single', 'dual', 'four', 'marker', 'dcd', or 'dcmarker'.")
 
         self.write(f'inst:dacm {dacMode}')
         self.dacMode = self.query('inst:dacm?').strip().lower()
@@ -676,6 +689,26 @@ class M8195A(socketscpi.SocketInstrument):
         self.write(f'roscillator:frequency {refFreq}')
         self.refFreq = float(self.query('roscillator:frequency?').strip())
 
+    def set_amplitude(self, amplitude=300e-3, channel=1):
+        """
+        Sets and reads the output voltage amplitude (pk-pk) for specified channels using SCPI commands.
+        Args:
+            amplitude (float): Output amplitude in Volts pk-pk.
+            channel (int): Channel to change. (1, 2, 3, or 4).
+        """
+        if channel not in [1, 2, 3, 4]:
+            raise error.AWGError('\'channel\' must be 1, 2, 3, or 4.')
+        if not isinstance(amplitude, float) and not isinstance(amplitude, int):
+            raise error.AWGError('\'amplitude\' must be a floating point value.')
+        if amplitude < 75e-3 or amplitude > 1:
+            raise error.AWGError('\'amplitude\' must be between 75 mV and 1 V.')
+
+        self.write(f'voltage{channel} {amplitude}')
+        # This is a neat use of Python's exec() function, which takes a "program" in as a string and executes it
+        # Very useful if you need to dynamically decide which variable names to call
+        exec(f"self.amp{channel} = float(self.query('voltage{channel}?'))")
+
+
     def sanity_check(self):
         """Prints out user-accessible class attributes."""
 
@@ -684,6 +717,10 @@ class M8195A(socketscpi.SocketInstrument):
         print('Function:', self.func)
         print('Ref source:', self.refSrc)
         print('Ref frequency:', self.refFreq)
+        print('Amplitude CH 1:', self.amp1)
+        print('Amplitude CH 2:', self.amp2)
+        print('Amplitude CH 3:', self.amp3)
+        print('Amplitude CH 4:', self.amp4)
 
     def download_wfm(self, wfmData, ch=1, name='wfm', *args, **kwargs):
         """

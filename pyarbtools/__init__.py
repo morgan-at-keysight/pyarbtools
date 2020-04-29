@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Top-level package for pyarbtools."""
+"""Top-level package for PyArbTools."""
 
 
 """

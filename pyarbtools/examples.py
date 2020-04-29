@@ -2,7 +2,7 @@
 examples
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Provides example scripts for generic VSGs, UXG, and AWGs using
-instrument classes from pyarbtools.
+instrument classes from PyArbTools.
 Tested on N5182B, M8190A
 """
 
@@ -251,7 +251,7 @@ def m8195a_simple_wfm_example(ipAddress):
     # AWG configuration variables
     dacMode = 'dual'
     fs = 64e9
-    awg.configure(dacMode=dacMode, fs=fs)
+    awg.configure(dacMode=dacMode, fs=fs, amp1=100e-3)
 
     # Waveform definition variables
     sineFreq = 1e9
@@ -509,7 +509,7 @@ def main():
     # m8190a_duc_dig_mod_example('141.121.210.171')
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
-    m8195a_simple_wfm_example('127.0.0.1')
+    m8195a_simple_wfm_example('141.121.198.47')
     # vsg_chirp_example('141.121.198.207')
     # vsg_dig_mod_example('141.121.198.207')
     # vsg_am_example('141.121.198.207')
