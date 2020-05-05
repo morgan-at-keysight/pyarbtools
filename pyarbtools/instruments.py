@@ -17,7 +17,6 @@ from pyarbtools import error
 """
 TODO:
 * Bugfix: fix zero/hold behavior on VectorUXG LAN pdw streaming
-* Add check to each instrument class to ensure that the correct instrument is connected
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
 * DONE -- Separate out configure() into individual methods that update class attributes
@@ -66,6 +65,9 @@ class M8190A(socketscpi.SocketInstrument):
         func2 (str): AWG function for channel 2
         cf1 (float): Carrier frequency for channel 1
         cf2 (float): Carrier frequency for channel 2
+
+    TODO
+        Add check to ensure that the correct instrument is connected
     """
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
@@ -543,6 +545,9 @@ class M8195A(socketscpi.SocketInstrument):
         refFreq (float): Reference clock frequency.
         amp1/2/3/4 (float): Output amplitude in volts pk-pk. (min=75 mV, max=1 V)
         func (str): AWG mode, either arb or sequencing. ('arb', 'sts', 'stsc')
+
+    TODO
+        Add check to ensure that the correct instrument is connected
     """
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
@@ -835,6 +840,9 @@ class M8196A(socketscpi.SocketInstrument):
         fs (float): AWG sample rate.
         refSrc (str): Reference clock source. ('axi', 'int', 'ext')
         refFreq (float): Reference clock frequency.
+
+    TODO
+        Add check to ensure that the correct instrument is connected
     """
 
     def __init__(self, host, port=5025, timeout=10, reset=False):
@@ -1082,6 +1090,9 @@ class VSG(socketscpi.SocketInstrument):
             iqScale (int): Scales the IQ modulator. Default/safe value is 70
             refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
             fs (float): Sets the sample rate of the baseband generator.
+
+        TODO
+            Add check to ensure that the correct instrument is connected
         """
 
         super().__init__(host, port, timeout)
@@ -1448,6 +1459,9 @@ class VXG(socketscpi.SocketInstrument):
             iqScale (int): Scales the IQ modulator. Default/safe value is 70
             refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
             fs (float): Sets the sample rate of the baseband generator.
+
+        TODO
+            Add check to ensure that the correct instrument is connected
         """
 
         """
@@ -1791,6 +1805,9 @@ class AnalogUXG(socketscpi.SocketInstrument):
         modState (int): Turns the modulator on or off. (1, 0)
         cf (float): Sets the generator's carrier frequency.
         amp (int/float): Sets the generator's RF output power.
+
+    TODO
+        Add check to ensure that the correct instrument is connected
     """
 
     def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False):
@@ -2365,6 +2382,9 @@ class VectorUXG(socketscpi.SocketInstrument):
         cf (float): Sets the generator's carrier frequency.
         amp (int/float): Sets the generator's RF output power.
         iqScale (int): Scales the IQ modulator. Default/safe value is 70
+
+    TODO
+        Add check to ensure that the correct instrument is connected
     """
 
     def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False, errCheck=True):
