@@ -483,34 +483,34 @@ def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='
         raise error.WfmBuilderError('Invalid waveform format selected. Use "iq" or "real".')
 
 
-# def rrc_filter(taps, a, symRate, fs):
-#     """Generates the impulse response of a root raised cosine filter
-#     from user-defined number of taps, rolloff factor, symbol rate,
-#     and sample rate.
-#     RRC equation taken from https://en.wikipedia.org/wiki/Root-raised-cosine_filter"""
-#
-#     dt = 1 / fs
-#     tau = 1 / symRate
-#     time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
-#     h = np.zeros(taps, dtype=float)
-#
-#     for t, x in zip(time, range(len(h))):
-#         if t == 0.0:
-#             h[x] = 1.0 + a * (4 / np.pi - 1)
-#         elif a != 0 and (t == tau/(4*a) or t == -tau/(4*a)):
-#             h[x] = a / np.sqrt(2) * (((1 + 2 / np.pi) * (np.sin(np.pi / (4 * a))))
-#             + ((1 - 2 / np.pi) * (np.cos(np.pi / (4 * a)))))
-#         else:
-#             h[x] = (np.sin(np.pi * t / tau * (1 - a)) + 4 * a * t / tau * np.cos(np.pi * t / tau * (1 + a)))\
-#             / (np.pi * t / tau * (1 - (4 * a * t / tau) ** 2))
-#
-#     plt.plot(time, h)
-#     plt.show()
-#
-#     return h
+def rrc_filter(taps, a, symRate, fs):
+    """Generates the impulse response of a root raised cosine filter
+    from user-defined number of taps, rolloff factor, symbol rate,
+    and sample rate.
+    RRC equation taken from https://en.wikipedia.org/wiki/Root-raised-cosine_filter"""
+
+    dt = 1 / fs
+    tau = 1 / symRate
+    time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
+    h = np.zeros(taps, dtype=float)
+
+    for t, x in zip(time, range(len(h))):
+        if t == 0.0:
+            h[x] = 1.0 + a * (4 / np.pi - 1)
+        elif a != 0 and (t == tau/(4*a) or t == -tau/(4*a)):
+            h[x] = a / np.sqrt(2) * (((1 + 2 / np.pi) * (np.sin(np.pi / (4 * a))))
+            + ((1 - 2 / np.pi) * (np.cos(np.pi / (4 * a)))))
+        else:
+            h[x] = (np.sin(np.pi * t / tau * (1 - a)) + 4 * a * t / tau * np.cos(np.pi * t / tau * (1 + a)))\
+            / (np.pi * t / tau * (1 - (4 * a * t / tau) ** 2))
+
+    # plt.plot(time, h)
+    # plt.show()
+
+    return h
 
 
-def rrc_filter(alpha, length, osFactor):
+def rrc_filter_new(alpha, length, osFactor, plot=False):
     """
     Designs root raised cosine filter and returns filter coefficients.
     Formula taken from page 11 of:
@@ -520,6 +520,7 @@ def rrc_filter(alpha, length, osFactor):
         alpha (float): Filter roll-off factor.
         length (int): Number of symbols to use in the filter.
         osFactor (int): Oversampling factor (number of samples per symbol).
+        plot (bool): Enable or disable plotting of filter impulse response.
 
     Returns:
         (NumPy array): Filter coefficients for use in np.convolve.
@@ -529,68 +530,37 @@ def rrc_filter(alpha, length, osFactor):
     # h = rc_filter(alpha, length, osFactor)
     # h = np.sqrt(h)
 
-    """NOPE"""
+    """YEP"""
+    if alpha < 0.1 or alpha > 1.0:
+        raise error.WfmBuilderError('Invalid \'alpha\' chosen. Use something between 0.1 and 1.')
     T = length / osFactor
 
     # Create time array centered at zero (mid-symbol)
     t = np.arange(-length / 2, length / 2 + 1 / osFactor, 1 / osFactor)
 
-    A = 2 * alpha / (np.pi * np.sqrt(T))
+    A = 4 * alpha / (np.pi * np.sqrt(T))
     B = np.cos((1 + alpha) * np.pi * t / T)
     C = np.sin((1 - alpha) * np.pi * t / T) / (4 * alpha * t / T)
     D = 1 - (4 * alpha * t / T) ** 2
 
     h = A * ((B + C) / D)
-    #
-    # print(h[np.argwhere(np.isnan(h))])
-    # print(h[np.argwhere(np.isinf(h))])
 
-    """NOPE"""
-    # # https: // www.gaussianwaves.com / 2018 / 10 / square - root - raised - cosine - pulse - shaping /
-    # # Symbol time
-    # T = length / osFactor
-    # # Create time array centered at zero (mid-symbol)
-    # t = np.arange(-length / 2, length / 2 + 1 / osFactor, 1 / osFactor)
-    # h = np.zeros(len(t))
-    #
-    # for t, x in zip(t, range(len(h))):
-    #     if t == 0:
-    #         h[x] = 1 / np.sqrt(T) * ((1 - alpha) + (4 * alpha / np.pi))
-    #     elif t == T / (4 * alpha) or x == -T / (4 * alpha):
-    #         h[x] = alpha / (np.sqrt(2 * T)) * ((1 + 2 / np.pi) * np.sin(np.pi / (4 * alpha)) + (1 - 2 / np.pi) * np.cos(np.pi / (4 * alpha)))
-    #     else:
-    #         # h[x] = 1 / np.sqrt(T) * (np.sin(np.pi * t * (1 - alpha) / T) + 4 * alpha * t / T * np.cos(np.pi * t * (1 + alpha) / T)) / (np.pi * t / T * (1 - (4 * alpha / T) ** 2))
-    #         h[x] = (np.sin(np.pi*t*(1-alpha)/T) +  \
-    #                 4*alpha*(t/T)*np.cos(np.pi*t*(1+alpha)/T))/ \
-    #                 (np.pi*t*(1-(4*alpha*t/T)*(4*alpha*t/T))/T)
+    if np.any(h[np.argwhere(np.isnan(h))]) or np.any(h[np.argwhere(np.isinf(h))]):
+        raise error.WfmBuilderError('Non-real number encountered in digital pulse shaping filter. Choose a higher alpha factor.')
 
-    # dt = 1 / fs
-    # T = 1 / symRate
-    # time = np.linspace(-length / 2, length / 2, length, endpoint=False) * dt
-    # h = np.zeros(taps, dtype=float)
-    #
-    # for t, x in zip(time, range(len(h))):
-    #     if t == 0.0:
-    #         h[x] = 1.0 + alpha * (4 / np.pi - 1)
-    #     elif alpha != 0 and (t == T/(4*alpha) or t == -T/(4*alpha)):
-    #         h[x] = alpha / np.sqrt(2) * (((1 + 2 / np.pi) * (np.sin(np.pi / (4 * alpha))))
-    #         + ((1 - 2 / np.pi) * (np.cos(np.pi / (4 * alpha)))))
-    #     else:
-    #         h[x] = (np.sin(np.pi * t / T * (1 - alpha)) + 4 * alpha * t / T * np.cos(np.pi * t / T * (1 + alpha)))\
-    #         / (np.pi * t / T * (1 - (4 * alpha * t / T) ** 2))
-    #
-    # plt.plot(time, h)
-    # plt.show()
-    #
-    # return h
+    """Potential future fix for inf and nan values"""
+    # print(np.argwhere(np.isnan(h)))
+    # print(np.argwhere(np.isinf(h)))
+    # h[np.argwhere(np.isinf(h))] = 0
 
-    plt.plot(h)
-    plt.show()
+    if plot:
+        plt.plot(h)
+        plt.show()
 
     return h
 
 
-def rc_filter(alpha, length, L):
+def rc_filter_new(alpha, length, L, plot=False):
     """
     Designs raised cosine filter and returns filter coefficients.
 
@@ -598,6 +568,7 @@ def rc_filter(alpha, length, L):
         alpha (float): Filter roll-off factor.
         length (int): Number of symbols to use in the filter.
         L (int): Oversampling factor (number of samples per symbol).
+        plot (bool): Enable or disable plotting of filter impulse response.
 
     Returns:
         (NumPy array): Filter coefficients for use in np.convolve.
@@ -613,53 +584,54 @@ def rc_filter(alpha, length, L):
     # singularity at t = +/- Tsym/2alpha
     h[np.argwhere(np.isinf(h))] = (alpha / 2) * np.sin(np.divide(np.pi, (2 * alpha)))
 
-    # plt.plot(p)
-    # plt.show()
+    if plot:
+        plt.plot(p)
+        plt.show()
 
     return h
 
 
-# def rc_filter(taps, a, symRate, fs):
-#     """Generates the impulse response of a raised cosine filter
-#     from user-defined number of taps, rolloff factor, symbol rate,
-#     and sample rate.
-#     RC equation taken from https://en.wikipedia.org/wiki/Raised-cosine_filter"""
-#
-#     dt = 1 / fs
-#     tau = 1 / symRate
-#     time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
-#     h = np.zeros(taps, dtype=float)
-#
-#     for t, x in zip(time, range(len(h))):
-#         if t == 0.0:
-#             h[x] = 1.0
-#         elif a != 0 and (t == tau / (2 * a) or t == -tau / (2 * a)):
-#             h[x] = np.pi / (4 * tau) * np.sinc(1 / (2 * a))
-#         else:
-#             h[x] = 1 / tau * np.sinc(t / tau) * np.cos(np.pi * a * t / tau) / (1 - (2 * a * t / tau) ** 2)
-#
-#     return time, h
-
-
-def gaussian_filter(fs, sigma):
-    """
-    Creates a gaussian pulse in the <frequency/time> domain.
-
-    Args:
-        fs (float): Sample rate in Hz.
-        sigma (float): Pulse width in seconds (this will probably turn into something related to symbol rate).
-
-    Returns:
-        {NumPy Array): Gaussian shaped pulse.
-    """
+def rc_filter(taps, a, symRate, fs):
+    """Generates the impulse response of a raised cosine filter
+    from user-defined number of taps, rolloff factor, symbol rate,
+    and sample rate.
+    RC equation taken from https://en.wikipedia.org/wiki/Raised-cosine_filter"""
 
     dt = 1 / fs
-    sigma = 1 / symRate
+    tau = 1 / symRate
     time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
+    h = np.zeros(taps, dtype=float)
 
-    h = 1 / (np.sqrt(2 * np.pi) * sigma) * (np.exp(-time ** 2 / (2 * sigma ** 2)))
+    for t, x in zip(time, range(len(h))):
+        if t == 0.0:
+            h[x] = 1.0
+        elif a != 0 and (t == tau / (2 * a) or t == -tau / (2 * a)):
+            h[x] = np.pi / (4 * tau) * np.sinc(1 / (2 * a))
+        else:
+            h[x] = 1 / tau * np.sinc(t / tau) * np.cos(np.pi * a * t / tau) / (1 - (2 * a * t / tau) ** 2)
 
     return time, h
+
+
+# def gaussian_filter(fs, sigma):
+#     """
+#     Creates a gaussian pulse in the <frequency/time> domain.
+#
+#     Args:
+#         fs (float): Sample rate in Hz.
+#         sigma (float): Pulse width in seconds (this will probably turn into something related to symbol rate).
+#
+#     Returns:
+#         {NumPy Array): Gaussian shaped pulse.
+#     """
+#
+#     dt = 1 / fs
+#     sigma = 1 / symRate
+#     time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
+#
+#     h = 1 / (np.sqrt(2 * np.pi) * sigma) * (np.exp(-time ** 2 / (2 * sigma ** 2)))
+#
+#     return time, h
 
 
 def bpsk_modulator(data, customMap=None):
@@ -1321,39 +1293,33 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     if zeroLast:
         iq[-1] = 0 + 1j*0
 
-    plt.plot(iq)
-    plt.show()
-
     return iq
 
 
-def fd_digmod_generator(osFactor=10, modType='bpsk', filt=rc_filter, alpha=0.35, wfmFormat='iq', zeroLast=False):
+def fd_digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt=rrc_filter_new, alpha=0.35, wfmFormat='iq', plot=False):
     """
     Generates a digitally modulated signal with a given modulation
     and filter type using PRBS data at baseband.
     Args:
         fs (float): Sample rate used to create the signal in Hz.
-        modType (function handle): Type of modulation.
-            (bksp_modulator, qpsk_modulator, psk8_modulator,
-            qam16_modulator, qam32_modulator, qam64_modulator,
-            qam128_modulator, qam256_modulator)
-        symRate (float): Symbol rate in Hz.
-        prbsOrder (int): Order of the pseudorandom bit sequence used
-            for the underlying data. (7, 9, 11, 13)
-        filt (function handle): Reference filter type. (rrc_filter, rc_filter)
+        modType (str): Type of modulation. ('bksp', 'qpsk', 'psk8', 'qam16',
+            'qam32', 'qam64', 'qam128', 'qam256')
+        numSymbols (int): Number of symbols to put in the waveform.
+        filt (str): Reference filter type. ('rc_filter' is the only working one right now)
         alpha (float): Excess filter bandwidth specification. Also
             known as roll-off factor, alpha, or beta.
         zeroLast (bool): Force last sample point to 0.
 
     Returns:
-        (NumPy array): Array containing the complex or real values of the waveform.
+        (NumPy array): Array containing the complex values of the waveform.
+
+    TODO
+        Implement switch case to choose filter type based on string input
+        Implement some way of resampling to match sig gen's sample rate
     """
 
     if wfmFormat.lower() != 'iq':
         raise error.WfmBuilderError('Digital modulation currently supports IQ waveform format only.')
-
-    # if symRate > fs:
-    #     raise error.WfmBuilderError('Symbol Rate violates Nyquist.')
 
     # Define bits per symbol and modulator function based on modType
     if modType.lower() == 'bpsk':
@@ -1386,30 +1352,23 @@ def fd_digmod_generator(osFactor=10, modType='bpsk', filt=rc_filter, alpha=0.35,
     else:
         raise ValueError('Invalid modType chosen.')
 
-    # saPerSym = fs / symRate
-
-    # Create pattern and repeat to ensure integer number of symbols.
-    # temp, state = sig.max_len_seq(prbsOrder)
-    # bits = temp
-    bits = np.random.randint(0, 2, 100000)
+    # Create random bit pattern and repeat to ensure integer number of symbols.
+    bits = np.random.randint(0, 2, bitsPerSym * numSymbols)
     temp = bits
     repeats = 1
     while len(bits) % bitsPerSym:
         bits = np.tile(temp, repeats)
         repeats += 1
 
-    """Convert the pseudorandom bit sequence, which is a list of bits,
-    into the binary values of symbols as strings, and then map symbols
-    to locations in the complex plane."""
+    """Group the bits into symbol values and then map 
+    the symbols to locations in the complex plane."""
     symbols = modulator(bits)
 
-    """Upsample symbols to match oversampling factor"""
+    """Zero-pad symbols to satisfy oversampling factor."""
+    # Upsampling does not work
     # iq = sig.upfirdn(h=[1] * osFactor, x=symbols, up=osFactor)
     temp = np.zeros(len(symbols) * osFactor, dtype=np.complex)
     temp[::osFactor] = symbols
-
-    # plt.plot(temp)
-    # plt.show()
 
     """Create and apply pulse shaping filter"""
     taps = 10
@@ -1418,28 +1377,26 @@ def fd_digmod_generator(osFactor=10, modType='bpsk', filt=rc_filter, alpha=0.35,
     iqImag = np.convolve(temp.imag, psFilter, mode='valid')
     iq = iqReal + 1j * iqImag
 
+    # Trim off excess samples from convolution
     iq = iq[taps:-taps]
-    # iq = temp
 
-    # plotting bullshit
-    symbolLocations = np.arange(0, len(iq), osFactor)
-    realSymbolValues = iq.real[symbolLocations]
-    imagSymbolValues = iq.imag[symbolLocations]
+    if plot:
+        # Calculate symbol locations and symbol values for real and imaginary components
+        symbolLocations = np.arange(0, len(iq), osFactor)
+        realSymbolValues = iq.real[symbolLocations]
+        imagSymbolValues = iq.imag[symbolLocations]
 
-    plt.subplot(211)
-    plt.plot(iq.real)
-    plt.plot(symbolLocations, realSymbolValues, 'r.')
-    plt.plot(iq.imag)
-    plt.plot(symbolLocations, imagSymbolValues, 'r.')
-    plt.plot()
-    plt.subplot(212)
-    plt.plot(iq.real, iq.imag)
-    offset = 0
-    plt.plot(iq.real[offset::osFactor], iq.imag[offset::osFactor], 'r.')
-    plt.show()
-
-
-    # iq = np.tile(iq, 100)
+        # Plot both time domain and constellation diagram with decision points
+        plt.subplot(211)
+        plt.plot(iq.real)
+        plt.plot(symbolLocations, realSymbolValues, 'r.')
+        plt.plot(iq.imag)
+        plt.plot(symbolLocations, imagSymbolValues, 'r.')
+        plt.subplot(212)
+        plt.plot(iq.real, iq.imag)
+        offset = 0
+        plt.plot(iq.real[offset::osFactor], iq.imag[offset::osFactor], 'r.')
+        plt.show()
 
     return iq
 
