@@ -271,7 +271,7 @@ def m8195a_simple_wfm_example(ipAddress):
     awg.disconnect()
 
 
-def vector_uxg_arb_example(ipAddress):
+def vector_uxg_dig_mod_example(ipAddress):
     """Generates and plays 10 MHz 64 QAM signal with 0.35 alpha RRC filter
     @ 1 GHz CF with vector UXG."""
 
@@ -308,7 +308,13 @@ def vector_uxg_pdw_example(ipAddress):
     file, and loads that pdw file into the UXG, and plays it out."""
 
     uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
-    uxg.configure()
+
+    # UXG configuration variables
+    amplitude = -5
+    output = 1
+    freq = 1e9
+
+    uxg.configure(amp=amplitude, rfState=output, cf=freq)
 
     """Configure pdw markers. These commands will assign a TTL pulse
     at the beginning of each PDW. The trigger 2 output will only be
@@ -358,17 +364,21 @@ def vector_uxg_lan_streaming_example(ipAddress):
 
     This streams five pulses.  To capture this, PDW 1 will output a hardware
     trigger on the N5194A trigger output 2.
+
+    TODO
+        Create function to set up LAN streaming.
     """
 
     # Create vector UXG object
     uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
 
     # UXG configuration variables
+    amplitude = -5
     output = 0
     modulation = 1
 
     # Configure UXG and clear all waveform memory
-    uxg.configure(rfState=output, modState=modulation)
+    uxg.configure(amp=amplitude, rfState=output, modState=modulation)
     uxg.clear_all_wfm()
 
     # Waveform definition variables, three chirps of the same bandwidth and different lengths
@@ -433,7 +443,7 @@ def vector_uxg_lan_streaming_example(ipAddress):
     # This is required because the SCPI command is a query rather than a command,
     # which is uncommon for commands that send binary block data
     uxg.binblockwrite(f'stream:external:header? ', header, esr=False)
-    if uxg.query('') != '+0':
+    if uxg.read() != '+0':
         raise pyarbtools.error.VSGError('stream:external:header? response invalid. This should never happen.')
 
     # Configure LAN streaming and send PDWs
@@ -509,14 +519,14 @@ def main():
     # m8190a_duc_dig_mod_example('141.121.210.171')
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
-    m8195a_simple_wfm_example('141.121.198.47')
+    # m8195a_simple_wfm_example('141.121.198.47')
     # vsg_chirp_example('141.121.198.207')
     # vsg_dig_mod_example('141.121.198.207')
     # vsg_am_example('141.121.198.207')
     # vsg_mtone_example('141.121.198.207')
-    # vector_uxg_arb_example('10.0.0.52')
-    # vector_uxg_pdw_example('10.0.0.52')
-    # vector_uxg_lan_streaming_example('10.0.0.52')
+    # vector_uxg_dig_mod_example('10.81.188.32')
+    # vector_uxg_pdw_example('10.81.188.32')
+    vector_uxg_lan_streaming_example('10.81.188.32')
     # analog_uxg_pdw_example('10.0.0.109')
 
 if __name__ == '__main__':
