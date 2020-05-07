@@ -166,7 +166,7 @@ class M8190A(socketscpi.SocketInstrument):
             elif key == 'cf2':
                 self.set_cf(2, value)
             else:
-                raise KeyError('Invalid keyword argument.')
+                raise KeyError(f'Invalid keyword argument: "{key}"')
         self.err_check()
 
     def set_clkSrc(self, clkSrc):
@@ -616,7 +616,8 @@ class M8195A(socketscpi.SocketInstrument):
             elif key == 'func':
                 self.set_func(value)
             else:
-                raise KeyError('Invalid keyword argument. Use "dacMode", "memDiv", "fs", "refSrc", "refFreq", "amp1/2/3/4", or "func".')
+                raise KeyError(f'Invalid keyword argument: "{key}"')
+                # raise KeyError('Invalid keyword argument. Use "dacMode", "memDiv", "fs", "refSrc", "refFreq", "amp1/2/3/4", or "func".')
 
         self.err_check()
 
@@ -898,7 +899,8 @@ class M8196A(socketscpi.SocketInstrument):
             elif key == 'refFreq':
                 self.set_refFreq(value)
             else:
-                raise KeyError('Invalid keyword argument. Use "dacMode", "fs", "refSrc", "refFreq".')
+                raise KeyError(f'Invalid keyword argument: "{key}"')
+                # raise KeyError('Invalid keyword argument. Use "dacMode", "fs", "refSrc", "refFreq".')
 
         self.err_check()
 
@@ -1164,7 +1166,8 @@ class VSG(socketscpi.SocketInstrument):
             elif key == 'fs':
                 self.set_fs(value)
             else:
-                raise KeyError('Invalid keyword argument.')
+                raise KeyError(f'Invalid keyword argument: "{key}"')
+                # raise KeyError('Invalid keyword argument.')
 
         # Arb state can only be turned on after a waveform has been loaded/selected
         # self.write(f'radio:arb:state {arbState}')
@@ -1538,7 +1541,8 @@ class VXG(socketscpi.SocketInstrument):
             elif key == 'fs':
                 self.set_fs(value)
             else:
-                raise KeyError('Invalid keyword argument.')
+                raise KeyError(f'Invalid keyword argument: "{key}"')
+                # raise KeyError('Invalid keyword argument.')
 
         # Arb state can only be turned on after a waveform has been loaded/selected
         # self.write(f'radio:arb:state {arbState}')
@@ -1875,7 +1879,8 @@ class AnalogUXG(socketscpi.SocketInstrument):
             elif key == 'amp':
                 self.set_amp(value)
             else:
-                raise KeyError('Invalid keyword argument.')
+                raise KeyError(f'Invalid keyword argument: "{key}"')
+                # raise KeyError('Invalid keyword argument.')
         self.err_check()
 
     def set_rfState(self, rfState):
@@ -2456,9 +2461,10 @@ class VectorUXG(socketscpi.SocketInstrument):
             elif key == 'iqScale':
                 self.set_iqScale(value)
             else:
-                raise KeyError('Invalid keyword argument.')
-
-            # Arb state can only be turned on after a waveform has been loaded/selected  # self.write(f'radio:arb:state {arbState}')  # self.arbState = self.query('radio:arb:state?').strip()
+                raise KeyError(f'Invalid keyword argument: "{key}"')
+                # raise KeyError('Invalid keyword argument.')
+            # Arb state can only be turned on after a waveform has been loaded/selected
+            # self.write(f'radio:arb:state {arbState}')  # self.arbState = self.query('radio:arb:state?').strip()
 
         self.err_check()
 

@@ -21,3 +21,4 @@ __version__ = '2020.04.0'
 from pyarbtools import instruments
 from pyarbtools import wfmBuilder
 from pyarbtools import error
+from pyarbtools import vsaControl

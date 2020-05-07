@@ -509,6 +509,36 @@ def analog_uxg_pdw_example(ipAddress):
     uxg.err_check()
     uxg.disconnect()
 
+def wfm_to_vsa_example(ipAddress):
+    """This function creates a "perfect" digitally modulated waveform, exports it to a csv file,
+    recalls it into VSA, and configures VSA to analyze it."""
+
+    # Waveform configuration variables
+    osFactor = 10
+    symRate = 10e6
+    fs = osFactor * symRate
+    modType = 'qam64'
+    psFilter = 'raisedcosine'
+    alpha = 0.35
+    fileName = 'C:\\Temp\\wfm.csv'
+    fileFormat = 'csv'
+
+    # This is the new digital modulation waveform creation function
+    data = pyarbtools.wfmBuilder.digmod_generator(osFactor=osFactor, modType=modType, filt=psFilter, numSymbols=10000, alpha=alpha)
+    # data = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=fs, modType='bpsk', symRate=symRate, prbsOrder=13)
+
+    # Export the waveform to a csv file
+    pyarbtools.wfmBuilder.export_wfm(data, fileName, True, fs)
+
+    # Create VSA object
+    vsa = pyarbtools.vsaControl.VSA(ipAddress, vsaHardware='Analyzer1', timeout=10, reset=True)
+
+    # Select a digital demod measurement and configure it to measure the saved waveform
+    vsa.set_measurement('ddemod')
+    vsa.configure_ddemod(amp=0, modType=modType, symRate=symRate, measFilter='none', refFilter=psFilter, filterAlpha=alpha, measLength=500, eqState=False)
+    vsa.recall_recording(fileName, fileFormat=fileFormat)
+    vsa.play_single()
+
 
 def main():
     """Uncomment the example you'd like to run. For each example,
@@ -526,8 +556,9 @@ def main():
     # vsg_mtone_example('141.121.198.207')
     # vector_uxg_dig_mod_example('10.81.188.32')
     # vector_uxg_pdw_example('10.81.188.32')
-    vector_uxg_lan_streaming_example('10.81.188.32')
+    # vector_uxg_lan_streaming_example('10.81.188.32')
     # analog_uxg_pdw_example('10.0.0.109')
+    wfm_to_vsa_example('127.0.0.1')
 
 if __name__ == '__main__':
     main()
