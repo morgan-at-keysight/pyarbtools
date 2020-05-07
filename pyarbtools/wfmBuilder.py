@@ -734,7 +734,7 @@ def psk16_modulator(data, customMap=None):
     try:
         return np.array([psk16Map[p] for p in pattern])
     except KeyError:
-        raise ValueError('Invalid 8PSK symbol.')
+        raise ValueError('Invalid 16PSK symbol.')
 
 
 def qam16_modulator(data, customMap=None):
@@ -1229,10 +1229,10 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     elif modType.lower() == 'qpsk':
         bitsPerSym = 2
         modulator = qpsk_modulator
-    elif modType.lower() == '8psk':
+    elif modType.lower() == 'psk8':
         bitsPerSym = 3
         modulator = psk8_modulator
-    elif modType.lower() == '16psk':
+    elif modType.lower() == 'psk16':
         bitsPerSym = 4
         modulator = psk16_modulator
     elif modType.lower() == 'qam16':
@@ -1296,7 +1296,7 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     return iq
 
 
-def fd_digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt=rrc_filter_new, alpha=0.35, wfmFormat='iq', plot=False):
+def digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt='raisedcosine', alpha=0.35, wfmFormat='iq', plot=False):
     """
     Generates a digitally modulated signal with a given modulation
     and filter type using PRBS data at baseband.
@@ -1305,7 +1305,7 @@ def fd_digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt=rrc_f
         modType (str): Type of modulation. ('bksp', 'qpsk', 'psk8', 'qam16',
             'qam32', 'qam64', 'qam128', 'qam256')
         numSymbols (int): Number of symbols to put in the waveform.
-        filt (str): Reference filter type. ('rc_filter' is the only working one right now)
+        filt (str): Pulse shaping filter type. ('rc' for raised cosine or 'rrc' for root raised cosine)
         alpha (float): Excess filter bandwidth specification. Also
             known as roll-off factor, alpha, or beta.
         zeroLast (bool): Force last sample point to 0.
@@ -1314,7 +1314,6 @@ def fd_digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt=rrc_f
         (NumPy array): Array containing the complex values of the waveform.
 
     TODO
-        Implement switch case to choose filter type based on string input
         Implement some way of resampling to match sig gen's sample rate
     """
 
@@ -1328,10 +1327,10 @@ def fd_digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt=rrc_f
     elif modType.lower() == 'qpsk':
         bitsPerSym = 2
         modulator = qpsk_modulator
-    elif modType.lower() == '8psk':
+    elif modType.lower() == 'psk8':
         bitsPerSym = 3
         modulator = psk8_modulator
-    elif modType.lower() == '16psk':
+    elif modType.lower() == 'psk16':
         bitsPerSym = 4
         modulator = psk16_modulator
     elif modType.lower() == 'qam16':
@@ -1360,19 +1359,23 @@ def fd_digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt=rrc_f
         bits = np.tile(temp, repeats)
         repeats += 1
 
-    """Group the bits into symbol values and then map 
-    the symbols to locations in the complex plane."""
+    # Group the bits into symbol values and then map the symbols to locations in the complex plane.
     symbols = modulator(bits)
 
-    """Zero-pad symbols to satisfy oversampling factor."""
-    # Upsampling does not work
+    # Zero-pad symbols to satisfy oversampling factor.
+    # Upsampling does not work!!!
     # iq = sig.upfirdn(h=[1] * osFactor, x=symbols, up=osFactor)
     temp = np.zeros(len(symbols) * osFactor, dtype=np.complex)
     temp[::osFactor] = symbols
 
-    """Create and apply pulse shaping filter"""
+    # Create pulse shaping filter
     taps = 10
-    psFilter = filt(alpha, taps, osFactor)
+    if filt.lower() == 'rootraisedcosine':
+        psFilter = rrc_filter_new(alpha, taps, osFactor)
+    elif filt.lower() == 'raisedcosine':
+        psFilter = rc_filter_new(alpha, taps, osFactor)
+
+    # Apply pulse shaping filter via convolution to real and imaginary components separately
     iqReal = np.convolve(temp.real, psFilter, mode='valid')
     iqImag = np.convolve(temp.imag, psFilter, mode='valid')
     iq = iqReal + 1j * iqImag
@@ -1430,8 +1433,8 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
             settle more quickly but may become unstable. Low values
             take longer to settle but tend to have better stability
 
-    Returns:
-
+    TODO
+        Refactor using vsaControl
     """
 
     if osFactor not in [2, 4, 5, 10, 20]:
