@@ -133,6 +133,20 @@ class VSA(socketscpi.SocketInstrument):
         self.write(f'input:analog:range:dbm {amp}')
         self.amp = float(self.query('input:analog:range:dbm?'))
 
+    def set_span(self, span):
+        """
+        Sets and reads span for VSA using SCPI commands
+
+        Args:
+            span (float): Frequency span in Hz.
+        """
+
+        if not isinstance(span, float) and not isinstance(span, int):
+            raise ValueError('Span must be a positive numerical value.')
+
+        self.write(f'sense:frequency:span {span}')
+        self.span = float(self.query('sense:frequency:span?'))
+
     def set_measurement(self, meas):
         """
         Selects a measurement type in VSA using SCPI commands.
