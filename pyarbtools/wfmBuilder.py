@@ -12,6 +12,7 @@ from time import sleep
 import matplotlib.pyplot as plt
 import os
 
+
 class WFM:
     """
     Class to hold waveform data created by wfmBuilder.
@@ -37,6 +38,7 @@ class WFM:
         self.wfmFormat = wfmFormat
         self.fs = fs
         self.wfmID = wfmID
+        self.fileName = ''
 
     def export(self, path='C:\\temp\\', vsaCompatible=False):
         """
@@ -99,6 +101,8 @@ def export_wfm(data, fileName, vsaCompatible=False, fs=0):
     Args:
         data (NumPy array): NumPy array containing the waveform samples.
         fileName (str): Absolute file name of the exported waveform.
+        vsaCompatible (bool): Adds a header with 'XDelta' parameter for recall into VSA.
+        fs (float): Sample rate used to create the waveform. Required if vsaCompatible is True.
     """
 
     try:
@@ -223,7 +227,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
         iq = np.exp(2 * np.pi * freqOffset * 1j * t)
         if zeroLast:
             iq[-1] = 0
-        if pri> pWidth:
+        if pri > pWidth:
             deadTime = np.zeros(int(fs * pri - rl))
             iq = np.append(iq, deadTime)
 
@@ -238,6 +242,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
         return real
     else:
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
+
 
 def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wfmFormat='iq', zeroLast=False):
     """
@@ -482,6 +487,7 @@ def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='
     else:
         raise error.WfmBuilderError('Invalid waveform format selected. Use "iq" or "real".')
 
+
 def rrc_filter(alpha, length, osFactor, plot=False):
     """
     Generates the impulse response of a root raised cosine filter.
@@ -543,6 +549,7 @@ def rrc_filter(alpha, length, osFactor, plot=False):
         plt.show()
 
     return h
+
 
 def rc_filter(alpha, length, L, plot=False):
     """
@@ -1158,11 +1165,13 @@ def digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt='raisedc
     using random data.
 
     Args:
-        fs (float): Sample rate used to create the signal in Hz.
+        osFactor (int): Oversampling factor, or number of samples per symbol.
         modType (str): Type of modulation. ('bksp', 'qpsk', 'psk8', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256')
         numSymbols (int): Number of symbols to put in the waveform.
         filt (str): Pulse shaping filter type. ('raisedcosine' or 'rootraisedcosine')
         alpha (float): Excess filter bandwidth specification. Also known as roll-off factor, alpha, or beta.
+        wfmFormat (str): Determines type of waveform. Currently only 'iq' format is supported.
+        plot (bool): Enable or disable plotting of final waveform in time domain and constellation domain.
 
     Returns:
         (NumPy array): Array containing the complex values of the waveform.
@@ -1360,10 +1369,8 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
         evm = float(vsa.query('trace4:data:table? "EvmRms"').strip())
 
     vsa.write('trace3:format "IQ"')
-    vsa.write('trace3:data:x?')
-    eqI = vsa.binblockread(dtype=np.float64).byteswap()
-    vsa.write('trace3:data:y?')
-    eqQ = vsa.binblockread(dtype=np.float64).byteswap()
+    eqI = vsa.binblockread('trace3:data:x?', datatype='d').byteswap()
+    eqQ = vsa.binblockread('trace3:data:y?', datatype='d').byteswap()
     vsa.write('ddemod:compensate:equalize 0')
 
     # Invert the phase of the equalizer impulse response
@@ -1380,21 +1387,21 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     sFactor = abs(np.amax(iqCorr))
     iqCorr = iqCorr / sFactor * 0.707
 
-    import matplotlib.pyplot as plt
-
-    plt.subplot(221)
-    plt.plot(iq.real)
-    plt.plot(iq.imag)
-    plt.subplot(222)
-    plt.plot(circIQ.real)
-    plt.plot(circIQ.imag)
-    plt.subplot(223)
-    plt.plot(equalizer.real)
-    plt.plot(equalizer.imag)
-    plt.subplot(224)
-    plt.plot(iqCorr.real)
-    plt.plot(iqCorr.imag)
-    plt.show()
+    # import matplotlib.pyplot as plt
+    #
+    # plt.subplot(221)
+    # plt.plot(iq.real)
+    # plt.plot(iq.imag)
+    # plt.subplot(222)
+    # plt.plot(circIQ.real)
+    # plt.plot(circIQ.imag)
+    # plt.subplot(223)
+    # plt.plot(equalizer.real)
+    # plt.plot(equalizer.imag)
+    # plt.subplot(224)
+    # plt.plot(iqCorr.real)
+    # plt.plot(iqCorr.imag)
+    # plt.show()
 
     # vsa.write('*rst')
     # vsa.write(f'mmemory:load:setup "{setupFile}"')
