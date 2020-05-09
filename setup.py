@@ -22,7 +22,7 @@ setup(
         'Programming Language :: Python :: 3.6', 'Programming Language :: Python :: 3.7', ],
     description="PyArbTools provides waveform creation and remote instrument control capabilities for Keysight signal generators.",
     packages=find_packages(exclude=['docs', 'tests']),
-    install_requires=['numpy', 'scipy', 'socketscpi'],
+    install_requires=['numpy', 'scipy', 'socketscpi', 'matplotlib'],
     license="GNU General Public License v3",
     long_description=readme + '\n\n' + history,
     include_package_data=True,

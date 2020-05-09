@@ -335,7 +335,7 @@ def vector_uxg_pdw_example(ipAddress):
     pdwName = 'basic_chirp'
 
     # 'fields' list define the PDW fields positionally
-    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name',]
+    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name']
 
     # 'data' is a list of lists, where each inner list defines
     # the PDW using positional values for the fields defined above
@@ -492,7 +492,7 @@ def analog_uxg_pdw_example(ipAddress):
     pdwList = [[1, 980e6,  0, 0,     10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
                [0, 1e9,    0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0,       0],
                [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0,       0],
-               [2, 1e9,    0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0,       0]]
+               [2, 1e9,    0, 80e-6, 5e-6,  1, 0, 2, 0, 0, 0, 1, 0,       0]]
     pdwFile = uxg.bin_pdw_file_builder(pdwList)
 
     # Note: the last PDW starting with a '2' in the 'Operation'
@@ -582,6 +582,7 @@ def main():
     # vector_uxg_lan_streaming_example('10.81.188.32')
     # analog_uxg_pdw_example('10.0.0.109')
     wfm_to_vsa_example('127.0.0.1')
+
 
 if __name__ == '__main__':
     main()
