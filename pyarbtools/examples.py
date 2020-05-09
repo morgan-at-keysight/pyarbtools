@@ -509,35 +509,58 @@ def analog_uxg_pdw_example(ipAddress):
     uxg.err_check()
     uxg.disconnect()
 
+
 def wfm_to_vsa_example(ipAddress):
     """This function creates a "perfect" digitally modulated waveform, exports it to a csv file,
     recalls it into VSA, and configures VSA to analyze it."""
 
-    # Waveform configuration variables
+    # Waveform creation variables
     osFactor = 10
     symRate = 10e6
     fs = osFactor * symRate
-    modType = 'qam64'
-    psFilter = 'raisedcosine'
+    modType = 'qam256'
+    psFilter = 'rootraisedcosine'
     alpha = 0.35
     fileName = 'C:\\Temp\\wfm.csv'
     fileFormat = 'csv'
 
+    print('Creating waveform.')
     # This is the new digital modulation waveform creation function
-    data = pyarbtools.wfmBuilder.digmod_generator(osFactor=osFactor, modType=modType, filt=psFilter, numSymbols=10000, alpha=alpha)
-    # data = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=fs, modType='bpsk', symRate=symRate, prbsOrder=13)
+    data = pyarbtools.wfmBuilder.digmod_generator(osFactor=osFactor, modType=modType, filt=psFilter, numSymbols=10000,
+                                                  alpha=alpha)
 
+    print('Exporting waveform.')
     # Export the waveform to a csv file
     pyarbtools.wfmBuilder.export_wfm(data, fileName, True, fs)
 
+    print('Setting up VSA.')
     # Create VSA object
-    vsa = pyarbtools.vsaControl.VSA(ipAddress, vsaHardware='Analyzer1', timeout=10, reset=True)
+    vsa = pyarbtools.vsaControl.VSA(ipAddress, vsaHardware='Analyzer1', timeout=10, reset=False)
 
     # Select a digital demod measurement and configure it to measure the saved waveform
     vsa.set_measurement('ddemod')
-    vsa.configure_ddemod(amp=0, modType=modType, symRate=symRate, measFilter='none', refFilter=psFilter, filterAlpha=alpha, measLength=500, eqState=False)
+    if psFilter.lower() == 'rootraisedcosine':
+        mFilter = 'rootraisedcosine'
+        rFilter = 'raisedcosine'
+    elif psFilter.lower() == 'raisedcosine':
+        mFilter = 'none'
+        rFilter = 'raisedcosine'
+    else:
+        raise Exception('Invalid filter type chosen.')
+
+    # Configure digital demodulation in VSA
+    vsa.configure_ddemod(amp=0, modType=modType, symRate=symRate, measFilter=mFilter, refFilter=rFilter, filterAlpha=alpha,
+                         measLength=1000, eqState=False)
+
+    # Recall csv file we exported earlier
     vsa.recall_recording(fileName, fileFormat=fileFormat)
+
+    # Perform a single-shot replay in VSA
     vsa.play_single()
+
+    # Check for errors and gracefully disconnect
+    vsa.err_check()
+    vsa.disconnect()
 
 
 def main():
