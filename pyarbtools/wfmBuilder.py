@@ -5,11 +5,12 @@ Generic waveform creation capabilities for pyarbtools.
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 import scipy.signal as sig
 import socketscpi
 from pyarbtools import error
 from time import sleep
-import matplotlib.pyplot as plt
+from fractions import Fraction
 import os
 
 
@@ -1159,7 +1160,7 @@ def qam256_modulator(data, customMap=None):
         raise ValueError('Invalid 256 QAM symbol.')
 
 
-def digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt='raisedcosine', alpha=0.35, wfmFormat='iq', plot=False):
+def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='raisedcosine', alpha=0.35, wfmFormat='iq', plot=False):
     """
     Generates a digitally modulated signal at baseband with a given modulation type, number of symbols, and filter type/alpha
     using random data.
@@ -1177,8 +1178,11 @@ def digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt='raisedc
         (NumPy array): Array containing the complex values of the waveform.
 
     TODO
-        Implement some way of resampling to match sig gen's sample rate
+        Figure out wraparound problems.
     """
+
+    # Use 10 samples per symbol for creating the initial signal prior to final resampling
+    osFactor = 10
 
     if wfmFormat.lower() != 'iq':
         raise error.WfmBuilderError('Digital modulation currently supports IQ waveform format only.')
@@ -1240,7 +1244,21 @@ def digmod_generator(osFactor=10, modType='bpsk', numSymbols=1000, filt='raisedc
         raise error.WfmBuilderError('Invalid pulse shaping filter chosen. Use \'raisedcosine\' or \'rootraisedcosine\'')
 
     # Apply pulse shaping filter to symbols via convolution
+    temp = np.concatenate([temp[int(-taps / 2):], temp, temp[:int(taps / 2)]])
     iq = np.convolve(temp, psFilter, mode='valid')
+
+    # Calculate oversampling factors for resampling
+    finalOsFactor = fs / (symRate * osFactor)
+    fracOs = Fraction(finalOsFactor).limit_denominator(1000)
+    finalOsNum = fracOs.numerator
+    finalOsDenom = fracOs.denominator
+    print(f'{finalOsNum} / {finalOsDenom}')
+
+    # Resample and filter out images
+    iq = sig.resample_poly(iq, finalOsNum, finalOsDenom, window=('kaiser', 10))
+
+    sFactor = abs(np.amax(iq))
+    iq = iq / sFactor * 0.707
 
     if plot:
         # Calculate symbol locations and symbol values for real and imaginary components
