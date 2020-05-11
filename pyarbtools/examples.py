@@ -53,7 +53,7 @@ def vsg_dig_mod_example(ipAddress):
 
     # Signal generator configuration variables
     amplitude = -5
-    sampleRate = 100e6
+    sampleRate = 200e6
     freq = 1e9
 
     # Configure signal generator
@@ -62,11 +62,12 @@ def vsg_dig_mod_example(ipAddress):
     vsg.err_check()
 
     # Waveform definition variables
-    name = '10MHZ_16QAM'
+    name = '100MHZ_16QAM'
     symRate = 10e6
 
     # Create waveform
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
+    # iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=vsg.fs, modType='qam16', symRate=symRate, filt='rootraisedcosine')
 
     # Download and play waveform
     vsg.download_wfm(iq, wfmID=name)
@@ -574,14 +575,14 @@ def main():
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
     # m8195a_simple_wfm_example('141.121.198.47')
     # vsg_chirp_example('141.121.198.207')
-    # vsg_dig_mod_example('141.121.198.207')
+    vsg_dig_mod_example('141.121.198.207')
     # vsg_am_example('141.121.198.207')
     # vsg_mtone_example('141.121.198.207')
     # vector_uxg_dig_mod_example('10.81.188.32')
     # vector_uxg_pdw_example('10.81.188.32')
     # vector_uxg_lan_streaming_example('10.81.188.32')
     # analog_uxg_pdw_example('10.0.0.109')
-    wfm_to_vsa_example('127.0.0.1')
+    # wfm_to_vsa_example('127.0.0.1')
 
 
 if __name__ == '__main__':
