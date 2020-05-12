@@ -20,12 +20,16 @@ class VSA(socketscpi.SocketInstrument):
         meas (str): Measurement type ('vector', 'ddemod' currently supported)
     """
 
-    def __init__(self, host, port=5025, timeout=10, reset=False, vsaHardware='Analyzer1'):
+    def __init__(self, host, port=5025, timeout=10, reset=False, vsaHardware=None):
         super().__init__(host, port, timeout)
 
         # Set up hardware
-        self.hw = ''
-        self.set_hw(vsaHardware)
+        if not isinstance(vsaHardware, str) and vsaHardware != None:
+            raise error.VSAError('vsaHardware must be a string indicating which hardware platform to use.')
+
+        self.hw = vsaHardware
+        if vsaHardware != None:
+            self.set_hw(vsaHardware)
 
         if reset:
             # Reset, wait for reset to finish, and stop acquisition
