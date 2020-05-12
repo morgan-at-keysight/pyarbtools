@@ -25,7 +25,7 @@ class WFM:
         wfmID (str): Waveform name/identifier.
     """
 
-    def __init__(self, data=[], wfmFormat='iq', fs=100e6, wfmID='wfm'):
+    def __init__(self, data, wfmFormat='iq', fs=100e6, wfmID='wfm'):
         """
         Initializes the WFM.
 
@@ -1166,11 +1166,12 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     using random data.
 
     Args:
-        osFactor (int): Oversampling factor, or number of samples per symbol.
-        modType (str): Type of modulation. ('bksp', 'qpsk', 'psk8', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256')
+        fs (float): Sample rate used to create the waveform in samples/sec.
+        symRate (float): Symbol rate in symbols/sec.
+        modType (str): Type of modulation. ('bpsk', 'qpsk', 'psk8', 'psk16', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256')
         numSymbols (int): Number of symbols to put in the waveform.
         filt (str): Pulse shaping filter type. ('raisedcosine' or 'rootraisedcosine')
-        alpha (float): Excess filter bandwidth specification. Also known as roll-off factor, alpha, or beta.
+        alpha (float): Pulse shaping filter excess bandwidth specification. Also known as roll-off factor, alpha, or beta.
         wfmFormat (str): Determines type of waveform. Currently only 'iq' format is supported.
         plot (bool): Enable or disable plotting of final waveform in time domain and constellation domain.
 
@@ -1178,11 +1179,14 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
         (NumPy array): Array containing the complex values of the waveform.
 
     TODO
-        Figure out wraparound problems.
+        Add an argument that allows user to specify symbol data.
     """
 
     # Use 10 samples per symbol for creating the initial signal prior to final resampling
     osFactor = 10
+
+    if symRate >= fs:
+        raise error.WfmBuilderError('symRate violates Nyquist. Reduce symbol rate or increase sample rate.')
 
     if wfmFormat.lower() != 'iq':
         raise error.WfmBuilderError('Digital modulation currently supports IQ waveform format only.')
@@ -1243,20 +1247,26 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     else:
         raise error.WfmBuilderError('Invalid pulse shaping filter chosen. Use \'raisedcosine\' or \'rootraisedcosine\'')
 
+    # Prepend the end of the signal onto the beginning and append the beginning onto the end
+    # to ensure there are no phase discontinuities created when convolving with the filter taps
+    wrapLocation = int(taps / 2)
+    temp = np.concatenate([temp[-wrapLocation:], temp, temp[:wrapLocation]])
+
     # Apply pulse shaping filter to symbols via convolution
-    temp = np.concatenate([temp[int(-taps / 2):], temp, temp[:int(taps / 2)]])
-    iq = np.convolve(temp, psFilter, mode='valid')
+    iq = np.convolve(temp, psFilter, mode='same')
 
     # Calculate oversampling factors for resampling
     finalOsFactor = fs / (symRate * osFactor)
+
+    # Python's built-in fractions module makes this easy
     fracOs = Fraction(finalOsFactor).limit_denominator(1000)
     finalOsNum = fracOs.numerator
     finalOsDenom = fracOs.denominator
-    print(f'{finalOsNum} / {finalOsDenom}')
 
     # Resample and filter out images
     iq = sig.resample_poly(iq, finalOsNum, finalOsDenom, window=('kaiser', 10))
 
+    # Scale signal to prevent compressing iq modulator
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
 
@@ -1434,5 +1444,3 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     vsa.disconnect()
 
     return iqCorr
-
-

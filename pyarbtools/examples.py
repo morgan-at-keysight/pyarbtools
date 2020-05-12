@@ -62,12 +62,12 @@ def vsg_dig_mod_example(ipAddress):
     vsg.err_check()
 
     # Waveform definition variables
-    name = '100MHZ_16QAM'
+    name = '10MHZ_16QAM'
     symRate = 10e6
+    modType = 'qam16'
 
     # Create waveform
-    # iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
-    iq = pyarbtools.wfmBuilder.digmod_generator(fs=vsg.fs, modType='qam16', symRate=symRate, filt='rootraisedcosine')
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=vsg.fs, modType=modType, symRate=symRate, filt='rootraisedcosine')
 
     # Download and play waveform
     vsg.download_wfm(iq, wfmID=name)
@@ -186,7 +186,7 @@ def m8190a_duc_dig_mod_example(ipAddress):
     awg.configure(res=res, cf1=cf, out1=output)
 
     # Create 16 QAM signal.
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType=modType, symRate=symRate, wfmFormat='iq')
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=awg.bbfs, modType=modType, symRate=symRate, filt='rootraisedcosine')
 
     # Download waveform to memory
     segment = awg.download_wfm(iq, ch=1, name=wfmName, wfmFormat='iq')
@@ -223,21 +223,6 @@ def m8190a_duc_chirp_example(ipAddress):
     awg.play(wfmID=segment, ch=1)
 
     # Check for errors and gracefully disconnect.
-    awg.err_check()
-    awg.disconnect()
-
-
-def m8190a_iq_correction_example(instIPAddress, vsaIPAddress, vsaHardware):
-    """Performs IQ calibration on a digitally modulated signal using VSA."""
-
-    awg = pyarbtools.instruments.M8190A(instIPAddress, reset=True)
-    awg.configure(res='intx3', fs=7.2e9, out1='ac', cf1=1e9)
-
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam32', symRate=40e6)
-    iqCorr = pyarbtools.wfmBuilder.iq_correction(iq, awg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20, convergence=5e-9)
-
-    wfmID = awg.download_wfm(iqCorr)
-    awg.play(wfmID=wfmID)
     awg.err_check()
     awg.disconnect()
 
@@ -293,7 +278,7 @@ def vector_uxg_dig_mod_example(ipAddress):
     symRate = 10e6
 
     # Create waveform
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=uxg.fs, modType=modType, symRate=symRate)
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=uxg.fs, modType=modType, symRate=symRate, filt='rootraisedcosine')
 
     # Download and play waveform
     uxg.download_wfm(iq, wfmID=wfmName)
@@ -516,9 +501,8 @@ def wfm_to_vsa_example(ipAddress):
     recalls it into VSA, and configures VSA to analyze it."""
 
     # Waveform creation variables
-    osFactor = 10
     symRate = 10e6
-    fs = osFactor * symRate
+    fs = 100e6
     modType = 'qam256'
     psFilter = 'rootraisedcosine'
     alpha = 0.35
@@ -527,8 +511,7 @@ def wfm_to_vsa_example(ipAddress):
 
     print('Creating waveform.')
     # This is the new digital modulation waveform creation function
-    data = pyarbtools.wfmBuilder.digmod_generator(osFactor=osFactor, modType=modType, filt=psFilter, numSymbols=10000,
-                                                  alpha=alpha)
+    data = pyarbtools.wfmBuilder.digmod_generator(fs=fs, symRate=symRate, modType=modType, filt=psFilter, numSymbols=10000, alpha=alpha)
 
     print('Exporting waveform.')
     # Export the waveform to a csv file
