@@ -22,7 +22,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../pyarbtools'))
 
-# import pyarbtools
+import pyarbtools
 
 # -- General configuration ---------------------------------------------
 
