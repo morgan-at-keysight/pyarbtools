@@ -16,17 +16,18 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import pyarbtools
 
 # -- Project information -----------------------------------------------------
 
 project = 'PyArbTools'
-copyright = '2018, Morgan Allison'
+copyright = '2020, Morgan Allison'
 author = 'Morgan Allison'
 
 # The short X.Y version
-version = '2020.04.0'
+version = pyarbtools.__version__
 # The full version, including alpha/beta/rc tags
-release = '2020.04.0'
+release = pyarbtools.__version__
 
 
 # -- General configuration ---------------------------------------------------

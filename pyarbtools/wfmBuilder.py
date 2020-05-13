@@ -1,16 +1,19 @@
 """
 wfmBuilder
 Author: Morgan Allison, Keysight RF/uW Application Engineer
-Generic waveform creation capabilities for pyarbtools.
+Generic waveform creation capabilities for PyArbTools.
 """
 
 import numpy as np
-from scipy.signal import max_len_seq
+import matplotlib.pyplot as plt
+import scipy.signal as sig
 import socketscpi
+import warnings
 from pyarbtools import error
 from time import sleep
-import matplotlib.pyplot as plt
+from fractions import Fraction
 import os
+
 
 class WFM:
     """
@@ -23,7 +26,7 @@ class WFM:
         wfmID (str): Waveform name/identifier.
     """
 
-    def __init__(self, data=[], wfmFormat='iq', fs=100e6, wfmID='wfm'):
+    def __init__(self, data, wfmFormat='iq', fs=100e6, wfmID='wfm'):
         """
         Initializes the WFM.
 
@@ -37,6 +40,7 @@ class WFM:
         self.wfmFormat = wfmFormat
         self.fs = fs
         self.wfmID = wfmID
+        self.fileName = ''
 
     def export(self, path='C:\\temp\\', vsaCompatible=False):
         """
@@ -99,6 +103,8 @@ def export_wfm(data, fileName, vsaCompatible=False, fs=0):
     Args:
         data (NumPy array): NumPy array containing the waveform samples.
         fileName (str): Absolute file name of the exported waveform.
+        vsaCompatible (bool): Adds a header with 'XDelta' parameter for recall into VSA.
+        fs (float): Sample rate used to create the waveform. Required if vsaCompatible is True.
     """
 
     try:
@@ -223,7 +229,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
         iq = np.exp(2 * np.pi * freqOffset * 1j * t)
         if zeroLast:
             iq[-1] = 0
-        if pri> pWidth:
+        if pri > pWidth:
             deadTime = np.zeros(int(fs * pri - rl))
             iq = np.append(iq, deadTime)
 
@@ -238,6 +244,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
         return real
     else:
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
+
 
 def chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wfmFormat='iq', zeroLast=False):
     """
@@ -362,10 +369,10 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9, wfmF
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
-def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq'):
+def multitone_generator(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq'):
     """
     IQTOOLS PLACES THE TONES IN THE FREQUENCY DOMAIN AND THEN IFFTS TO THE TIME DOMAIN
-    Generates a multitone signal with given tone spacing, number of
+    Generates a multitone_generator signal with given tone spacing, number of
     tones, sample rate, and phase relationship at baseband or RF.
     Args:
         fs (float): Sample rate used to create the signal.
@@ -425,7 +432,7 @@ def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='
         fdMag[tonePlacement] = 1
 
         fdIQ = fdMag * np.exp(1j * fdPhase)
-        tdIQ = np.fft.ifft(np.fft.fftshift(fdIQ)) * numSamples
+        tdIQ = np.fft.ifft(np.fft.ifftshift(fdIQ)) * numSamples
 
         sFactor = abs(np.amax(tdIQ))
         tdIQ = tdIQ / sFactor * 0.707
@@ -483,50 +490,118 @@ def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='
         raise error.WfmBuilderError('Invalid waveform format selected. Use "iq" or "real".')
 
 
-def rrc_filter(taps, a, symRate, fs):
-    """Generates the impulse response of a root raised cosine filter
-    from user-defined number of taps, rolloff factor, symbol rate,
-    and sample rate.
-    RRC equation taken from https://en.wikipedia.org/wiki/Root-raised-cosine_filter"""
+def rrc_filter(alpha, length, osFactor, plot=False):
+    """
+    Generates the impulse response of a root raised cosine filter.
+    Args:
+        alpha (float): Filter roll-off factor.
+        length (int): Number of symbols to use in the filter.
+        osFactor (int): Oversampling factor (number of samples per symbol).
+        plot (bool): Enable or disable plotting of filter impulse response.
 
-    dt = 1 / fs
-    tau = 1 / symRate
-    time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
-    h = np.zeros(taps, dtype=float)
+    Returns:
+        (NumPy array): Filter coefficients for use in np.convolve.
+    """
 
-    for t, x in zip(time, range(len(h))):
-        if t == 0.0:
-            h[x] = 1.0 + a * (4 / np.pi - 1)
-        elif a != 0 and (t == tau/(4*a) or t == -tau/(4*a)):
-            h[x] = a / np.sqrt(2) * (((1 + 2 / np.pi) * (np.sin(np.pi / (4 * a))))
-            + ((1 - 2 / np.pi) * (np.cos(np.pi / (4 * a)))))
-        else:
-            h[x] = (np.sin(np.pi * t / tau * (1 - a)) + 4 * a * t / tau * np.cos(np.pi * t / tau * (1 + a)))\
-            / (np.pi * t / tau * (1 - (4 * a * t / tau) ** 2))
+    if alpha < 0 or alpha > 1.0:
+        raise error.WfmBuilderError('Invalid \'alpha\' chosen. Use something between 0.1 and 1.')
 
-    return time, h
+    filterOrder = length * osFactor
+    # Make GOOD and sure that filterOrder is an integer value
+    filterOrder = round(filterOrder)
+
+    if filterOrder % 2:
+        raise error.WfmBuilderError('Must use an even number of filter taps.')
+
+    delay = filterOrder / 2
+    t = np.arange(-delay, delay) / osFactor
+
+    # Calculate the impulse response without warning about the inevitable divide by zero operations
+    # I promise we will deal with those down the road
+    with np.errstate(divide='ignore', invalid='ignore'):
+        h = -4 * alpha / osFactor * (np.cos((1 + alpha) * np.pi * t) +
+                                     np.sin((1 - alpha) * np.pi * t) / (4 * alpha * t)) / (np.pi * ((4 * alpha * t) ** 2 - 1))
+
+    # Find middle point of filter and manually populate the value
+    # np.where returns a list of indices where the argument condition is True in an array. Nice.
+    idx0 = np.where(t == 0)
+    h[idx0] = -1 / (np.pi * osFactor) * (np.pi * (alpha - 1) - 4 * alpha)
+
+    # Define machine precision used to check for near-zero values for small-number arithmetic
+    eps = np.finfo(float).eps
+
+    # Find locations of divide by zero points
+    divZero = abs(abs(4 * alpha * t) - 1)
+    # np.where returns a list of indices where the argument condition is True. Nice.
+    idx1 = np.where(divZero < np.sqrt(eps))
+
+    # Manually populate divide by zero points
+    h[idx1] = 1 / (2 * np.pi * osFactor) * (np.pi * (alpha + 1) * np.sin(np.pi * (alpha + 1) /
+                                    (4 * alpha)) - 4 * alpha * np.sin(np.pi * (alpha - 1) /
+                                    (4 * alpha)) + np.pi * (alpha - 1) * np.cos(np.pi * (alpha - 1) / (4 * alpha)))
+
+    # Normalize filter energy to 1
+    h = h / np.sqrt(np.sum(h ** 2))
+
+    if plot:
+        plt.plot(t, h)
+        plt.title('Filter Impulse Response')
+        plt.ylabel('h(t)')
+        plt.xlabel('t')
+        plt.show()
+
+    return h
 
 
-def rc_filter(taps, a, symRate, fs):
-    """Generates the impulse response of a raised cosine filter
-    from user-defined number of taps, rolloff factor, symbol rate,
-    and sample rate.
-    RC equation taken from https://en.wikipedia.org/wiki/Raised-cosine_filter"""
+def rc_filter(alpha, length, L, plot=False):
+    """
+    Designs raised cosine filter and returns filter coefficients.
 
-    dt = 1 / fs
-    tau = 1 / symRate
-    time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
-    h = np.zeros(taps, dtype=float)
+    Args:
+        alpha (float): Filter roll-off factor.
+        length (int): Number of symbols to use in the filter.
+        L (int): Oversampling factor (number of samples per symbol).
+        plot (bool): Enable or disable plotting of filter impulse response.
 
-    for t, x in zip(time, range(len(h))):
-        if t == 0.0:
-            h[x] = 1.0
-        elif a != 0 and (t == tau / (2 * a) or t == -tau / (2 * a)):
-            h[x] = np.pi / (4 * tau) * np.sinc(1 / (2 * a))
-        else:
-            h[x] = 1 / tau * np.sinc(t / tau) * np.cos(np.pi * a * t / tau) / (1 - (2 * a * t / tau) ** 2)
+    Returns:
+        (NumPy array): Filter coefficients for use in np.convolve.
+    """
 
-    return time, h
+    t = np.arange(-length / 2, length / 2 + 1 / L, 1 / L)  # +/- discrete-time base
+    with np.errstate(divide='ignore', invalid='ignore'):
+        A = np.divide(np.sin(np.pi * t), (np.pi * t))  # assume Tsym=1
+    B = np.divide(np.cos(np.pi * alpha * t), 1 - (2 * alpha * t) ** 2)
+    h = A * B
+    # Handle singularities
+    h[np.argwhere(np.isnan(h))] = 1  # singularity at p(t=0)
+    # singularity at t = +/- Tsym/2alpha
+    h[np.argwhere(np.isinf(h))] = (alpha / 2) * np.sin(np.divide(np.pi, (2 * alpha)))
+
+    if plot:
+        plt.plot(p)
+        plt.show()
+
+    return h
+
+# def gaussian_filter(fs, sigma):
+#     """
+#     Creates a gaussian pulse in the <frequency/time> domain.
+#
+#     Args:
+#         fs (float): Sample rate in Hz.
+#         sigma (float): Pulse width in seconds (this will probably turn into something related to symbol rate).
+#
+#     Returns:
+#         {NumPy Array): Gaussian shaped pulse.
+#     """
+#
+#     dt = 1 / fs
+#     sigma = 1 / symRate
+#     time = np.linspace(-taps / 2, taps / 2, taps, endpoint=False) * dt
+#
+#     h = 1 / (np.sqrt(2 * np.pi) * sigma) * (np.exp(-time ** 2 / (2 * sigma ** 2)))
+#
+#     return time, h
 
 
 def bpsk_modulator(data, customMap=None):
@@ -629,7 +704,7 @@ def psk16_modulator(data, customMap=None):
     try:
         return np.array([psk16Map[p] for p in pattern])
     except KeyError:
-        raise ValueError('Invalid 8PSK symbol.')
+        raise ValueError('Invalid 16PSK symbol.')
 
 
 def qam16_modulator(data, customMap=None):
@@ -1087,35 +1162,51 @@ def qam256_modulator(data, customMap=None):
 
 
 def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, wfmFormat='iq', zeroLast=False):
+    """DEPRECATED. THIS IS A PASS-THROUGH FUNCTION ONLY"""
+
+    warnings.warn('pyarbtools.wfmBuilder.digmod_prbs_generator() is deprecated. Use pyarbtools.wfmBuilder.digmod_generator() instead.')
+
+    if filt == rrc_filter:
+        filt = 'rootraisedcosine'
+    elif filt == rc_filter:
+        filt = 'raisedcosine'
+
+    numSymbols = int(2 ** prbsOrder - 1)
+
+    return digmod_generator(fs=fs, symRate=symRate, modType=modType, numSymbols=numSymbols, filt=filt, alpha=alpha, zeroLast=zeroLast, wfmFormat=wfmFormat)
+
+
+def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='raisedcosine', alpha=0.35, wfmFormat='iq', zeroLast=False, plot=False):
     """
-    Generates a digitally modulated signal with a given modulation
-    and filter type using PRBS data at baseband.
+    Generates a digitally modulated signal at baseband with a given modulation type, number of symbols, and filter type/alpha
+    using random data.
+
     Args:
-        fs (float): Sample rate used to create the signal in Hz.
-        modType (function handle): Type of modulation.
-            (bksp_modulator, qpsk_modulator, psk8_modulator,
-            qam16_modulator, qam32_modulator, qam64_modulator,
-            qam128_modulator, qam256_modulator)
-        symRate (float): Symbol rate in Hz.
-        prbsOrder (int): Order of the pseudorandom bit sequence used
-            for the underlying data. (7, 9, 11, 13)
-        filt (function handle): Reference filter type. (rrc_filter, rc_filter)
-        alpha (float): Excess filter bandwidth specification. Also
-            known as roll-off factor, alpha, or beta.
-        zeroLast (bool): Force last sample point to 0.
+        fs (float): Sample rate used to create the waveform in samples/sec.
+        symRate (float): Symbol rate in symbols/sec.
+        modType (str): Type of modulation. ('bpsk', 'qpsk', 'psk8', 'psk16', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256')
+        numSymbols (int): Number of symbols to put in the waveform.
+        filt (str): Pulse shaping filter type. ('raisedcosine' or 'rootraisedcosine')
+        alpha (float): Pulse shaping filter excess bandwidth specification. Also known as roll-off factor, alpha, or beta.
+        wfmFormat (str): Determines type of waveform. Currently only 'iq' format is supported.
+        zeroLast (bool): Force the last sample point to 0.
+        plot (bool): Enable or disable plotting of final waveform in time domain and constellation domain.
 
     Returns:
-        (NumPy array): Array containing the complex or real values of the waveform.
+        (NumPy array): Array containing the complex values of the waveform.
+
+    TODO
+        Add an argument that allows user to specify symbol data.
     """
+
+    # Use 10 samples per symbol for creating the initial signal prior to final resampling
+    osFactor = 10
+
+    if symRate >= fs:
+        raise error.WfmBuilderError('symRate violates Nyquist. Reduce symbol rate or increase sample rate.')
 
     if wfmFormat.lower() != 'iq':
         raise error.WfmBuilderError('Digital modulation currently supports IQ waveform format only.')
-
-    if symRate > fs:
-        raise error.WfmBuilderError('Symbol Rate violates Nyquist.')
-
-    saPerSym = int(fs / symRate)
-    filterSymbolLength = 10
 
     # Define bits per symbol and modulator function based on modType
     if modType.lower() == 'bpsk':
@@ -1124,10 +1215,10 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     elif modType.lower() == 'qpsk':
         bitsPerSym = 2
         modulator = qpsk_modulator
-    elif modType.lower() == '8psk':
+    elif modType.lower() == 'psk8':
         bitsPerSym = 3
         modulator = psk8_modulator
-    elif modType.lower() == '16psk':
+    elif modType.lower() == 'psk16':
         bitsPerSym = 4
         modulator = psk16_modulator
     elif modType.lower() == 'qam16':
@@ -1148,58 +1239,95 @@ def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, f
     else:
         raise ValueError('Invalid modType chosen.')
 
-    # Create pattern and repeat to ensure integer number of symbols.
-    temp, state = max_len_seq(prbsOrder)
-    bits = temp
+    # Create random bit pattern and repeat to ensure integer number of symbols.
+    bits = np.random.randint(0, 2, bitsPerSym * numSymbols)
+    temp = bits
     repeats = 1
     while len(bits) % bitsPerSym:
         bits = np.tile(temp, repeats)
         repeats += 1
 
-    """Convert the pseudorandom bit sequence, which is a list of bits,
-    into the binary values of symbols as strings, and then map symbols
-    to locations in the complex plane."""
+    # Group the bits into symbol values and then map the symbols to locations in the complex plane.
     symbols = modulator(bits)
 
-    """Perform a pseudo circular convolution on the symbols to mitigate
-    zeroing of samples due to filter delay (i.e. PREpend the
-    last few symbols and APpend the first few symbols)."""
-    symbols = np.concatenate((symbols[-int(filterSymbolLength/2):], symbols, symbols[:int(filterSymbolLength/2)]))
+    # Zero-pad symbols to satisfy oversampling factor.
+    temp = np.zeros(len(symbols) * osFactor, dtype=np.complex)
+    temp[::osFactor] = symbols
 
-    """Zero-fill each symbol rather than repeating the symbol value to
-    fill. This is to ensure the filter operates on an impulse response
-    rather than a zero-order hold response."""
-    iq = np.zeros(len(symbols) * saPerSym, dtype=np.complex)
-    iq[::saPerSym] = symbols
+    # Create pulse shaping filter
+    # The number of taps required must be a multiple of the oversampling factor
+    taps = 8 * osFactor
+    if filt.lower() == 'rootraisedcosine':
+        psFilter = rrc_filter(alpha, taps, osFactor)
+    elif filt.lower() == 'raisedcosine':
+        psFilter = rc_filter(alpha, taps, osFactor)
+    else:
+        raise error.WfmBuilderError('Invalid pulse shaping filter chosen. Use \'raisedcosine\' or \'rootraisedcosine\'')
 
-    """Create pulse shaping filter. Taps should be an odd number to 
-    ensure there is a tap in the center of the filter."""
-    taps = filterSymbolLength * saPerSym + 1
-    time, modFilter = filt(int(taps), alpha, symRate, fs)
+    # Prepend the end of the signal onto the beginning and append the beginning onto the end
+    # to ensure there are no phase discontinuities created when convolving with the filter taps
+    wrapLocation = int(taps / 2)
+    temp = np.concatenate([temp[-wrapLocation:], temp, temp[:wrapLocation]])
 
-    # Apply filter and trim off zeroed samples to ensure EXACT wraparound.
-    iq = np.convolve(iq, modFilter)
-    iq = iq[taps-1:-taps+1]
+    # Apply pulse shaping filter to symbols via convolution
+    iq = np.convolve(temp, psFilter, mode='same')
 
-    # Scale waveform data
+    # Calculate oversampling factors for resampling
+    finalOsFactor = fs / (symRate * osFactor)
+
+    # Python's built-in fractions module makes this easy
+    fracOs = Fraction(finalOsFactor).limit_denominator(1000)
+    finalOsNum = fracOs.numerator
+    finalOsDenom = fracOs.denominator
+
+    # Resample and filter out images
+    iq = sig.resample_poly(iq, finalOsNum, finalOsDenom, window=('kaiser', 10))
+
+    # Scale signal to prevent compressing iq modulator
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
 
     if zeroLast:
-        iq[-1] = 0 + 1j*0
+        iq[-1] = 0 + 1j * 0
+
+    if plot:
+        # Calculate symbol locations and symbol values for real and imaginary components
+        symbolLocations = np.arange(0, len(iq), osFactor)
+        realSymbolValues = iq.real[symbolLocations]
+        imagSymbolValues = iq.imag[symbolLocations]
+        plotSymbols = 100
+        plotSamples = osFactor * plotSymbols
+
+        # Plot both time domain and constellation diagram with decision points
+        plt.subplot(211)
+        plt.plot(iq.real[:plotSamples])
+        plt.plot(symbolLocations[:plotSymbols], realSymbolValues[:plotSymbols], 'g.')
+        plt.plot(iq.imag[:plotSamples])
+        plt.plot(symbolLocations[:plotSymbols], imagSymbolValues[:plotSymbols], 'r.')
+        plt.title('IQ vs Sample')
+        plt.ylabel('I and Q')
+        plt.xlabel('Sample Number')
+        plt.subplot(212)
+        plt.plot(iq.real[:plotSamples], iq.imag[:plotSamples])
+        plt.plot(realSymbolValues[:plotSymbols], realSymbolValues[:plotSymbols], 'r.')
+        plt.title('I vs Q (Constellation Diagram)')
+        plt.ylabel('Q')
+        plt.xlabel('I')
+        plt.tight_layout()
+        plt.show()
 
     return iq
 
 
-def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
-                  cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
+def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
     """
-    Creates a 16-QAM signal from a signal generator at a
+    Creates a BPSK signal from a signal generator at a
     user-selected center frequency and sample rate. Symbol rate and
     effective bandwidth of the calibration signal is determined by
     the oversampling rate in VSA. Creates a VSA instrument, which
     receives the 16-QAM signal and extracts & inverts an equalization
     filter and applies it to the user-defined waveform.
+
     Args:
         iq (NumPy array): Array containing the complex values of the
             signal to be corrected.
@@ -1220,8 +1348,8 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
             settle more quickly but may become unstable. Low values
             take longer to settle but tend to have better stability
 
-    Returns:
-
+    TODO
+        Refactor using vsaControl
     """
 
     if osFactor not in [2, 4, 5, 10, 20]:
@@ -1245,7 +1373,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
 
     # Create, load, and play calibration signal
     symRate = fs / osFactor
-    iqCal = digmod_prbs_generator(fs=fs, modType='qam16', symRate=symRate)
+    iqCal = digmod_generator(fs=fs, modType='bpsk', symRate=symRate, filt='rootraisedcosine')
     wfmId = inst.download_wfm(iqCal)
     inst.play(wfmId)
 
@@ -1258,7 +1386,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     vsa.write('initiate:abort')
     vsa.write('input:trigger:style "Auto"')
     vsa.write('measure:configure ddemod')
-    vsa.write('trace1:data:name "Error Vector Time1"')
+    vsa.write('trace1:data:name "IQ Meas Time1"')
     vsa.write('trace2:data:name "Spectrum1"')
     vsa.write('trace3:data:name "Eq Impulse Response1"')
     vsa.write('trace4:data:name "Syms/Errs1"')
@@ -1268,7 +1396,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     vsa.write('display:layout 2, 2')
 
     # Configure digital demod parameters and enable equalizer
-    vsa.write(f'ddemod:mod "Qam16"')
+    vsa.write(f'ddemod:mod "bpsk"')
     vsa.write(f'ddemod:srate {symRate}')
     vsa.write(f'ddemod:symbol:points {osFactor}')
     vsa.write('ddemod:filter "RootRaisedCosine"')
@@ -1289,10 +1417,8 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
         evm = float(vsa.query('trace4:data:table? "EvmRms"').strip())
 
     vsa.write('trace3:format "IQ"')
-    vsa.write('trace3:data:x?')
-    eqI = vsa.binblockread(dtype=np.float64).byteswap()
-    vsa.write('trace3:data:y?')
-    eqQ = vsa.binblockread(dtype=np.float64).byteswap()
+    eqI = vsa.binblockread('trace3:data:x?', datatype='d').byteswap()
+    eqQ = vsa.binblockread('trace3:data:y?', datatype='d').byteswap()
     vsa.write('ddemod:compensate:equalize 0')
 
     # Invert the phase of the equalizer impulse response
@@ -1309,21 +1435,21 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     sFactor = abs(np.amax(iqCorr))
     iqCorr = iqCorr / sFactor * 0.707
 
-    import matplotlib.pyplot as plt
-
-    plt.subplot(221)
-    plt.plot(iq.real)
-    plt.plot(iq.imag)
-    plt.subplot(222)
-    plt.plot(circIQ.real)
-    plt.plot(circIQ.imag)
-    plt.subplot(223)
-    plt.plot(equalizer.real)
-    plt.plot(equalizer.imag)
-    plt.subplot(224)
-    plt.plot(iqCorr.real)
-    plt.plot(iqCorr.imag)
-    plt.show()
+    # import matplotlib.pyplot as plt
+    #
+    # plt.subplot(221)
+    # plt.plot(iq.real)
+    # plt.plot(iq.imag)
+    # plt.subplot(222)
+    # plt.plot(circIQ.real)
+    # plt.plot(circIQ.imag)
+    # plt.subplot(223)
+    # plt.plot(equalizer.real)
+    # plt.plot(equalizer.imag)
+    # plt.subplot(224)
+    # plt.plot(iqCorr.real)
+    # plt.plot(iqCorr.imag)
+    # plt.show()
 
     # vsa.write('*rst')
     # vsa.write(f'mmemory:load:setup "{setupFile}"')
@@ -1338,5 +1464,3 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     vsa.disconnect()
 
     return iqCorr
-
-
