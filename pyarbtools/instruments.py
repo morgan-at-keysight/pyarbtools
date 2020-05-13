@@ -91,6 +91,8 @@ class M8190A(socketscpi.SocketInstrument):
         self.func2 = self.query('func2:mode?').strip()
         self.cf1 = float(self.query('carrier1:freq?').strip().split(',')[0])
         self.cf2 = float(self.query('carrier2:freq?').strip().split(',')[0])
+        self.amp1 = self.query(f'{self.out1}1:voltage:amplitude?')
+        self.amp2 = self.query(f'{self.out2}1:voltage:amplitude?')
 
         # Initialize waveform format constants and populate them with check_resolution()
         self.gran = 0
@@ -590,7 +592,7 @@ class M8195A(socketscpi.SocketInstrument):
         """
 
         # Stop output on all channels before doing anything else
-        for ch in range(1,5):
+        for ch in range(1, 5):
             self.stop(ch=ch)
 
         # Check to see which keyword arguments the user sent and call the appropriate function
@@ -713,7 +715,6 @@ class M8195A(socketscpi.SocketInstrument):
         # This is a neat use of Python's exec() function, which takes a "program" in as a string and executes it
         # Very useful if you need to dynamically decide which variable names to call
         exec(f"self.amp{channel} = float(self.query('voltage{channel}?'))")
-
 
     def sanity_check(self):
         """Prints out user-accessible class attributes."""
@@ -870,7 +871,7 @@ class M8196A(socketscpi.SocketInstrument):
     def configure(self, **kwargs):
         """
         Sets basic configuration for M8196A and populates class attributes accordingly.
-        Args:
+        Keyword Args:
             dacMode (str): DAC operation mode. ('single', 'dual', 'four', 'marker', 'dcmarker')
             fs (float): AWG sample rate.
             refSrc (str): Reference clock source. ('axi', 'int', 'ext')
@@ -1058,7 +1059,6 @@ class M8196A(socketscpi.SocketInstrument):
         """
         Selects waveform, turns on analog output, and begins continuous playback.
         Args:
-            wfmID (int): Waveform identifier, used to select waveform to be played.
             ch (int): AWG channel out of which the waveform will be played.
         """
 
@@ -1110,7 +1110,7 @@ class VSG(socketscpi.SocketInstrument):
         self.alcState = self.query('power:alc?')
         self.refSrc = self.query('roscillator:source?').strip()
         self.arbState = self.query('radio:arb:state?').strip()
-        # self.fs = float(self.query('radio:arb:sclock:rate?').strip())
+        self.fs = float(self.query('radio:arb:sclock:rate?').strip())
         if 'int' in self.refSrc.lower():
             self.refFreq = 10e6
         elif 'ext' in self.refSrc.lower():
@@ -1448,13 +1448,14 @@ class VSG(socketscpi.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
 
 
+# noinspection PyAttributeOutsideInit
 class VXG(socketscpi.SocketInstrument):
     def __init__(self, host, port=5025, timeout=10, reset=False):
         """
         Generic class for controlling the M9384B VXG signal generator.
 
         Attributes:
-            rfState (int): Turns the RF output on or off. (1, 0)
+            rf1State (int): Turns the RF output on or off. (1, 0)
             modState (int): Turns the baseband modulator on or off. (1, 0)
             cf (float): Sets the generator's carrier frequency.
             amp (int/float): Sets the generator's RF output power.
@@ -1731,7 +1732,6 @@ class VXG(socketscpi.SocketInstrument):
         Guide (November 2014 Edition) for more info.
         Args:
             wfm (NumPy array): Unscaled/unformatted waveform data.
-            bigEndian (bool): Determines whether waveform is big endian.
 
         Returns:
             (NumPy array): Waveform data that has been scaled and
@@ -1799,7 +1799,7 @@ class VXG(socketscpi.SocketInstrument):
         self.modState = self.query('output:modulation?').strip()
 
 
-# noinspection PyUnusedLocal
+# noinspection PyUnusedLocal,PyRedundantParentheses
 class AnalogUXG(socketscpi.SocketInstrument):
     """
     Generic class for controlling the N5193A Analog UXG agile signal generators.
@@ -1825,7 +1825,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         # Check N5193A to make sure Streaming mode is selected
         mode = self.query('inst:select?').strip()
-        if (mode != "STR"):
+        if mode != "STR":
             self.write('inst:select str')
             self.query('*opc?')
 
@@ -1861,7 +1861,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
         attributes accordingly. It should be called any time these
         settings are changed (ideally once directly after creating the
         UXG object).
-        Args:
+        Keyword Args:
             rfState (int): Turns the RF output on or off. (1, 0)
             modState (int): Turns the modulator on or off. (1, 0)
             cf (float): Sets the generator's carrier frequency.
@@ -2132,8 +2132,9 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         return pdw
 
-
-    def paddingBlock(self, sizeOfPaddingAndHeaderInBytes):
+    # noinspection PyRedundantParentheses
+    @staticmethod
+    def paddingBlock(sizeOfPaddingAndHeaderInBytes):
         """
         Creates an analog UXG binary padding block with header. The padding block
         is used to align binary blocks as needed so each block starts on a 16 byte
@@ -2162,9 +2163,10 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         return padding
 
-
-    def bin_freqPhaseCodingSingleEntry(self, onOffState=0, numBitsPerSubpulse=1, codingType=0,
-                                       stateMapping=[0,180], hexPatternString="E2",
+    # noinspection PyDefaultArgument,PyRedundantParentheses,PyRedundantParentheses,PyRedundantParentheses,PyRedundantParentheses
+    @staticmethod
+    def bin_freqPhaseCodingSingleEntry(onOffState=0, numBitsPerSubpulse=1, codingType=0,
+                                       stateMapping=[0, 180], hexPatternString="E2",
                                        comment="default Comment"):
         """
         Creates a single entry binary frequency and phase coding block
@@ -2189,7 +2191,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
         hexPatternBytes = bytearray.fromhex(hexPatternString)
         numBitsInPattern = 8 * len(hexPatternBytes)
 
-        if (codingType !=0 and codingType !=1):
+        if (codingType != 0 and codingType != 1):
             raise error.UXGError('Only phase and frequency coding via streaming has been implemented in this example')
         if (numBitsPerSubpulse != 1):
             raise error.UXGError('Only one bit per subpulse has been implemented in this example')
@@ -2206,7 +2208,6 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         fpcBin = entryState + numBitsPerSub + modType + numBytesInComment + numBitsInPat
 
-
         # Convert double array to little endian byte array - 8 bytes per double value
         for phaseOrFreq in stateMapping:
             doubleByteArrayPhase = bytearray(struct.pack("<d", phaseOrFreq))
@@ -2221,6 +2222,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         return fpcBin
 
+    # noinspection PyRedundantParentheses,PyRedundantParentheses,PyRedundantParentheses,PyRedundantParentheses
     def bin_pdw_freqPhaseCodingBlock(self):
         """
         Creates a complete frequency and phase coding block containing header and data
@@ -2230,14 +2232,13 @@ class AnalogUXG(socketscpi.SocketInstrument):
         instead of having to send SCPI commands.
         http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm#User's%20Guide/Streaming%20Mode%20File%20Format%20Definition.htm%3FTocPath%3DUser's%2520Guide%7CStreaming%2520Mode%2520Use%7C_____5
 
-         Args:
-             none: currently hardcoded to create FCP block with 3 fixed entries
-                   first  entry is index 0 in FPC table - no coding
-                   second entry is index 1 in FPC table - PSK
-                   third  entry is index 2 in FPC table - FSK
+        currently hardcoded to create FCP block with 3 fixed entries
+               first  entry is index 0 in FPC table - no coding
+               second entry is index 1 in FPC table - PSK
+               third  entry is index 2 in FPC table - FSK
 
-             Returns:
-                 binary byte array containing full FCP block with header
+        Returns (bytearray):
+            Bytearray containing full FCP block with header.
         """
 
         numEntries = 3
@@ -2250,7 +2251,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         entry0 = self.bin_freqPhaseCodingSingleEntry(0, 1, 0, [0, 180], "", "NoCodingFirstEntry")
         entry1 = self.bin_freqPhaseCodingSingleEntry(1, 1, 0, [0, 180], "2A61D327", "PSKcode32bits")
-        entry2 = self.bin_freqPhaseCodingSingleEntry(1, 1, 1, [-10e6,10e6], "5AC4", "FSKcodeTest16bits")
+        entry2 = self.bin_freqPhaseCodingSingleEntry(1, 1, 1, [-10e6, 10e6], "5AC4", "FSKcodeTest16bits")
 
         # Size does not include blockID and reserved fields 8 bytes
         sizeInBytes = len(version) + len(numberOfEntries) + len(entry0) + len(entry1) + len(entry2)
@@ -2258,10 +2259,10 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         returnBlock = [freqPhaseBlockId, reserved1, sizeBlock, version, numberOfEntries, entry0, entry1, entry2]
 
-        #fpcBlock size must be a multiple of 16 to be on proper byte boundary - Add padding as needed
+        # fpcBlock size must be a multiple of 16 to be on proper byte boundary - Add padding as needed
         tempSize = len(b''.join(returnBlock))
         sizeOfEndBufferBytes = 16 - (tempSize % 16)
-        endFpcBlockBufferBytes  = (0).to_bytes(sizeOfEndBufferBytes, byteorder='little')
+        endFpcBlockBufferBytes = (0).to_bytes(sizeOfEndBufferBytes, byteorder='little')
 
         returnBlockWithPadding = [freqPhaseBlockId, reserved1, sizeBlock, version, numberOfEntries,
                                   entry0, entry1, entry2, endFpcBlockBufferBytes]
@@ -2284,7 +2285,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
             (bytes): Binary data that contains a full PDW file that can be downloaded to and played out of the UXG.
         """
 
-        #Include frequency phase coding block flag: 1 = yes, 0 = no
+        # Include frequency phase coding block flag: 1 = yes, 0 = no
         includeFpcBlock = 1
 
         # Header section, all fixed values
@@ -2311,7 +2312,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
             fpcBlock = self.bin_pdw_freqPhaseCodingBlock()
         fpcBlockSize = len(b''.join(fpcBlock))
 
-        #PDW block header must start at byte 4080 so PDW stream data starts at byte 4097
+        # PDW block header must start at byte 4080 so PDW stream data starts at byte 4097
         paddingSize = 4080 - tempHeaderSize - fpcBlockSize
         paddingBlock = self.paddingBlock(paddingSize)
 
@@ -2440,7 +2441,7 @@ class VectorUXG(socketscpi.SocketInstrument):
         attributes accordingly. It should be called any time these
         settings are changed (ideally once directly after creating the
         UXG object).
-        Args:
+        Keyword Args:
             rfState (int): Turns the RF output on or off. (1, 0)
             modState (int): Turns the modulator on or off. (1, 0)
             cf (float): Sets the generator's carrier frequency.
@@ -2763,6 +2764,7 @@ class VectorUXG(socketscpi.SocketInstrument):
 
         return pdwFile
 
+    # noinspection PyDefaultArgument,PyDefaultArgument
     def csv_pdw_file_download(self, fileName, fields=['Operation', 'Time'],
                               data=[[1, 0], [2, 100e-6]]):
         """

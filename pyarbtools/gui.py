@@ -497,7 +497,7 @@ class PyarbtoolsGUI:
                 wfmArgs = [float(self.eFsWfm.get()), float(self.eSpacing.get()),
                            int(self.eNumTones.get()), self.cbPhase.get(),
                            float(self.eCf.get()), self.cbWfmFormat.get()]
-                wfmRaw = pyarbtools.wfmBuilder.multitone(*wfmArgs)
+                wfmRaw = pyarbtools.wfmBuilder.multitone_generator(*wfmArgs)
             elif self.wfmType == 'Digital Modulation':
                 filtArg = self.cbFiltType.get()
                 if filtArg == 'Root Raised Cosine':

@@ -3,7 +3,6 @@ examples
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Provides example scripts for generic VSGs, UXG, and AWGs using
 instrument classes from PyArbTools.
-Tested on N5182B, M8190A
 """
 
 import pyarbtools
@@ -132,7 +131,7 @@ def vsg_mtone_example(ipAddress):
     toneSpacing = 100e3
 
     # Create waveform
-    iq = pyarbtools.wfmBuilder.multitone(fs=vsg.fs, spacing=toneSpacing, num=numTones)
+    iq = pyarbtools.wfmBuilder.multitone_generator(fs=vsg.fs, spacing=toneSpacing, num=numTones)
 
     # Download and play waveform
     vsg.download_wfm(iq, wfmID=name)
@@ -537,7 +536,7 @@ def wfm_to_vsa_example(ipAddress):
     vsa.recall_recording(fileName, fileFormat=fileFormat)
 
     # Perform a single-shot replay in VSA
-    vsa.play_single()
+    vsa.acquire_single()
 
     # Check for errors and gracefully disconnect
     vsa.err_check()
@@ -556,7 +555,7 @@ def vsa_vector_example(ipAddress):
     vsa = pyarbtools.vsaControl.VSA(ipAddress)
     vsa.set_measurement('vector')
     vsa.configure_vector(cf=cf, span=span, amp=amp, time=time)
-    vsa.play_single()
+    vsa.acquire_single()
     vsa.sanity_check()
 
     # Check for errors and gracefully disconnect

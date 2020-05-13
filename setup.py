@@ -32,7 +32,7 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/morgan-at-keysight/pyarbtools',
-    version='2020.04.0',
+    version='2020.05.0',
     zip_safe=False,
     # name='pyarbtools',
     # version='0.0.14.1',
