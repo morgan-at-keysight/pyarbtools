@@ -1,13 +1,14 @@
 """
 wfmBuilder
 Author: Morgan Allison, Keysight RF/uW Application Engineer
-Generic waveform creation capabilities for pyarbtools.
+Generic waveform creation capabilities for PyArbTools.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sig
 import socketscpi
+import warnings
 from pyarbtools import error
 from time import sleep
 from fractions import Fraction
@@ -368,10 +369,10 @@ def barker_generator(fs=100e6, pWidth=10e-6, pri=100e-6, code='b2', cf=1e9, wfmF
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
-def multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq'):
+def multitone_generator(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq'):
     """
     IQTOOLS PLACES THE TONES IN THE FREQUENCY DOMAIN AND THEN IFFTS TO THE TIME DOMAIN
-    Generates a multitone signal with given tone spacing, number of
+    Generates a multitone_generator signal with given tone spacing, number of
     tones, sample rate, and phase relationship at baseband or RF.
     Args:
         fs (float): Sample rate used to create the signal.
@@ -1160,7 +1161,22 @@ def qam256_modulator(data, customMap=None):
         raise ValueError('Invalid 256 QAM symbol.')
 
 
-def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='raisedcosine', alpha=0.35, wfmFormat='iq', plot=False):
+def digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, wfmFormat='iq', zeroLast=False):
+    """DEPRECATED. THIS IS A PASS-THROUGH FUNCTION ONLY"""
+
+    warnings.warn('pyarbtools.wfmBuilder.digmod_prbs_generator() is deprecated. Use pyarbtools.wfmBuilder.digmod_generator() instead.')
+
+    if filt == rrc_filter:
+        filt = 'rootraisedcosine'
+    elif filt == rc_filter:
+        filt = 'raisedcosine'
+
+    numSymbols = int(2 ** prbsOrder - 1)
+
+    return digmod_generator(fs=fs, symRate=symRate, modType=modType, numSymbols=numSymbols, filt=filt, alpha=alpha, zeroLast=zeroLast, wfmFormat=wfmFormat)
+
+
+def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='raisedcosine', alpha=0.35, wfmFormat='iq', zeroLast=False, plot=False):
     """
     Generates a digitally modulated signal at baseband with a given modulation type, number of symbols, and filter type/alpha
     using random data.
@@ -1173,6 +1189,7 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
         filt (str): Pulse shaping filter type. ('raisedcosine' or 'rootraisedcosine')
         alpha (float): Pulse shaping filter excess bandwidth specification. Also known as roll-off factor, alpha, or beta.
         wfmFormat (str): Determines type of waveform. Currently only 'iq' format is supported.
+        zeroLast (bool): Force the last sample point to 0.
         plot (bool): Enable or disable plotting of final waveform in time domain and constellation domain.
 
     Returns:
@@ -1270,6 +1287,9 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
 
+    if zeroLast:
+        iq[-1] = 0 + 1j * 0
+
     if plot:
         # Calculate symbol locations and symbol values for real and imaginary components
         symbolLocations = np.arange(0, len(iq), osFactor)
@@ -1299,15 +1319,15 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     return iq
 
 
-def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
-                  cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
+def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
     """
-    Creates a 16-QAM signal from a signal generator at a
+    Creates a BPSK signal from a signal generator at a
     user-selected center frequency and sample rate. Symbol rate and
     effective bandwidth of the calibration signal is determined by
     the oversampling rate in VSA. Creates a VSA instrument, which
     receives the 16-QAM signal and extracts & inverts an equalization
     filter and applies it to the user-defined waveform.
+
     Args:
         iq (NumPy array): Array containing the complex values of the
             signal to be corrected.
@@ -1353,7 +1373,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
 
     # Create, load, and play calibration signal
     symRate = fs / osFactor
-    iqCal = digmod_prbs_generator(fs=fs, modType='qam16', symRate=symRate)
+    iqCal = digmod_generator(fs=fs, modType='bpsk', symRate=symRate, filt='rootraisedcosine')
     wfmId = inst.download_wfm(iqCal)
     inst.play(wfmId)
 
@@ -1366,7 +1386,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     vsa.write('initiate:abort')
     vsa.write('input:trigger:style "Auto"')
     vsa.write('measure:configure ddemod')
-    vsa.write('trace1:data:name "Error Vector Time1"')
+    vsa.write('trace1:data:name "IQ Meas Time1"')
     vsa.write('trace2:data:name "Spectrum1"')
     vsa.write('trace3:data:name "Eq Impulse Response1"')
     vsa.write('trace4:data:name "Syms/Errs1"')
@@ -1376,7 +1396,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     vsa.write('display:layout 2, 2')
 
     # Configure digital demod parameters and enable equalizer
-    vsa.write(f'ddemod:mod "Qam16"')
+    vsa.write(f'ddemod:mod "bpsk"')
     vsa.write(f'ddemod:srate {symRate}')
     vsa.write(f'ddemod:symbol:points {osFactor}')
     vsa.write('ddemod:filter "RootRaisedCosine"')

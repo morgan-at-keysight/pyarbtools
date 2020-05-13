@@ -1,13 +1,14 @@
 """
 vsaControl
 Author: Morgan Allison, Keysight RF/uW Application Engineer
-Generic VSA control object for pyarbtools.
+Generic VSA control object for PyArbTools.
 """
 
 import socketscpi
 import os
 import warnings
 from pyarbtools import error
+
 
 class VSA(socketscpi.SocketInstrument):
     """
@@ -19,17 +20,30 @@ class VSA(socketscpi.SocketInstrument):
         span (float): Analyzer span in Hz
         hw (str): Identifier string for acquisition hardware used by VSA
         meas (str): Measurement type ('vector', 'ddemod' currently supported)
+
+        modType (str): String defining digital modulation format. This is CASE-SENSITIVE and must be surrounded by double quotes.
+        symRate (float): Symbol rate in symbols/sec.
+        measFilter (str): Sets the measurement filter type. This is CASE-SENSITIVE and must be surrounded by double quotes.
+        refFilter (str): Sets the reference filter type. This is CASE-SENSITIVE and must be surrounded by double quotes.
+        filterAlpha (float): Filter alpha/rolloff factor. Must  be between 0 and 1.
+        measLength (int): Measurement length in symbols.
+        eqState (bool): Turns the equalizer on or off.
+        eqLength (int): Length of the equalizer filter in symbols.
+        eqConvergence (float): Equalizer convergence factor.
+
+        rbw (float): Resolution bandwidth in Hz.
+        time (float): Analysis time in sec.
     """
 
     def __init__(self, host, port=5025, timeout=10, reset=False, vsaHardware=None):
         super().__init__(host, port, timeout)
 
         # Set up hardware
-        if not isinstance(vsaHardware, str) and vsaHardware != None:
+        if not isinstance(vsaHardware, str) and vsaHardware is not None:
             raise error.VSAError('vsaHardware must be a string indicating which hardware platform to use.')
 
         self.hw = vsaHardware
-        if vsaHardware != None:
+        if vsaHardware is not None:
             self.set_hw(vsaHardware)
 
         if reset:
@@ -63,12 +77,12 @@ class VSA(socketscpi.SocketInstrument):
         self.rbw = 0
         self.time = 0
 
-    def play_continuous(self):
+    def acquire_continuous(self):
         """Begins continuous acquisition in VSA using SCPI commands."""
         self.write('initiate:continuous on')
         self.write('initiate:immediate')
 
-    def play_single(self):
+    def acquire_single(self):
         """Sets single acquisition mode and takes a single acquisition in VSA using SCPI commands."""
         self.write('initiate:continuous off')
         self.write('initiate:immediate')
@@ -176,10 +190,10 @@ class VSA(socketscpi.SocketInstrument):
         Keyword Args:
             cf (float): Analyzer center frequency in Hz.
             amp (float): Analyzer reference level/vertical range in dBm.
-            modType (str): String defining digital modulation format. This is CASE-SENSITIVE and must be surrounded by double quotes.
+            modType (str): String defining digital modulation format.
             symRate (float): Symbol rate in symbols/sec.
-            measFilter (str): Sets the measurement filter type. This is CASE-SENSITIVE and must be surrounded by double quotes.
-            refFilter (str): Sets the reference filter type. This is CASE-SENSITIVE and must be surrounded by double quotes.
+            measFilter (str): Sets the measurement filter type.
+            refFilter (str): Sets the reference filter type.
             filterAlpha (float): Filter alpha/rolloff factor. Must  be between 0 and 1.
             measLength (int): Measurement length in symbols.
             eqState (bool): Turns the equalizer on or off.
@@ -196,6 +210,8 @@ class VSA(socketscpi.SocketInstrument):
                 self.set_cf(value)
             elif key == 'amp':
                 self.set_amp(value)
+            elif key == 'span':
+                self.set_span(value)
             elif key == 'modType':
                 self.set_modType(value)
             elif key == 'symRate':
@@ -265,7 +281,7 @@ class VSA(socketscpi.SocketInstrument):
         """
         Sets and reads measurement filter type in VSA digital demod using SCPI commands.
         Args:
-            measFilter (str): Sets the measurement filter type. This must be surrounded by double quotes.
+            refFilter (str): Sets the reference filter type.
         """
 
         if refFilter.lower() not in ['rectangular', 'raisedcosine', 'rootraisedcosine', 'gaussian', 'userdefined', 'is95baseband', 'edge', 'halfsine', 'rectangularonesymbolduration', 'raisedcosinethreesymbolduration', 'shapedoffsetqpsktgirig10604', 'raisedcosinefoursymbolduration', 'shapedoffsetqpska', 'shapedoffsetqpskb']:
@@ -310,7 +326,7 @@ class VSA(socketscpi.SocketInstrument):
         if not isinstance(eqState, bool):
             raise ValueError('eqState must be True or False.')
 
-        if eqState == True:
+        if eqState:
             eqStateArg = 1
         else:
             eqStateArg = 0
@@ -343,7 +359,7 @@ class VSA(socketscpi.SocketInstrument):
             eqConvergence (float): Equalizer convergence factor.
         """
 
-        if not isinstance(eqConvergence, float) or eqConvergence > 1.0 :
+        if not isinstance(eqConvergence, float) or eqConvergence > 1.0:
             raise ValueError('eqConvergence must be a floating point value between about 1e-12 and 1.0')
 
         self.write(f'ddemod:compensate:equalize:convergence {eqConvergence}')
@@ -356,6 +372,7 @@ class VSA(socketscpi.SocketInstrument):
         Keyword Args:
             cf (float): Analyzer center frequency in Hz.
             amp (float): Analyzer reference level/vertical range in dBm.
+            span (float): Analyzer span in Hz.
             rbw (float): Resolution bandwidth in Hz.
             time (float): Analysis time in sec.
         """
