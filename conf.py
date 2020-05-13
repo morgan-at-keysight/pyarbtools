@@ -12,11 +12,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
-sys.path.insert(0, os.path.abspath('..'))
-
-import pyarbtools
+# import os
+# import sys
+# sys.path.insert(0, os.path.abspath('..'))
+#
+# import pyarbtools
 
 # -- Project information -----------------------------------------------------
 
@@ -25,9 +25,11 @@ copyright = '2020, Morgan Allison'
 author = 'Morgan Allison'
 
 # The short X.Y version
-version = pyarbtools.__version__
+# version = pyarbtools.__version__
+version = u'2020.05.0'
 # The full version, including alpha/beta/rc tags
-release = pyarbtools.__version__
+# release = pyarbtools.__version__
+release = u'2020.05.0'
 
 
 # -- General configuration ---------------------------------------------------
