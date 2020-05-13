@@ -3,7 +3,6 @@ examples
 Author: Morgan Allison, Keysight RF/uW Application Engineer
 Provides example scripts for generic VSGs, UXG, and AWGs using
 instrument classes from PyArbTools.
-Tested on N5182B, M8190A
 """
 
 import pyarbtools
@@ -53,7 +52,7 @@ def vsg_dig_mod_example(ipAddress):
 
     # Signal generator configuration variables
     amplitude = -5
-    sampleRate = 100e6
+    sampleRate = 200e6
     freq = 1e9
 
     # Configure signal generator
@@ -64,9 +63,10 @@ def vsg_dig_mod_example(ipAddress):
     # Waveform definition variables
     name = '10MHZ_16QAM'
     symRate = 10e6
+    modType = 'qam16'
 
     # Create waveform
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=vsg.fs, modType='qam16', symRate=symRate)
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=vsg.fs, modType=modType, symRate=symRate, filt='rootraisedcosine')
 
     # Download and play waveform
     vsg.download_wfm(iq, wfmID=name)
@@ -131,7 +131,7 @@ def vsg_mtone_example(ipAddress):
     toneSpacing = 100e3
 
     # Create waveform
-    iq = pyarbtools.wfmBuilder.multitone(fs=vsg.fs, spacing=toneSpacing, num=numTones)
+    iq = pyarbtools.wfmBuilder.multitone_generator(fs=vsg.fs, spacing=toneSpacing, num=numTones)
 
     # Download and play waveform
     vsg.download_wfm(iq, wfmID=name)
@@ -185,7 +185,7 @@ def m8190a_duc_dig_mod_example(ipAddress):
     awg.configure(res=res, cf1=cf, out1=output)
 
     # Create 16 QAM signal.
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType=modType, symRate=symRate, wfmFormat='iq')
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=awg.bbfs, modType=modType, symRate=symRate, filt='rootraisedcosine')
 
     # Download waveform to memory
     segment = awg.download_wfm(iq, ch=1, name=wfmName, wfmFormat='iq')
@@ -226,21 +226,6 @@ def m8190a_duc_chirp_example(ipAddress):
     awg.disconnect()
 
 
-def m8190a_iq_correction_example(instIPAddress, vsaIPAddress, vsaHardware):
-    """Performs IQ calibration on a digitally modulated signal using VSA."""
-
-    awg = pyarbtools.instruments.M8190A(instIPAddress, reset=True)
-    awg.configure(res='intx3', fs=7.2e9, out1='ac', cf1=1e9)
-
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=awg.bbfs, modType='qam32', symRate=40e6)
-    iqCorr = pyarbtools.wfmBuilder.iq_correction(iq, awg, vsaIPAddress, vsaHardware=vsaHardware, osFactor=20, convergence=5e-9)
-
-    wfmID = awg.download_wfm(iqCorr)
-    awg.play(wfmID=wfmID)
-    awg.err_check()
-    awg.disconnect()
-
-
 def m8195a_simple_wfm_example(ipAddress):
     """Sets up the M8195A and creates, downloads, assigns, and plays
     out a simple sine waveform from the AC output port."""
@@ -271,7 +256,7 @@ def m8195a_simple_wfm_example(ipAddress):
     awg.disconnect()
 
 
-def vector_uxg_arb_example(ipAddress):
+def vector_uxg_dig_mod_example(ipAddress):
     """Generates and plays 10 MHz 64 QAM signal with 0.35 alpha RRC filter
     @ 1 GHz CF with vector UXG."""
 
@@ -292,7 +277,7 @@ def vector_uxg_arb_example(ipAddress):
     symRate = 10e6
 
     # Create waveform
-    iq = pyarbtools.wfmBuilder.digmod_prbs_generator(fs=uxg.fs, modType=modType, symRate=symRate)
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=uxg.fs, modType=modType, symRate=symRate, filt='rootraisedcosine')
 
     # Download and play waveform
     uxg.download_wfm(iq, wfmID=wfmName)
@@ -308,7 +293,13 @@ def vector_uxg_pdw_example(ipAddress):
     file, and loads that pdw file into the UXG, and plays it out."""
 
     uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
-    uxg.configure()
+
+    # UXG configuration variables
+    amplitude = -5
+    output = 1
+    freq = 1e9
+
+    uxg.configure(amp=amplitude, rfState=output, cf=freq)
 
     """Configure pdw markers. These commands will assign a TTL pulse
     at the beginning of each PDW. The trigger 2 output will only be
@@ -329,7 +320,7 @@ def vector_uxg_pdw_example(ipAddress):
     pdwName = 'basic_chirp'
 
     # 'fields' list define the PDW fields positionally
-    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name',]
+    fields = ['Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name']
 
     # 'data' is a list of lists, where each inner list defines
     # the PDW using positional values for the fields defined above
@@ -356,7 +347,7 @@ def vector_uxg_lan_streaming_example(ipAddress):
     builds a PDW file, configures LAN streaming, and streams the PDWs
     to the UXG.
 
-    This streams five pulses.  To capture this, PDW 1 will output a hardware
+    This streams five pulses. To capture this, PDW 1 will output a hardware
     trigger on the N5194A trigger output 2.
     """
 
@@ -364,11 +355,12 @@ def vector_uxg_lan_streaming_example(ipAddress):
     uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
 
     # UXG configuration variables
+    amplitude = -5
     output = 0
     modulation = 1
 
     # Configure UXG and clear all waveform memory
-    uxg.configure(rfState=output, modState=modulation)
+    uxg.configure(amp=amplitude, rfState=output, modState=modulation)
     uxg.clear_all_wfm()
 
     # Waveform definition variables, three chirps of the same bandwidth and different lengths
@@ -433,7 +425,7 @@ def vector_uxg_lan_streaming_example(ipAddress):
     # This is required because the SCPI command is a query rather than a command,
     # which is uncommon for commands that send binary block data
     uxg.binblockwrite(f'stream:external:header? ', header, esr=False)
-    if uxg.query('') != '+0':
+    if uxg.read() != '+0':
         raise pyarbtools.error.VSGError('stream:external:header? response invalid. This should never happen.')
 
     # Configure LAN streaming and send PDWs
@@ -482,7 +474,7 @@ def analog_uxg_pdw_example(ipAddress):
     pdwList = [[1, 980e6,  0, 0,     10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
                [0, 1e9,    0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0,       0],
                [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0,       0],
-               [2, 1e9,    0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0,       0]]
+               [2, 1e9,    0, 80e-6, 5e-6,  1, 0, 2, 0, 0, 0, 1, 0,       0]]
     pdwFile = uxg.bin_pdw_file_builder(pdwList)
 
     # Note: the last PDW starting with a '2' in the 'Operation'
@@ -500,6 +492,77 @@ def analog_uxg_pdw_example(ipAddress):
     uxg.disconnect()
 
 
+def wfm_to_vsa_example(ipAddress):
+    """This function creates a "perfect" digitally modulated waveform, exports it to a csv file,
+    recalls it into VSA, and configures VSA to analyze it."""
+
+    # Waveform creation variables
+    symRate = 10e6
+    fs = 100e6
+    modType = 'qam256'
+    psFilter = 'rootraisedcosine'
+    alpha = 0.35
+    fileName = 'C:\\Temp\\wfm.csv'
+    fileFormat = 'csv'
+
+    print('Creating waveform.')
+    # This is the new digital modulation waveform creation function
+    data = pyarbtools.wfmBuilder.digmod_generator(fs=fs, symRate=symRate, modType=modType, filt=psFilter, numSymbols=10000, alpha=alpha)
+
+    print('Exporting waveform.')
+    # Export the waveform to a csv file
+    pyarbtools.wfmBuilder.export_wfm(data, fileName, True, fs)
+
+    print('Setting up VSA.')
+    # Create VSA object
+    vsa = pyarbtools.vsaControl.VSA(ipAddress, vsaHardware=None, timeout=10, reset=False)
+
+    # Select a digital demod measurement and configure it to measure the saved waveform
+    vsa.set_measurement('ddemod')
+    if psFilter.lower() == 'rootraisedcosine':
+        mFilter = 'rootraisedcosine'
+        rFilter = 'raisedcosine'
+    elif psFilter.lower() == 'raisedcosine':
+        mFilter = 'none'
+        rFilter = 'raisedcosine'
+    else:
+        raise Exception('Invalid filter type chosen.')
+
+    # Configure digital demodulation in VSA
+    vsa.configure_ddemod(amp=0, modType=modType, symRate=symRate, measFilter=mFilter, refFilter=rFilter, filterAlpha=alpha,
+                         measLength=1000, eqState=False)
+
+    # Recall csv file we exported earlier
+    vsa.recall_recording(fileName, fileFormat=fileFormat)
+
+    # Perform a single-shot replay in VSA
+    vsa.acquire_single()
+
+    # Check for errors and gracefully disconnect
+    vsa.err_check()
+    vsa.disconnect()
+
+
+def vsa_vector_example(ipAddress):
+    """Connects to a running instance of VSA, configures a vector measurement, and prints out settings."""
+
+    # Vector configuration settings
+    cf = 1e9
+    span = 20e6
+    amp = -5
+    time = 100e-6
+
+    vsa = pyarbtools.vsaControl.VSA(ipAddress)
+    vsa.set_measurement('vector')
+    vsa.configure_vector(cf=cf, span=span, amp=amp, time=time)
+    vsa.acquire_single()
+    vsa.sanity_check()
+
+    # Check for errors and gracefully disconnect
+    vsa.err_check()
+    vsa.disconnect()
+
+
 def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
@@ -509,15 +572,18 @@ def main():
     # m8190a_duc_dig_mod_example('141.121.210.171')
     # m8190a_duc_chirp_example('141.121.210.171')
     # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
-    m8195a_simple_wfm_example('141.121.198.47')
+    # m8195a_simple_wfm_example('141.121.198.47')
     # vsg_chirp_example('141.121.198.207')
     # vsg_dig_mod_example('141.121.198.207')
     # vsg_am_example('141.121.198.207')
     # vsg_mtone_example('141.121.198.207')
-    # vector_uxg_arb_example('10.0.0.52')
-    # vector_uxg_pdw_example('10.0.0.52')
-    # vector_uxg_lan_streaming_example('10.0.0.52')
+    # vector_uxg_dig_mod_example('10.81.188.32')
+    # vector_uxg_pdw_example('10.81.188.32')
+    # vector_uxg_lan_streaming_example('10.81.188.32')
     # analog_uxg_pdw_example('10.0.0.109')
+    # wfm_to_vsa_example('127.0.0.1')
+    vsa_vector_example('127.0.0.1')
+
 
 if __name__ == '__main__':
     main()
