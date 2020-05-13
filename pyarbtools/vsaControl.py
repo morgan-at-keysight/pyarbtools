@@ -6,6 +6,7 @@ Generic VSA control object for pyarbtools.
 
 import socketscpi
 import os
+import warnings
 from pyarbtools import error
 
 class VSA(socketscpi.SocketInstrument):
@@ -165,6 +166,9 @@ class VSA(socketscpi.SocketInstrument):
         self.write('measure:nselect 1')
         self.write(f'measure:configure {meas}')
         self.meas = self.query('measure:configure?')
+
+        if 'vect' in self.meas.lower():
+            self.write('sense:rbw:points:auto 1')
 
     def configure_ddemod(self, **kwargs):
         """
@@ -345,23 +349,67 @@ class VSA(socketscpi.SocketInstrument):
         self.write(f'ddemod:compensate:equalize:convergence {eqConvergence}')
         self.eqConvergence = float(self.query('ddemod:compensate:equalize:convergence?'))
 
-    def sanity_check(self):
-        """Prints out measurement context-sensitive user-accessible class attributes."""
+    def configure_vector(self, **kwargs):
+        """
+        Configures vector measurement mode in VSA using SCPI commands.
 
-        if 'ddem' in self.meas.lower():
-            print(f'Center frequency: {self.cf} Hz')
-            print(f'Reference level: {self.amp} dBm')
-            print(f'Modulation type: {self.modType}')
-            print(f'Symbol rate: {self.symRate} symbols/sec')
-            print(f'Measurement filter: {self.measFilter}')
-            print(f'Reference filter: {self.refFilter}')
-            print(f'Filter alpha: {self.filterAlpha}')
-            print(f'Measurement length: {self.measLength} symbols')
-            print(f'Equalizer state: {self.eqState}')
-            print(f'Equalizer length: {self.eqLength} symbols')
-            print(f'Equalizer convergence: {self.eqConvergence}')
-        else:
-            pass
+        Keyword Args:
+            cf (float): Analyzer center frequency in Hz.
+            amp (float): Analyzer reference level/vertical range in dBm.
+            rbw (float): Resolution bandwidth in Hz.
+            time (float): Analysis time in sec.
+        """
+
+        if 'vect' not in self.meas.lower():
+            raise error.VSAError(f'Measurement type is currently "{self.meas}". Measurement type must be "vect" to configure digital demod.')
+
+        # Check to see which keyword arguments the user sent and call the appropriate function
+        for key, value in kwargs.items():
+            if key == 'cf':
+                self.set_cf(value)
+            elif key == 'amp':
+                self.set_amp(value)
+            elif key == 'span':
+                self.set_span(value)
+            elif key == 'rbw':
+                self.set_rbw(value)
+            elif key == 'time':
+                self.set_time(value)
+            else:
+                raise KeyError(f'Invalid keyword argument: "{key}"')
+
+            # Check for conflicting settings in keyword arguments (RBW and acq time).
+            lowerKeys = [k.lower() for k in kwargs.keys()]
+            if 'time' in lowerKeys and 'rbw' in lowerKeys:
+                warnings.warn('When both acquisition time and RBW are set, the last one configured will override the first.')
+
+        self.err_check()
+
+    def set_rbw(self, rbw):
+        """
+        Sets and reads the resolution bandwidth for VSA vector mode using SCPI commands.
+
+        Args:
+            rbw (float): Resolution bandwidth in Hz.
+        """
+
+        self.write('sense:rbw:points:auto 1')
+        self.write(f'sense:rbw {rbw}')
+        self.rbw = float(self.query('sense:rbw?'))
+        self.time = float(self.query('sense:time:length?'))
+
+    def set_time(self, time):
+        """
+        Sets and reads the acquisition time for VSA vector mode using SCPI commands.
+
+        Args:
+            time (float): Acquisition time in seconds.
+        """
+
+        self.write('sense:rbw:points:auto 1')
+        self.write(f'sense:time:length {time}')
+        self.time = float(self.query('sense:time:length?'))
+        self.rbw = float(self.query('sense:rbw?'))
 
     def recall_recording(self, fileName, fileFormat='csv'):
         """
@@ -388,3 +436,27 @@ class VSA(socketscpi.SocketInstrument):
 
         # VSA helpfully reports an error if the file and the selected file format don't match. Check this here.
         self.err_check()
+
+    def sanity_check(self):
+        """Prints out measurement context-sensitive user-accessible class attributes."""
+
+        print(f'Measurment mode: {self.meas}')
+        if 'ddem' in self.meas.lower():
+            print(f'Center frequency: {self.cf} Hz')
+            print(f'Reference level: {self.amp} dBm')
+            print(f'Modulation type: {self.modType}')
+            print(f'Symbol rate: {self.symRate} symbols/sec')
+            print(f'Measurement filter: {self.measFilter}')
+            print(f'Reference filter: {self.refFilter}')
+            print(f'Filter alpha: {self.filterAlpha}')
+            print(f'Measurement length: {self.measLength} symbols')
+            print(f'Equalizer state: {self.eqState}')
+            print(f'Equalizer length: {self.eqLength} symbols')
+            print(f'Equalizer convergence: {self.eqConvergence}')
+        elif 'vect' in self.meas.lower():
+            print(f'Center frequency: {self.cf} Hz')
+            print(f'Reference level: {self.amp} dBm')
+            print(f'Resolution bandwidth: {self.rbw} Hz')
+            print(f'Acquisition time: {self.time} sec')
+        else:
+            pass

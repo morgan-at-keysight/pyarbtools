@@ -348,11 +348,8 @@ def vector_uxg_lan_streaming_example(ipAddress):
     builds a PDW file, configures LAN streaming, and streams the PDWs
     to the UXG.
 
-    This streams five pulses.  To capture this, PDW 1 will output a hardware
+    This streams five pulses. To capture this, PDW 1 will output a hardware
     trigger on the N5194A trigger output 2.
-
-    TODO
-        Create function to set up LAN streaming.
     """
 
     # Create vector UXG object
@@ -547,6 +544,26 @@ def wfm_to_vsa_example(ipAddress):
     vsa.disconnect()
 
 
+def vsa_vector_example(ipAddress):
+    """Connects to a running instance of VSA, configures a vector measurement, and prints out settings."""
+
+    # Vector configuration settings
+    cf = 1e9
+    span = 20e6
+    amp = -5
+    time = 100e-6
+
+    vsa = pyarbtools.vsaControl.VSA(ipAddress)
+    vsa.set_measurement('vector')
+    vsa.configure_vector(cf=cf, span=span, amp=amp, time=time)
+    vsa.play_single()
+    vsa.sanity_check()
+
+    # Check for errors and gracefully disconnect
+    vsa.err_check()
+    vsa.disconnect()
+
+
 def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
@@ -565,7 +582,8 @@ def main():
     # vector_uxg_pdw_example('10.81.188.32')
     # vector_uxg_lan_streaming_example('10.81.188.32')
     # analog_uxg_pdw_example('10.0.0.109')
-    wfm_to_vsa_example('127.0.0.1')
+    # wfm_to_vsa_example('127.0.0.1')
+    vsa_vector_example('127.0.0.1')
 
 
 if __name__ == '__main__':
