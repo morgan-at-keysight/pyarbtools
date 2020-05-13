@@ -25,7 +25,7 @@ PyArbTools was built to satisfy the needs of signal generator users who can't/do
 * For custom applications, communicate with instruments using SCPI commands.
 * All instrument control uses socket communication, no VISA required.
 
-`DOCUMENTATION <https://pyarbtools.readthedocs.io/en/latest/index.html>`_
+`DOCUMENTATION <https://pyarbtools.readthedocs.io/en/master>`_
 
 Take a look at `pyarbtools/examples.py <https://github.com/morgan-at-keysight/pyarbtools/blob/master/pyarbtools/examples.py>`_ for sample code.
 
