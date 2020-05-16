@@ -13,7 +13,7 @@ from pyarbtools import error
 from time import sleep
 from fractions import Fraction
 import os
-
+import cmath
 
 class WFM:
     """
@@ -706,6 +706,46 @@ def psk16_modulator(data, customMap=None):
     except KeyError:
         raise ValueError('Invalid 16PSK symbol.')
 
+def apsk16_modulator(data, ringRatio=2.53, customMap=None):
+    """Converts a list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for 16 APSK.
+
+    https://public.ccsds.org/Pubs/131x2b1e1.pdf
+    """
+
+    r1 = 1
+    r2 = ringRatio
+
+    angle = 2 * np.pi / 12
+    ao = angle / 2
+
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) for d0, d1, d2, d3 in
+               zip(data[0::4], data[1::4], data[2::4], data[3::4])]
+
+    if customMap:
+        apsk16Map = customMap
+    else:
+        apsk16Map = {'0000':cmath.rect(r2, 2 * angle - ao), '0001': cmath.rect(r2, 3 * angle - ao), '0010': cmath.rect(r2, angle - ao),
+                  '0011': cmath.rect(r1, 2 * angle - ao), '0100': cmath.rect(r2, 5 * angle - ao), '0101': cmath.rect(r2, 4 * angle - ao),
+                  '0110': cmath.rect(r2, 6 * angle - ao), '0111': cmath.rect(r1, 5 * angle - ao), '1000': cmath.rect(r2, 11 * angle - ao),
+                  '1001': cmath.rect(r2, 10 * angle - ao), '1010': cmath.rect(r2, 12 * angle - ao), '1011': cmath.rect(r1, 11 * angle - ao),
+                  '1100': cmath.rect(r2, 8 * angle - ao), '1101': cmath.rect(r2, 9 * angle - ao), '1110': cmath.rect(r2, 7 * angle - ao),
+                  '1111': cmath.rect(r1, 8 * angle - ao)}
+
+
+    a = np.array([apsk16Map[p] for p in pattern])
+
+
+    plt.scatter(a.real, a.imag)
+    plt.show()
+
+    try:
+        return np.array([apsk16Map[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid 16PSK symbol.')
+
+
 
 def qam16_modulator(data, customMap=None):
     """Converts list of bits to symbol values as strings, maps each
@@ -1223,7 +1263,9 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
         modulator = psk16_modulator
     elif modType.lower() == 'qam16':
         bitsPerSym = 4
-        modulator = qam16_modulator
+    elif modType.lower() == 'apsk16':
+        bitsPerSym = 4
+        modulator = apsk16_modulator
     elif modType.lower() == 'qam32':
         bitsPerSym = 5
         modulator = qam32_modulator
