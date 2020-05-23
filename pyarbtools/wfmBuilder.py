@@ -726,25 +726,127 @@ def apsk16_modulator(data, ringRatio=2.53, customMap=None):
     if customMap:
         apsk16Map = customMap
     else:
-        apsk16Map = {'0000':cmath.rect(r2, 2 * angle - ao), '0001': cmath.rect(r2, 3 * angle - ao), '0010': cmath.rect(r2, angle - ao),
+        apsk16Map = {'0000': cmath.rect(r2, 2 * angle - ao), '0001': cmath.rect(r2, 3 * angle - ao), '0010': cmath.rect(r2, angle - ao),
                   '0011': cmath.rect(r1, 2 * angle - ao), '0100': cmath.rect(r2, 5 * angle - ao), '0101': cmath.rect(r2, 4 * angle - ao),
                   '0110': cmath.rect(r2, 6 * angle - ao), '0111': cmath.rect(r1, 5 * angle - ao), '1000': cmath.rect(r2, 11 * angle - ao),
                   '1001': cmath.rect(r2, 10 * angle - ao), '1010': cmath.rect(r2, 12 * angle - ao), '1011': cmath.rect(r1, 11 * angle - ao),
                   '1100': cmath.rect(r2, 8 * angle - ao), '1101': cmath.rect(r2, 9 * angle - ao), '1110': cmath.rect(r2, 7 * angle - ao),
                   '1111': cmath.rect(r1, 8 * angle - ao)}
 
-
-    a = np.array([apsk16Map[p] for p in pattern])
-
-
-    plt.scatter(a.real, a.imag)
-    plt.show()
-
     try:
         return np.array([apsk16Map[p] for p in pattern])
     except KeyError:
-        raise ValueError('Invalid 16PSK symbol.')
+        raise ValueError('Invalid 16APSK symbol.')
 
+
+def apsk32_modulator(data, ring2Ratio=2.53, ring3Ratio=4.3, customMap=None):
+    """Converts a list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for 32 APSK.
+
+    https://public.ccsds.org/Pubs/131x2b1e1.pdf
+    """
+
+    r1 = 1
+    r2 = ring2Ratio
+    r3 = ring3Ratio
+
+    a3 = 2 * np.pi / 16
+    a2 = 2 * np.pi / 12
+    a2offset = a2 / 2
+
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) + str(d4) for d0, d1, d2, d3, d4 in
+               zip(data[0::5], data[1::5], data[2::5], data[3::5], data[4::5])]
+
+    if customMap:
+        apsk32Map = customMap
+    else:
+        apsk32Map = {'00000': cmath.rect(r2, 2 * a2 - a2offset), '00001': cmath.rect(r2, a2 - a2offset),
+                     '00010': cmath.rect(r3, a3), '00011': cmath.rect(r3, 0),
+                     '00100': cmath.rect(r2, 5 * a2 - a2offset), '00101': cmath.rect(r2, 6 * a2 - a2offset),
+                     '00110': cmath.rect(r3, 6 * a3), '00111': cmath.rect(r3, 7 * a3),
+                     '01000': cmath.rect(r2, 11 * a2 - a2offset), '01001': cmath.rect(r2, 12 * a2 - a2offset),
+                     '01010': cmath.rect(r3, 14 * a3), '01011': cmath.rect(r3, 15 * a3),
+                     '01100': cmath.rect(r2, 8 * a2 - a2offset), '01101': cmath.rect(r2, 7 * a2 - a2offset),
+                     '01110': cmath.rect(r3, 9 * a3), '01111': cmath.rect(r3, 8 * a3),
+                     '10000': cmath.rect(r2, 3 * a2 - a2offset), '10001': cmath.rect(r1, 2 * a2 - a2offset),
+                     '10010': cmath.rect(r3, 3 * a3), '10011': cmath.rect(r3, 2 * a3),
+                     '10100': cmath.rect(r2, 4 * a2 - a2offset), '10101': cmath.rect(r1, 5 * a2 - a2offset),
+                     '10110': cmath.rect(r3, 4 * a3), '10111': cmath.rect(r3, 5 * a3),
+                     '11000': cmath.rect(r2, 10 * a2 - a2offset), '11001': cmath.rect(r1, 11 * a2 - a2offset),
+                     '11010': cmath.rect(r3, 12 * a3), '11011': cmath.rect(r3, 13 * a3),
+                     '11100': cmath.rect(r2, 9 * a2 - a2offset), '11101': cmath.rect(r1, 8 * a2 - a2offset),
+                     '11110': cmath.rect(r3, 10 * a3), '11111': cmath.rect(r3, 11 * a3)}
+
+    try:
+        return np.array([apsk32Map[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid 32APSK symbol.')
+
+
+def apsk64_modulator(data, ring2Ratio=2.73, ring3Ratio=4.52, ring4Ratio=6.31, customMap=None):
+    """Converts a list of bits to symbol values as strings, maps each
+    symbol value to a position on the complex plane, and returns an
+    array of complex values for 64 APSK.
+
+    https://public.ccsds.org/Pubs/131x2b1e1.pdf
+    """
+
+    r1 = 1
+    r2 = ring2Ratio
+    r3 = ring3Ratio
+    r4 = ring4Ratio
+
+    a4 = 2 * np.pi / 28
+    a4offset = a4 / 2
+    a3 = 2 * np.pi / 20
+    a3offset = a3 / 2
+    a2 = 2 * np.pi / 12
+    a2offset = a2 / 2
+
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) + str(d4) + str(d5) for d0, d1, d2, d3, d4, d5 in
+               zip(data[0::6], data[1::6], data[2::6], data[3::6], data[4::6], data[5::6])]
+
+    if customMap:
+        apsk64Map = customMap
+    else:
+        apsk64Map = {'000000': cmath.rect(r4, a4 - a4offset), '000001': cmath.rect(r4, 2 * a4 - a4offset),
+                     '000010': cmath.rect(r3, a3 - a3offset), '000011': cmath.rect(r3, 2 * a3 - a3offset),
+                     '000100': cmath.rect(r4, 4 * a4 - a4offset), '000101': cmath.rect(r4, 3 * a4 - a4offset),
+                     '000110': cmath.rect(r4, 5 * a4 - a4offset), '000111': cmath.rect(r3, 3 * a3 - a3offset),
+                     '001000': cmath.rect(r1, 2 * a2 - a2offset), '001001': cmath.rect(r2, 3 * a2 - a2offset),
+                     '001010': cmath.rect(r2, a2 - a2offset), '001011': cmath.rect(r2, 2 * a2 - a2offset),
+                     '001100': cmath.rect(r4, 7 * a4 - a4offset), '001101': cmath.rect(r3, 5 * a3 - a3offset),
+                     '001110': cmath.rect(r4, 6 * a4 - a4offset), '001111': cmath.rect(r3, 4 * a3 - a3offset),
+                     '010000': cmath.rect(r4, 28 * a4 - a4offset), '010001': cmath.rect(r4, 27 * a4 - a4offset),
+                     '010010': cmath.rect(r3, 20 * a3 - a3offset), '010011': cmath.rect(r3, 19 * a3 - a3offset),
+                     '010100': cmath.rect(r4, 25 * a4 - a4offset), '010101': cmath.rect(r4, 26 * a4 - a4offset),
+                     '010110': cmath.rect(r4, 24 * a4 - a4offset), '010111': cmath.rect(r3, 18 * a3 - a3offset),
+                     '011000': cmath.rect(r1, 11 * a2 - a2offset), '011001': cmath.rect(r2, 10 * a2 - a2offset),
+                     '011010': cmath.rect(r2, 12 * a2 - a2offset), '011011': cmath.rect(r2, 11 * a2 - a2offset),
+                     '011100': cmath.rect(r4, 22 * a4 - a4offset), '011101': cmath.rect(r3, 16 * a3 - a3offset),
+                     '011110': cmath.rect(r4, 23 * a4 - a4offset), '011111': cmath.rect(r3, 17 * a3 - a3offset),
+                     '100000': cmath.rect(r4, 14 * a4 - a4offset), '100001': cmath.rect(r4, 13 * a4 - a4offset),
+                     '100010': cmath.rect(r3, 10 * a3 - a3offset), '100011': cmath.rect(r3, 9 * a3 - a3offset),
+                     '100100': cmath.rect(r4, 11 * a4 - a4offset), '100101': cmath.rect(r4, 12 * a4 - a4offset),
+                     '100110': cmath.rect(r4, 10 * a4 - a4offset), '100111': cmath.rect(r3, 8 * a3 - a3offset),
+                     '101000': cmath.rect(r1, 5 * a2 - a2offset), '101001': cmath.rect(r2, 4 * a2 - a2offset),
+                     '101010': cmath.rect(r2, 6 * a2 - a2offset), '101011': cmath.rect(r2, 5 * a2 - a2offset),
+                     '101100': cmath.rect(r4, 8 * a4 - a4offset), '101101': cmath.rect(r3, 6 * a3 - a3offset),
+                     '101110': cmath.rect(r4, 9 * a4 - a4offset), '101111': cmath.rect(r3, 7 * a3 - a3offset),
+                     '110000': cmath.rect(r4, 15 * a4 - a4offset), '110001': cmath.rect(r4, 16 * a4 - a4offset),
+                     '110010': cmath.rect(r3, 11 * a3 - a3offset), '110011': cmath.rect(r3, 12 * a3 - a3offset),
+                     '110100': cmath.rect(r4, 18 * a4 - a4offset), '110101': cmath.rect(r4, 17 * a4 - a4offset),
+                     '110110': cmath.rect(r4, 19 * a4 - a4offset), '110111': cmath.rect(r3, 13 * a3 - a3offset),
+                     '111000': cmath.rect(r1, 8 * a2 - a2offset), '111001': cmath.rect(r2, 9 * a2 - a2offset),
+                     '111010': cmath.rect(r2, 7 * a2 - a2offset), '111011': cmath.rect(r2, 8 * a2 - a2offset),
+                     '111100': cmath.rect(r4, 21 * a4 - a4offset), '111101': cmath.rect(r3, 15 * a3 - a3offset),
+                     '111110': cmath.rect(r4, 20 * a4 - a4offset), '111111': cmath.rect(r3, 14 * a3 - a3offset)}
+
+    try:
+        return np.array([apsk64Map[p] for p in pattern])
+    except KeyError:
+        raise ValueError('Invalid 64APSK symbol.')
 
 
 def qam16_modulator(data, customMap=None):
@@ -1266,6 +1368,12 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     elif modType.lower() == 'apsk16':
         bitsPerSym = 4
         modulator = apsk16_modulator
+    elif modType.lower() == 'apsk32':
+        bitsPerSym = 5
+        modulator = apsk32_modulator
+    elif modType.lower() == 'apsk64':
+        bitsPerSym = 6
+        modulator = apsk64_modulator
     elif modType.lower() == 'qam32':
         bitsPerSym = 5
         modulator = qam32_modulator
