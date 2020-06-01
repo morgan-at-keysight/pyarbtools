@@ -6,7 +6,6 @@ instrument classes from PyArbTools.
 """
 
 import pyarbtools
-import numpy as np
 
 
 def vsg_chirp_example(ipAddress):
