@@ -14,6 +14,7 @@ from fractions import Fraction
 import os
 import cmath
 
+
 class WFM:
     """
     Class to hold waveform data created by wfmBuilder.
@@ -706,6 +707,7 @@ def psk16_modulator(data, customMap=None):
     except KeyError:
         raise ValueError('Invalid 16PSK symbol.')
 
+
 def apsk16_modulator(data, ringRatio=2.53, customMap=None):
     """Converts a list of bits to symbol values as strings, maps each
     symbol value to a position on the complex plane, and returns an
@@ -1340,6 +1342,9 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     TODO
         Add an argument that allows user to specify symbol data.
     """
+
+    # Initialize 'modulator' to address possible reference to unassigned variable issue
+    modulator = None
 
     # Use 10 samples per symbol for creating the initial signal prior to final resampling
     osFactor = 10

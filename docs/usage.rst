@@ -1473,7 +1473,7 @@ Generates a baseband modulated signal with a given modulation type and transmit 
 
     * ``fs`` ``(float)``: Sample rate used to create the waveform in samples/sec.
     * ``symRate`` ``(float)``: Symbol rate in symbols/sec.
-    * ``modType`` ``(str)``: Type of modulation. ('bpsk', 'qpsk', 'psk8', 'psk16', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256')
+    * ``modType`` ``(str)``: Type of modulation. ('bpsk', 'qpsk', 'psk8', 'psk16', 'apsk16', 'apsk32', 'apsk64', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256')
     * ``numSymbols`` ``(int)``: Number of symbols to put in the waveform.
     * ``filt`` ``(str)``: Pulse shaping filter type. ('raisedcosine' or 'rootraisedcosine')
     * ``alpha`` ``(float)``: Pulse shaping filter excess bandwidth specification. Also known as roll-off factor, alpha, or beta. (``0`` - ``1.0``)
@@ -1481,10 +1481,15 @@ Generates a baseband modulated signal with a given modulation type and transmit 
     * ``zeroLast`` ``(bool)``: Enable or disable forcing the last sample point to 0.
     * ``plot`` ``(bool)``: Enable or disable plotting of final waveform in time domain and constellation domain.
 
+NOTE - The ring ratios for APSK modulations are as follows:
+
+    * 16-APSK: R1 = 1, R2 = 2.53
+    * 32-APSK: R1 = 1, R2 = 2.53, R3 = 4.3
+    * 64-APSK: R1 = 1, R2 = 2.73, R3 = 4.52, R4 = 6.31
 
 **Returns**
 
-* ``(NumPy array)``: Array contianing the complex values of the digitally modulated signal.
+* ``(NumPy array)``: Array containing the complex values of the digitally modulated signal.
 
 **iq_correction**
 -----------------

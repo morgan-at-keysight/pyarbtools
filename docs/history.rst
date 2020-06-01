@@ -51,3 +51,8 @@ History
 ----------------------
 
 * Changed name of digmod_prbs_generator() to digmod_generator(). Overhauled digitally modulated waveform creation function, fixing bugs and producing better signal fidelity. Added vsaControl.py, which allows the user to control an instance of Keysight 89600 VSA software for waveform analysis.
+
+2020.06.0 (2020-06-01)
+----------------------
+
+* Added 16-, 32-, and 64-APSK modulation types to wfmBuilder.py. Moved PDW-building function definitions from instruments.py to pdwBuilder.py. Updated documentation.
