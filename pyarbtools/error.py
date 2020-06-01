@@ -4,7 +4,6 @@ Author: Morgan Allison, Keysight RF/uW Application Engineer
 Custom error classes for pyarbtools.
 """
 
-from socket import timeout
 
 class WfmBuilderError(Exception):
     """Waveform Builder Exception class"""
@@ -39,7 +38,6 @@ class UXGError(Exception):
 class VSAError(Exception):
     """VSA Exception class"""
     pass
-
 
 # class BinblockError(Exception):
 #     """Binary Block Exception class"""
