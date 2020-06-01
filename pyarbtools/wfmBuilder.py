@@ -10,7 +10,6 @@ import scipy.signal as sig
 import socketscpi
 import warnings
 from pyarbtools import error
-from time import sleep
 from fractions import Fraction
 import os
 import cmath
@@ -50,8 +49,9 @@ class WFM:
                 path (str): Absolute destination directory of the exported waveform (should end in '\').
                 vsaCompatible (bool): Determines if header information will be included to ensure correct behavior when loading into VSA.
             """
+
         if path[-1] is not '\\':
-            path.append('\\')
+            path += '\\'
 
         if os.path.exists(path):
             print('path exists')
@@ -578,7 +578,7 @@ def rc_filter(alpha, length, L, plot=False):
     h[np.argwhere(np.isinf(h))] = (alpha / 2) * np.sin(np.divide(np.pi, (2 * alpha)))
 
     if plot:
-        plt.plot(p)
+        plt.plot(h)
         plt.show()
 
     return h
@@ -1608,7 +1608,7 @@ def iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"',
     try:
         vsa.err_check()
         inst.err_check()
-    except error.SockInstError as e:
+    except socketscpi.SockInstError as e:
         print(str(e))
 
     vsa.disconnect()
