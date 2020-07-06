@@ -26,10 +26,10 @@ author = 'Morgan Allison'
 
 # The short X.Y version
 # version = pyarbtools.__version__
-version = u'2020.06.0'
+version = u'2020.07.1'
 # The full version, including alpha/beta/rc tags
 # release = pyarbtools.__version__
-release = u'2020.06.0'
+release = u'2020.07.1'
 
 
 # -- General configuration ---------------------------------------------------

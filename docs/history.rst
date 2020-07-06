@@ -56,3 +56,8 @@ History
 ----------------------
 
 * Added 16-, 32-, and 64-APSK modulation types to wfmBuilder.py. Moved PDW-building function definitions from instruments.py to pdwBuilder.py. Updated documentation.
+
+2020.07.1 (2020-07-06)
+----------------------
+
+* BUGFIX: corrected a problem with the 16-QAM modulator in digmod_generator().

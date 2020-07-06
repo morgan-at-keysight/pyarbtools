@@ -15,7 +15,7 @@ YOU NEED TO UPDATE THE VERSION IN THE FOLLOWING FILES
 
 __author__ = """Morgan Allison"""
 __email__ = 'morgan.j.allison@gmail.com'
-__version__ = '2020.06.0'
+__version__ = '2020.07.1'
 
 from pyarbtools import instruments
 from pyarbtools import wfmBuilder

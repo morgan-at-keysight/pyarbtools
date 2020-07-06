@@ -1343,9 +1343,6 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
         Add an argument that allows user to specify symbol data.
     """
 
-    # Initialize 'modulator' to address possible reference to unassigned variable issue
-    modulator = None
-
     # Use 10 samples per symbol for creating the initial signal prior to final resampling
     osFactor = 10
 
@@ -1370,6 +1367,7 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
         modulator = psk16_modulator
     elif modType.lower() == 'qam16':
         bitsPerSym = 4
+        modulator = qam16_modulator
     elif modType.lower() == 'apsk16':
         bitsPerSym = 4
         modulator = apsk16_modulator
