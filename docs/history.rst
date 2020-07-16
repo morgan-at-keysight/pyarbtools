@@ -20,12 +20,12 @@ History
 0.0.10 (2018-12-10)
 -------------------
 
-* Added multitone generator. Added 128-QAM and 256-QAM. Streamlined UXG instrument class, split play()/stop into stream_play() and arb_play()/stream_stop() and arb_stop(). Updated index to include a better intro to the project.
+* Added multitone_generator generator. Added 128-QAM and 256-QAM. Streamlined UXG instrument class, split play()/stop into stream_play() and arb_play()/stream_stop() and arb_stop(). Updated index to include a better intro to the project.
 
 0.0.11 (2019-01-23)
 -------------------
 
-* Fixed bugs with multitone generator. Added AM modulator.
+* Fixed bugs with multitone_generator generator. Added AM modulator.
 
 0.0.12 (2019-02-20)
 -------------------
@@ -41,3 +41,23 @@ History
 -------------------
 
 * Fixed bug in UXG classes that emitted a long CW pulse prior to starting streaming. Added "pri" argument to pulse creation methods.
+
+2020.04.0 (2020-04-29)
+----------------------
+
+* Removed communications.py and replaced it with external module ``socketscpi``. ``.configure()`` methods now use ``**kwargs`` to prevent the function from changing any settings not explicitly specified back to default values. Changed multitone_generator waveform creation method to frequency domain. Significant updates to documentation and in-code comments. Changed from semantic versioning to calendar versioning.
+
+2020.05.0 (2020-05-13)
+----------------------
+
+* Changed name of digmod_prbs_generator() to digmod_generator(). Overhauled digitally modulated waveform creation function, fixing bugs and producing better signal fidelity. Added vsaControl.py, which allows the user to control an instance of Keysight 89600 VSA software for waveform analysis.
+
+2020.06.0 (2020-06-01)
+----------------------
+
+* Added 16-, 32-, and 64-APSK modulation types to wfmBuilder.py. Moved PDW-building function definitions from instruments.py to pdwBuilder.py. Updated documentation.
+
+2020.07.1 (2020-07-06)
+----------------------
+
+* BUGFIX: corrected a problem with the 16-QAM modulator in digmod_generator().

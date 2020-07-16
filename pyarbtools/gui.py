@@ -6,10 +6,11 @@ A much-needed GUI for pyarbtools.
 
 from tkinter import *
 from tkinter import ttk
-from tkinter import filedialog
+# from tkinter import filedialog
 from tkinter import messagebox
 import ipaddress
 import pyarbtools
+import socketscpi
 
 """
 TODO
@@ -497,7 +498,7 @@ class PyarbtoolsGUI:
                 wfmArgs = [float(self.eFsWfm.get()), float(self.eSpacing.get()),
                            int(self.eNumTones.get()), self.cbPhase.get(),
                            float(self.eCf.get()), self.cbWfmFormat.get()]
-                wfmRaw = pyarbtools.wfmBuilder.multitone(*wfmArgs)
+                wfmRaw = pyarbtools.wfmBuilder.multitone_generator(*wfmArgs)
             elif self.wfmType == 'Digital Modulation':
                 filtArg = self.cbFiltType.get()
                 if filtArg == 'Root Raised Cosine':
@@ -600,7 +601,7 @@ class PyarbtoolsGUI:
             else:
                 self.inst.play(wfmData['name'])
                 self.statusBar.configure(text=f'"{wfmData["name"]}" playing.', bg='white')
-        except pyarbtools.error.SockInstError as e:
+        except socketscpi.SockInstError as e:
             self.statusBar.configure(repr(e), bg='red')
 
     def change_channel(self, event=None):

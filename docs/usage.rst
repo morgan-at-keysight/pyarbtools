@@ -2,16 +2,17 @@
 Usage
 #####
 
-To use pyarbtools in a project::
+To use PyArbTools in a project::
 
     import pyarbtools
 
-**pyarbtools now has a GUI! To run it, navigate to the pyarbtools/ folder in the project directory and run** ``python gui.py``.
 
-pyarbtools is built from two primary submodules:
+PyArbTools is built from three primary submodules:
 
 * :ref:`instruments`
 * :ref:`wfmBuilder`
+* :ref:`vsaControl`
+
 
 Supported instruments include:
 
@@ -28,6 +29,32 @@ Supported instruments include:
 * :ref:`AnalogUXG`
     * N5193A
 
+Supported waveform building functions include:
+
+* :ref:`export_wfm`
+* :ref:`sine_generator`
+* :ref:`am_generator`
+* :ref:`cw_pulse_generator`
+* :ref:`chirp_generator`
+* :ref:`barker_generator`
+* :ref:`multitone_generator`
+* :ref:`digmod_generator`
+
+Supported VSA control functions include:
+
+* :ref:`acquire_continuous`
+* :ref:`acquire_single`
+* :ref:`stop`
+* :ref:`autorange`
+* :ref:`set_hw`
+* :ref:`set_cf`
+* :ref:`set_span`
+* :ref:`set_measurement`
+* :ref:`configure_ddemod`
+* :ref:`configure_vector`
+* :ref:`recall_recording`
+* :ref:`sanity_check`
+
 .. _instruments:
 
 ===============
@@ -37,64 +64,61 @@ Supported instruments include:
 To use/control a signal generator, create a class of the signal
 generator's instrument type and enter the instrument's IP address
 as the first argument. There are additional keyword arguments you
-can add to set things like timeout and preset::
+can add to set things like ``port``, ``timeout``, and ``reset``::
 
-    m8190a = pyarbtools.instruments.M8910A('192.168.1.12')
-    n5182b = pyarbtools.instruments.VSG('192.168.1.13', port=5025, timeout=10, reset=True)
+    # Example
+    awg = pyarbtools.instruments.M8910A('192.168.1.12')
+    vsg = pyarbtools.instruments.VSG('192.168.1.13', port=5025, timeout=10, reset=True)
 
 Every class is built on a robust socket connection that allows the user
 to send SCPI commands/queries, send/receive data using IEEE 488.2
 binary block format, check for errors, and gracefully disconnect
 from the instrument. Methods were named so that those coming from
 using a VISA interface would be familiar with syntax. This
-architectural decision was made to provide additional flexibility
-for users who need to use specific setup commands not covered by
-built-in functions::
+architectural decision to include an open SCPI interface was
+made to provide additional flexibility for users who need to
+use specific setup commands *not* covered by built-in functions::
 
-    m8190a.write('*RST')
-    instID = m8190a.query('*IDN?')
-    m8190a.binblockwrite('trace:data 1, 0, ', data)
-    m8190a.disconnect()
+    # Example
+    awg.write('*RST')
+    instID = awg.query('*IDN?')
+    awg.binblockwrite('trace:data 1, 0, ', data)
+    awg.disconnect()
 
 
-When an instance of an instrument is created, pyarbtools connects to
+When an instance of an instrument is created, PyArbTools connects to
 the instrument at the IP address given by the user and sends a few
 queries. Each class constructor has a ``reset`` keyword argument that
 causes the instrument to perform a default setup prior to running the
 rest of the code. It's set to ``False`` by default to prevent unwanted
 settings changes.
 
-Several class attributes are set via SCPI queries right off the bat.
+Each instrument class includes a ``.download_wfm()`` method, which takes
+care of the binary formatting, minimum length, and granularity requirements
+for you. It also makes a reasonable effort to correct for length/granularity
+violations and raises a descriptive exception if any requirements aren't
+met by the waveform::
 
-Each instrument class includes a method to download waveform data to
-the signal generator in each supported data format. For example, the
-M8190A can accept both real and iq waveforms, so there are two
-waveform download methods::
+    # Example
+    iq = pyarbtools.wfmBuilder.multitone_generator(fs=100e6, spacing=1e6, num=11, wfmFormat='iq')
+    vsg.download_wfm(iq)
 
-    """Create waveform data here."""
-    wfmI, wfmQ = iq_waveform(args)
-    wfm = real_waveform(args)
+    real = pyarbtools.wfmBuilder.cw_pulse_generator(fs=12e9, spacing=1e6, num=11, cf=1e9, wfmFormat='real')
+    awg.download_wfm(real)
 
-    m8190a.download_wfm(wfm)
-    m8190a.download_iq_wfm(wfmI, wfmQ)
 
-These waveform download methods determine if a given waveform meets
-minimum length and granularity requirements for the generator being
-used and applies appropriate binary formatting to the data. A
-descriptive exception is raised if these requirements aren't met by
-the waveform.
+Each instrument class also includes a ``.configure()`` method. It provides
+keyword arguments to configure selected settings on the signal generator
+*and sets relevant class attributes* so that the user knows how the
+generator is configured and can use those variables in code without
+having to send a SCPI query to determine values::
 
-Each instrument class includes a ``.configure()`` method that should
-be called immediately after connecting. It configures several settings
-on the signal generator *and sets class attributes* so that the user
-knows how the generator is configured and can use those variables in
-code without having to send a SCPI query to determine values::
-
-    m8190a.configure(res='wsp', clkSrc='int', fs=7.2e9)
-    print(f'Sample rate is {m8190a.fs} samples/sec.')
+    awg.configure(res='wsp', clkSrc='int', fs=7.2e9)
+    print(f'Sample rate is {awg.fs} samples/sec.')
+    print(f'Clock source is {awg.clkSrc}.')
 
     recordLength = 1000
-    print(f'Waveform play time is {recordLength / m8190a.fs} seconds.')
+    print(f'Waveform play time is {recordLength / awg.fs} seconds.')
 
 .. _M8190A:
 
@@ -102,19 +126,48 @@ code without having to send a SCPI query to determine values::
 **M8190A**
 ==========
 
+::
+
+    awg = pyarbtools.instruments.M8190A(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``res`` ``(str)``: AWG resolution. Values are ``'wpr'`` (14 bit), ``'wsp'`` (12 bit) (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'`` (intxX resolutions are all 15 bit).
+* ``clkSrc`` ``(str)``: Sample clock source. Values are ``'int'`` (default) or ``'ext'``.
+* ``fs`` ``(float)``: Sample rate in Hz. Values range from ``125e6`` to ``12e9``. Default is ``7.2e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Values are ``'axi'`` (default), ``'int'``, ``'ext'``.
+* ``refFreq`` ``(float)``: Reference clock frequency in Hz. Values range from ``1e6`` to ``200e6`` in steps of ``1e6``. Default is ``100e6``.
+* ``out1``, ``out2`` ``(str)``: Output signal path for channel 1 and 2 respectively. Values are ``'dac'`` (default), ``'dc'``, ``'ac'``.
+* ``amp1``, ``amp2`` ``(float)``: Output amplitude for channel 1 and 2 respectively. Values depend on output path chosen.
+* ``func1``, ``func2`` ``(str)``: Function of channel 1 and 2 respectively. Values are ``'arb'`` (default), ``'sts'`` (sequence), or ``'stc'`` (scenario).
+* ``cf1``, ``cf2`` ``(str)``: Carrier frequency in Hz of channel 1 and 2 respectively. This setting is only applicable if the digital upconverter is being used (``res`` arguments of ``'intx<#>'``). Value range is ``0`` to ``12e9``.
+
+::
+
+    print(f'AWG Clock Source: {awg.clkSrc}.')
+    >>> AWG Clock Source: int.
+
 **configure**
 -------------
 ::
 
-    M8190A.configure(res='wsp', clkSrc='int', fs=7.2e9, refSrc='axi', refFreq=100e6, out1='dac', out2='dac', amp1=0.65, amp2=0.65, func1='arb', func2='arb', cf1=1e9, cf2=1e9)
+    M8190A.configure(**kwargs)
+    # Example
+    M8190A.configure(fs=12e9, out1='dac', func1='arb')
 
 Sets the basic configuration for the M8190A and populates class
-attributes accordingly. It should be called any time these settings are
-changed (ideally *once* directly after creating the M8190A object).
+attributes accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
 
-**Arguments**
+**Keyword Arguments**
 
-* ``res`` ``(str)``: AWG resolution. Arguments are ``'wpr'`` (14 bit), ``'wsp'`` (12 bit) (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'`` (intx resolutions are all 15 bit).
+* ``res`` ``(str)``: AWG resolution. Arguments are ``'wpr'`` (14 bit), ``'wsp'`` (12 bit) (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'`` (intxX resolutions are all 15 bit).
 * ``clkSrc`` ``(str)``: Sample clock source. Arguments are ``'int'`` (default) or ``'ext'``.
 * ``fs`` ``(float)``: Sample rate in Hz. Argument range is ``125e6`` to ``12e9``. Default is ``7.2e9``.
 * ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
@@ -147,7 +200,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-* ``(int)``: Segment identifier used to specify which waveform is played using the ``.play()`` method.
+* ``(int)``: Segment identifier used to specify which waveform is played using ``.play()``.
 
 **delete_segment**
 ------------------
@@ -221,15 +274,42 @@ Turns off analog output and stops playback.
 **M8195A**
 ==========
 
+::
+
+    awg = pyarbtools.instruments.M8195A(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``dacMode`` ``(str)``: Sets the DAC mode. Values are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
+* ``memDiv`` ``(str)``: Clock/memory divider rate. Values are ``1``, ``2``, or ``4``.
+* ``fs`` ``(float)``: Sample rate in Hz. Values range from ``53.76e9`` to ``65e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Values are ``'axi'`` (default), ``'int'``, ``'ext'``.
+* ``refFreq`` ``(float)``: Reference clock frequency in Hz. Values range from ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
+* ``amp1/2/3/4`` ``(float)``: Output amplitude for a given channel in volts pk-pk. (min=75 mV, max=1 V)
+* ``func`` ``(str)``: Function of channels. Values are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
+
+::
+
+    print(f'AWG Channel 1 Amplitude: {awg.amp1} Vpp.')
+    >>> AWG Channel 1 Amplitude: 0.750 Vpp.
+
 **configure**
 -------------
 ::
 
-    M8195A.configure(dacMode='single', fs=64e9, refSrc='axi', refFreq=100e6, func='arb')
+    M8195A.configure(**kwargs)
+    # Example
+    M8195A.configure(dacMode='single', fs=64e9)
 
 Sets the basic configuration for the M8195A and populates class
-attributes accordingly. It should be called any time these settings are
-changed (ideally *once* directly after creating the M8195A object).
+attributes accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -238,6 +318,7 @@ changed (ideally *once* directly after creating the M8195A object).
 * ``fs`` ``(float)``: Sample rate in Hz. Argument range is ``53.76e9`` to ``65e9``.
 * ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'axi'`` (default), ``'int'``, ``'ext'``.
 * ``refFreq`` ``(float)``: Reference clock frequency in Hz. Argument range is ``10e6`` to ``300e6`` in steps of ``1e6``. Default is ``100e6``.
+* ``amp1/2/3/4`` ``(float)``: Output amplitude for a given channel in volts pk-pk. (min=75 mV, max=1 V)
 * ``func`` ``(str)``: Function of channels. Arguments are ``'arb'`` (default), ``'sts'``, or ``'stc'``.
 
 **Returns**
@@ -251,6 +332,7 @@ changed (ideally *once* directly after creating the M8195A object).
     M8195A.download_wfm(wfmData, ch=1, name='wfm')
 
 Defines and downloads a waveform into the lowest available segment slot.
+Returns useful waveform identifier.
 
 **Arguments**
 
@@ -260,7 +342,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-* ``(int)``: Segment number used to specify which waveform is played using the ``.play()`` method.
+* ``(int)``: Segment number used to specify which waveform is played using ``.play()``.
 
 **delete_segment**
 ------------------
@@ -334,15 +416,39 @@ Turns off analog output and stops playback.
 **M8196A**
 ==========
 
+::
+
+    awg = pyarbtools.instruments.M8196A(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``dacMode`` ``(str)``: Sets the DAC mode. Values are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, or ``'dcmarker'``.
+* ``fs`` ``(float)``: Sample rate. Values range from ``82.24e9`` to ``93.4e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Values are ``'axi'`` (default), ``'int'``, ``'ext'``.
+* ``refFreq`` ``(float)``: Reference clock frequency. Values range from ``10e6`` to ``17e9``. Default is ``100e6``.
+
+::
+
+    print(f'AWG DAC Mode: {awg.dacMode}.')
+    >>> AWG DAC Mode: SINGLE.
+
 **configure**
 -------------
 ::
 
-    M8196A.configure(dacMode='single', fs=92e9, refSrc='axi', refFreq=100e6)
+    M8196A.configure(**kwargs)
+    # Example
+    M8196A.configure(dacMode='single', fs=92e9)
 
 Sets the basic configuration for the M8196A and populates class
-attributes accordingly. It should be called any time these settings are
-changed (ideally *once* directly after creating the M8196A object).
+attributes accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -362,6 +468,7 @@ changed (ideally *once* directly after creating the M8196A object).
     M8196A.download_wfm(wfmData, ch=1, name='wfm')
 
 Defines and downloads a waveform into the lowest available segment slot.
+Returns useful waveform identifier.
 
 **Arguments**
 
@@ -371,7 +478,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Returns**
 
-* ``(int)``: Segment number used to specify which waveform is played using the ``.play()`` method.
+* ``(int)``: Segment number used to specify which waveform is played using ``.play()``.
 
 **delete_segment**
 ------------------
@@ -444,15 +551,50 @@ Turns off analog output and stops playback.
 **VSG**
 =======
 
+::
+
+    vsg = pyarbtools.instruments.VSG(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
+* ``modState`` ``(int)``: Modulation state. Values are ``0`` (default) or ``1``.
+* ``cf`` ``(float)``: Output carrier frequency in Hz. Value range is instrument dependent. Default is ``1e9``.
+    * EXG/MXG: ``9e3`` to ``6e9``
+    * PSG: ``100e3`` to ``44e9``
+* ``amp`` ``(float)``: Output power in dBm. Value range is instrument dependent. Default is ``-130``.
+    * EXG/MXG: ``-144`` to ``+26``
+    * PSG: ``-130`` to ``+21``
+* ``alcState`` ``(int)``: ALC (automatic level control) state. Values are ``1`` or ``0`` (default).
+* ``iqScale`` ``(int)``: IQ scale factor in %. Values range from ``1`` to ``100``. Default is ``70``.
+* ``refSrc`` ``(str)``: Reference clock source. Values are ``'int'`` (default), or ``'ext'``.
+* ``fs`` ``(float)``: Sample rate in Hz. Values range is instrument dependent.
+    * EXG/MXG: ``1e3`` to ``200e6``
+    * PSG: ``1`` to ``100e6``
+
+::
+
+    print(f'VSG Sample Rate: {vsg.fs} samples/sec.')
+    >>> VSG Sample Rate: 200000000 samples/sec.
+
+
 **configure**
 -------------
 ::
 
-    VSG.configure(rfState=0, modState=0, cf=1e9, amp=-130, alcState=0, iqScale=70, refSrc='int', fs=200e6)
+    VSG.configure(**kwargs)
+    # Example
+    VSG.configure(rfState=1, cf=1e9, amp=-20)
 
 Sets the basic configuration for the VSG and populates class attributes
-accordingly. It should be called any time these settings are changed
-(ideally *once* directly after creating the VSG object).
+accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -479,11 +621,11 @@ accordingly. It should be called any time these settings are changed
 ----------------
 ::
 
-    VSG.download_iq_wfm(wfmData, wfmID='wfm')
+    VSG.download_wfm(wfmData, wfmID='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
-requirements.
+requirements. Returns useful waveform identifier.
 
 **Arguments**
 
@@ -492,7 +634,7 @@ requirements.
 
 **Returns**
 
-* ``wfmID`` (string): Useful waveform name or identifier.
+* ``wfmID`` (string): Useful waveform name or identifier. Use this as the waveform identifier for ``.play()``.
 
 **delete_wfm**
 --------------
@@ -564,16 +706,39 @@ Deactivates arb mode, RF output, and modulation.
 **AnalogUXG**
 =============
 
+::
+
+    auxg = pyarbtools.instruments.AnalogUXG(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
+* ``modState`` ``(int)``: Modulation state. Values are ``0`` (default) or ``1``.
+* ``cf`` ``(float)``: Output carrier frequency in Hz. Values range from ``10e6`` to ``40e9``. Default is ``1e9``.
+* ``amp`` ``(float)``: Output power in dBm. Values range from ``-130`` to ``+10``. Default is ``-130``.
+
+::
+
+    print(f'UXG Carrier Frequency: {uxg.cf} Hz.')
+    >>> UXG Carrier Frequency: 1000000000 Hz.
+
 **configure**
 -------------
 ::
 
-    AnalogUXG.configure(rfState=0, modState=0, cf=1e9, amp=-130)
+    AnalogUXG.configure(**kwargs)
+    # Example
+    AnalogUXG.configure(rfState=1, cf=20e9)
 
 
 Sets the basic configuration for the UXG and populates class attributes
-accordingly. It should be called any time these settings are changed
-(ideally *once* directly after creating the UXG object).
+accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -662,7 +827,7 @@ Dectivates RF output, modulation, and streaming mode.
                         chirpRate=0, freqMap=0)
 
 Builds a single format-1 PDW from a set of input parameters.
-See User's Guide>Streaming Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
+See User's Guide>Streaming Use>PDW Definitions section of Keysight `Analog UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
 
 **Arguments**
     * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
@@ -682,7 +847,8 @@ See User's Guide>Streaming Use>PDW Definitions section of Keysight UXG X-Series 
 
 **Returns**
     * ``(NumPy array)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
-::
+
+Example::
 
     # PDW parameters
     numPdws = 1000
@@ -697,7 +863,7 @@ See User's Guide>Streaming Use>PDW Definitions section of Keysight UXG X-Series 
             op = 1
         else:
             op = 0
-        # Use pyarbtools function to create PDWs
+        # Use PyArbTools function to create PDWs
         pdw.append(uxg.bin_pdw_builder(op, cf, 0, startTime, width, 1, 3, 2, 0, 0, 3, 0, 40000, 0))
         startTime += pri
 
@@ -710,7 +876,7 @@ See User's Guide>Streaming Use>PDW Definitions section of Keysight UXG X-Series 
 Builds a binary PDW file with a padding block to ensure the PDW section
 begins at an offset of 4096 bytes (required by UXG).
 
-See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight UXG X-Series Agile Signal Generator `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
+See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight `Analog UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
 
 **Arguments**
 
@@ -768,15 +934,39 @@ Downloads binary PDW file to PDW directory in UXG.
 **VectorUXG**
 =============
 
+::
+
+    vuxg = pyarbtools.instruments.VectorUXG(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
+* ``modState`` ``(int)``: Modulation state. Values are ``0`` (default) or ``1``.
+* ``cf`` ``(float)``: Output carrier frequency in Hz. Values range from ``50e6`` to ``20e9``. Default is ``1e9``.
+* ``amp`` ``(float)``: Output power in dBm. Values range from ``-120`` to ``+3``. Default is ``-120``.
+* ``iqScale`` ``(int)``: IQ scale factor in %. Values range from ``1`` to ``100``. Default is ``70``.
+
+::
+
+    print(f'UXG Output Power: {uxg.amp} dBm.')
+    >>> UXG Output Power: -20 dBm.
+
 **configure**
 -------------
 ::
 
-    VectorUXG.configure(rfState=0, modState=0, cf=1e9, amp=-120, iqScale=70)
+    VectorUXG.configure(**kwargs)
+    # Example
+    VectorUXG.configure(rfState=1, cf=6e9, amp=-20)
 
 Sets the basic configuration for the UXG and populates class attributes
-accordingly. It should be called any time these settings are changed
-(ideally *once* directly after creating the UXG object).
+accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -794,11 +984,11 @@ accordingly. It should be called any time these settings are changed
 ----------------
 ::
 
-    VectorUXG.download_iq_wfm(wfmData, wfmID='wfm')
+    VectorUXG.download_wfm(wfmData, wfmID='wfm')
 
 Defines and downloads a waveform into WFM1: memory directory and checks
 that the waveform meets minimum waveform length and granularity
-requirements.
+requirements. Returns a useful waveform identifier.
 
 **Arguments**
 
@@ -807,7 +997,7 @@ requirements.
 
 **Returns**
 
-* ``(str)``: Name of waveform that has been downloaded.
+* ``(str)``: Name of waveform that has been downloaded. This should be used to specify which waveform is played using ``.play()`` or when building a waveform index file.
 
 **delete_wfm**
 --------------
@@ -915,7 +1105,7 @@ after streaming is complete.
     VectorUXG.bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers, phaseControl, rfOff, wIndex, wfmMkrMask)
 
 Builds a single format-1 PDW from a set of parameters.
-See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
+See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
     * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
@@ -941,7 +1131,7 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series 
 Builds a binary PDW file with a padding block to ensure the PDW section
 begins at an offset of 4096 bytes (required by UXG).
 
-See User's Guide>Streaming Use>PDW File Format section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
+See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
 
@@ -997,7 +1187,7 @@ Builds a CSV PDW file, sends it into the UXG, and converts it to a
 binary PDW file. There are *a lot* of fields to choose from, but *you
 do not need to specify all of them.* It really is easier than it looks.
 See User's Guide>Streaming Use>CSV File Use>Streaming CSV File Creation
-section of Keysight UXG X-Series Agile Vector Adapter `Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
+section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
 
@@ -1084,16 +1274,48 @@ Dectivates RF output, modulation, and streaming mode.
 **wfmBuilder**
 ==============
 
-In addition to instrument control and communication, pyarbtools allows
+In addition to instrument control and communication, PyArbTools allows
 you to create waveforms and load them into your signal generator or use
 them as generic signals for DSP work::
 
-    iq = pyarbtools.wfmBuilder.chirp_generator(length=100e-6, fs=100e6, chirpBw=20e6)
+    # Create a sine wave
+    fs = 12e9
+    freq = 4e9
+    wfmFormat = 'real'
+    real = pyarbtools.wfmBuilder.sine_generator(fs=fs, freq=freq, wfmFormat=wfmFormat)
+
+    # Create a digitally modulated signal
     fs = 100e6
-    symRate = 1e6
-    iq = digmod_prbs_generator(qpsk_modulator, fs, symRate, prbsOrder=9, filt=rrc_filter, alpha=0.35)
+    modType = 'qam64'
+    symRate = 20e6
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=fs, modType=modType, symRate=symRate)
 
+    # Export waveform to csv file
+    fileName = 'C:\\temp\\waveforms\\20MHz_64QAM.csv'
+    pyarbtools.wfmBuilder.export_wfm(iq, fileName)
 
+.. _export_wfm:
+
+**export_wfm**
+--------------
+::
+
+    export_wfm(data, fileName, vsaCompatible=False, fs=0):
+
+Takes in waveform data and exports it to a csv file as plain text.
+
+**Arguments**
+
+* ``data`` ``(NumPy array)``: Waveform data to be exported.
+* ``fileName`` ``(str)``: Full absolute file name where the waveform will be saved. (should end in ``".csv"``)
+* ``vsaCompatible`` ``(bool)``: Determines VSA compatibility. If ``True``, adds the ``XDelta`` field to the beginning of the file and allows VSA to recall it as a recording.
+* ``fs`` ``(float)``: Sample rate originally used to create the waveform. Default is ``0``, so this should be entered manually.
+
+**Returns**
+
+* None
+
+.. _sine_generator:
 
 **sine_generator**
 ------------------
@@ -1115,6 +1337,8 @@ Generates a sine wave with configurable frequency and initial phase at baseband 
 
 * ``(NumPy array)``: Array containing the complex or real values of the sine wave.
 
+.. _am_generator:
+
 **am_generator**
 ----------------
 ::
@@ -1135,6 +1359,32 @@ Generates a linear sinusoidal AM signal of specified depth and modulation rate a
 **Returns**
 
 * ``(NumPy array)``: Array containing the complex or real values of the AM waveform.
+
+.. _cw_pulse_generator:
+
+**cw_pulse_generator**
+----------------------
+::
+
+    wfmBuilder.cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False):
+
+Generates an unmodulated CW (continuous wave) pulse at baseband or RF.
+
+**Arguments**
+
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
+* ``pWidth`` ``(float)``: Length of the pulse in seconds. Default is ``10e-6``. The pulse width will never be shorter than ``pWidth``, even if ``pri`` < ``pWidth``.
+* ``pri`` ``(float)``: Pulse repetition interval in seconds. Default is ``100e-6``. If ``pri`` > ``pWidth``, the dead time will be included in the waveform.
+* ``freqOffset`` ``(float)``: Frequency offset from carrier frequency in Hz. Default is ``0``.
+* ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
+* ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
+* ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
+
+**Returns**
+
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the CW pulse.
+
+.. _chirp_generator:
 
 **chirp_generator**
 -------------------
@@ -1158,6 +1408,8 @@ Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction 
 **Returns**
 
 * ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the chirped pulse.
+
+.. _barker_generator:
 
 **barker_generator**
 --------------------
@@ -1184,13 +1436,15 @@ more information on Barker coding.
 
 * ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the barker pulse.
 
-**multitone**
--------------
+.. _multitone_generator:
+
+**multitone_generator**
+-----------------------
 ::
 
-    multitone(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq')
+    multitone_generator(fs=100e6, spacing=1e6, num=11, phase='random', cf=1e9, wfmFormat='iq')
 
-Generates a multitone signal with given tone spacing, number of tones, sample rate, and phase relationship.
+Generates a multitone_generator signal with given tone spacing, number of tones, sample rate, and phase relationship.
 
 **Arguments**
 
@@ -1203,47 +1457,45 @@ Generates a multitone signal with given tone spacing, number of tones, sample ra
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the multitone signal.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the multitone_generator signal.
 
-**digmod_prbs_generator**
--------------------------
+.. _digmod_generator:
+
+**digmod_generator**
+--------------------
 ::
 
-    digmod_prbs_generator(fs=100e6, modType='qpsk', symRate=10e6, prbsOrder=9, filt=rrc_filter, alpha=0.35, zeroLast=False)
+    def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='raisedcosine', alpha=0.35, wfmFormat='iq', zeroLast=False, plot=False)
 
-Generates a baseband modulated signal with a given modulation type and
-transmit filter using PRBS data.
-
+Generates a baseband modulated signal with a given modulation type and transmit filter using random data.
 
 **Arguments**
 
-* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Default is ``100e6``.
-* ``modType`` ``(function handle)``: Type of modulation. Argument is a ``_modulator`` function handle.
-    * ``bpsk_modulator``, generates a binary phase shift keyed signal.
-    * ``qpsk_modulator``, generates a quadrature phase shift keyed signal.
-    * ``psk8_modulator``, generates a 8-state phase shift keyed signal.
-    * ``qam16_modulator``, generates a 16-state quadrature amplitude modulated signal.
-    * ``qam32_modulator``, generates a 32-state quadrature amplitude modulated signal.
-    * ``qam64_modulator``, generates a 64-state quadrature amplitude modulated signal.
-    * ``qam128_modulator``, generates a 128-state quadrature amplitude modulated signal.
-    * ``qam256_modulator``, generates a 256-state quadrature amplitude modulated signal.
-* ``symRate`` ``(float)``: Symbol rate in Hz.
-* ``prbsOrder`` ``(int)``: Order of the pseudorandom bit sequence used for the underlying data. Arguments of ``7``, ``9`` (default), or ``13`` are recommended, anything much larger will take a long time to generate.
-* ``filt`` ``(function handle)``: Reference filter type. Argument is a ``_filter`` function handle.
-    * ``rc_filter``: Creates the impulse response of a `raised cosine filter <https://en.wikipedia.org/wiki/Raised-cosine_filter>`_.
-    * ``rrc_filter``: Creates the impulse response of a `root raised cosine filter <https://en.wikipedia.org/wiki/Root-raised-cosine_filter>`_. (default)
-* ``alpha`` ``(float)``: Excess filter bandwidth specification. Also known as roll-off factor, alpha, or beta. Argument range is ``0`` to ``1``. Default is ``0.35``.
-* ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
+    * ``fs`` ``(float)``: Sample rate used to create the waveform in samples/sec.
+    * ``symRate`` ``(float)``: Symbol rate in symbols/sec.
+    * ``modType`` ``(str)``: Type of modulation. ('bpsk', 'qpsk', 'psk8', 'psk16', 'apsk16', 'apsk32', 'apsk64', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256')
+    * ``numSymbols`` ``(int)``: Number of symbols to put in the waveform.
+    * ``filt`` ``(str)``: Pulse shaping filter type. ('raisedcosine' or 'rootraisedcosine')
+    * ``alpha`` ``(float)``: Pulse shaping filter excess bandwidth specification. Also known as roll-off factor, alpha, or beta. (``0`` - ``1.0``)
+    * ``wfmFormat`` ``(str)``: Determines type of waveform. Currently only 'iq' format is supported.
+    * ``zeroLast`` ``(bool)``: Enable or disable forcing the last sample point to 0.
+    * ``plot`` ``(bool)``: Enable or disable plotting of final waveform in time domain and constellation domain.
+
+NOTE - The ring ratios for APSK modulations are as follows:
+
+    * 16-APSK: R1 = 1, R2 = 2.53
+    * 32-APSK: R1 = 1, R2 = 2.53, R3 = 4.3
+    * 64-APSK: R1 = 1, R2 = 2.73, R3 = 4.52, R4 = 6.31
 
 **Returns**
 
-* ``(NumPy array)``: Array contianing the complex values of the digitally modulated signal.
+* ``(NumPy array)``: Array containing the complex values of the digitally modulated signal.
 
 **iq_correction**
 -----------------
 ::
 
-    iq_correction(i, q, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
+    iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
 
 
 Creates a 16-QAM signal from a signal generator at a user-selected
@@ -1267,3 +1519,345 @@ waveform.
 **Returns**
 
 * ``(NumPy array)``: Array containing the complex values of corrected signal.
+
+
+.. _vsaControl:
+
+==============
+**vsaControl**
+==============
+
+To use/control an instance of Keysight 89600 VSA software, create an
+instance of ``pyarbtools.vsaControl.VSA`` and enter VSA's IP address
+as the first argument. There are additional keyword arguments you
+can add to set things like ``port``, ``timeout``, and ``reset``::
+
+    # Example
+    vsa = pyarbtools.vsaControl.VSA('127.0.0.1')
+
+Just like all the ``pyarbtools.instruments`` classes, the VSA class
+is built on a robust socket connection that allows the user
+to send SCPI commands/queries, send/receive data using IEEE 488.2
+binary block format, check for errors, and gracefully disconnect
+from the instrument. Methods were named so that those coming from
+using a VISA interface would be familiar with syntax. This
+architectural decision to include an open SCPI interface was
+made to provide additional flexibility for users who need to
+use specific setup commands *not* covered by built-in functions::
+
+    # Example
+    vsa.write('*RST')
+    instID = vsa.query('*IDN?')
+    vsa.acquire_single()
+    traceData = vsa.binblockread('trace1:data:y?')
+    vsa.disconnect()
+
+
+When an instance of ``VSA`` is created, PyArbTools connects to
+the software at the IP address given by the user and sends a few
+queries. The ``VSA``` class has a ``reset`` keyword argument that
+causes the software to perform a default setup prior to running the
+rest of the code. It's set to ``False`` by default to prevent unwanted
+settings changes.
+
+``VSA`` currently supports two measurement types: ``vector`` and ``ddemod``
+(digital demodulation) and includes a configuration method for each measurement.
+They provide keyword arguments to configure selected settings for the
+measurements *and set relevant class attributes* so that the user knows
+how the analysis software is configured and can use those variables in
+code without having to send a SCPI query to determine values::
+
+    vsa.configure_ddemod(modType='bpsk', symRate=10e6, measLength=128)
+    print(f'Modulation type is {vsa.modType}.')
+    print(f'Symbol rate is {vsa.symRate} symbols/sec.')
+
+
+
+=======
+**VSA**
+=======
+::
+
+    pyarbtools.vsaControl.VSA(host, port=5025, timeout=10, reset=False, vsaHardware=None)
+
+**attributes**
+--------------
+
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure_ddemod()`` and
+``.configure_vector()`` methods. Generally speaking, they are also
+the keyword arguments for the ``.configure_***()`` methods.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``cf`` ``(float)``: Analyzer center frequency in Hz.
+* ``amp`` ``(float)``: Reference level/vertical range in dBm.
+* ``span`` ``(float)``: Analyzer span in Hz.
+* ``hw`` ``(str)``: Identifier string for acquisition hardware used by VSA.
+* ``meas`` ``(str)``: Measurement type ('vector', 'ddemod' currently supported).
+* ``modType`` ``(str)``: String defining digital modulation format.
+* ``symRate`` ``(float)``: Symbol rate in symbols/sec.
+* ``measFilter`` ``(str)``: Sets the measurement filter type.
+* ``refFilter`` ``(str)``: Sets the reference filter type.
+* ``filterAlpha`` ``(float)``: Filter alpha/rolloff factor. Must  be between 0 and 1.
+* ``measLength`` ``(int)``: Measurement length in symbols.
+* ``eqState`` ``(bool)``: Turns the equalizer on or off.
+* ``eqLength`` ``(int)``: Length of the equalizer filter in symbols.
+* ``eqConvergence`` ``(float)``: Equalizer convergence factor.
+* ``rbw`` ``(float)``: Resolution bandwidth in Hz.
+* ``time`` ``(float)``: Analysis time in sec.
+
+.. _acquire_continuous:
+
+**acquire_continuous**
+----------------------
+::
+
+    VSA.acquire_continuous()
+
+Begins continuous acquisition in VSA using SCPI commands.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+.. _acquire_single:
+
+**acquire_single**
+------------------
+::
+
+    VSA.acquire_single()
+
+Sets single acquisition mode and takes a single acquisition in VSA using SCPI commands.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+.. _stop:
+
+**stop**
+--------
+::
+
+    VSA.stop()
+
+Stops acquisition in VSA using SCPI commands.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+.. _autorange:
+
+**autorange**
+-------------
+::
+
+    VSA.autorange()
+
+Executes an amplitude autorange in VSA and waits for it to complete using SCPI commands.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+.. _set_hw:
+
+**set_hw**
+----------
+::
+
+    VSA.set_hw(hw)
+
+Sets and reads hardware configuration for VSA. Checks to see if selected hardware is valid.
+
+**Arguments**
+
+* ``hw`` ``(str)``: Identifier string for acquisition hardware used for VSA
+
+**Returns**
+
+* None
+
+.. _set_cf:
+
+**set_cf**
+----------
+::
+
+    VSA.set_cf(cf)
+
+Sets and reads center frequency for VSA using SCPI commands.
+
+**Arguments**
+
+* ``cf`` ``(float)``: Analyzer center frequency in Hz.
+
+**Returns**
+
+* None
+
+.. _set_amp:
+
+**set_amp**
+-----------
+::
+
+    VSA.set_amp(amp)
+
+Sets and reads reference level/vertical range for VSA using SCPI commands.
+
+**Arguments**
+
+* ``amp`` ``(float)``: Analyzer reference level/vertical range in dBm.
+
+**Returns**
+
+* None
+
+.. _set_span:
+
+**set_span**
+------------
+::
+
+    VSA.set_span(span)
+
+Sets and reads span for VSA using SCPI commands.
+
+**Arguments**
+
+* ``span`` ``(float)``: Analyzer span in Hz.
+
+**Returns**
+
+* None
+
+.. _set_measurement:
+
+**set_measurement**
+-------------------
+::
+
+    VSA.set_amp(meas)
+
+Sets and reads measurement type in VSA using SCPI commands.
+
+**Arguments**
+
+* ``meas`` ``(srt)``: Selects measurement type ('vector', 'ddemod' currently supported).
+
+**Returns**
+
+* None
+
+.. _configure_ddemod:
+
+**configure_ddemod**
+--------------------
+::
+
+    VSA.configure_ddemod(**kwargs)
+    # Example
+    VSA.configure_ddemod(cf=1e9, modType='qam16', symRate=1e6)
+
+Configures digital demodulation settings in VSA using SCPI commands.
+
+**Keyword Arguments**
+
+* ``cf`` ``(float)``: Analyzer center frequency in Hz.
+* ``amp`` ``(float)``: Analyzer reference level/vertical range in dBm.
+* ``span`` ``(float)``: Analyzer span in Hz.
+* ``modType`` ``(str)``: String defining digital modulation format.
+* ``symRate`` ``(float)``: Symbol rate in symbols/sec.
+* ``measFilter`` ``(str)``: Sets the measurement filter type.
+* ``refFilter`` ``(str)``: Sets the reference filter type.
+* ``filterAlpha`` ``(float)``: Filter alpha/rolloff factor. Must  be between 0 and 1.
+* ``measLength`` ``(int)``: Measurement length in symbols.
+* ``eqState`` ``(bool)``: Turns the equalizer on or off.
+* ``eqLength`` ``(int)``: Length of the equalizer filter in symbols.
+* ``eqConvergence`` ``(float)``: Equalizer convergence factor.
+
+**Returns**
+
+* None
+
+.. _configure_vector:
+
+**configure_vector**
+--------------------
+::
+
+    VSA.configure_vector(**kwargs)
+    # Example
+    VSA.configure_vector(cf=1e9, span=40e6, rbw=100e3)
+
+Configures vector measurement mode in VSA using SCPI commands. Note that the ``time`` and ``rbw``
+settings are interconnected. If you set both, the latter setting will override the first one set.
+
+**Keyword Arguments**
+
+* ``cf`` ``(float)``: Analyzer center frequency in Hz.
+* ``amp`` ``(float)``: Analyzer reference level/vertical range in dBm.
+* ``span`` ``(float)``: Analyzer span in Hz.
+* ``rbw`` ``(float)``: Resolution bandwidth in Hz.
+* ``time`` ``(float)``: Analysis time in sec.
+
+**Returns**
+
+* None
+
+.. _recall_recording:
+
+**recall_recording**
+--------------------
+::
+
+    VSA.recall_recording(fileName, fileFormat='csv')
+
+Recalls a data file as a recording in VSA using SCPI commands.
+
+**Arguments**
+
+* ``fileName`` ``(str)``: Full absolute file name of the recording to be loaded.
+* ``fileFormat`` ``(str)``: Format of recording file. ('CSV', 'E3238S', 'MAT', 'MAT7', 'N5110A', 'N5106A', 'SDF', 'TEXT')
+
+**Returns**
+
+* None
+
+.. _sanity_check:
+
+**sanity_check**
+----------------
+::
+
+    VSA.sanity_check()
+
+Prints out measurement-context-sensitive user-accessible class attributes
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
