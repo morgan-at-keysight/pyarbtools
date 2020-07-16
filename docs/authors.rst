@@ -5,7 +5,7 @@ Credits
 Development Lead
 ----------------
 
-* Morgan Allison <morgan.j.allison@gmail.com>
+* Morgan Allison <morgan.allison@keysight.com>
 
 Contributors
 ------------
