@@ -60,4 +60,4 @@ History
 2020.07.1 (2020-07-06)
 ----------------------
 
-* BUGFIX: corrected a problem with the 16-QAM modulator in digmod_generator().
+* BUGFIX: corrected a problem with the 16-QAM modulator in digmod_generator(). Fixed a math error in power level calculations in PDW functions.
