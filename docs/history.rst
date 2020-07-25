@@ -61,3 +61,8 @@ History
 ----------------------
 
 * BUGFIX: corrected a problem with the 16-QAM modulator in digmod_generator().
+
+2020.07.2 (2020-07-24)
+----------------------
+
+* BUGFIX: corrected wraparound issue with digmod_generator().
