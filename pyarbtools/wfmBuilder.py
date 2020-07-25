@@ -1435,6 +1435,7 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
 
     # Resample and filter out images
     iq = sig.resample_poly(iq, finalOsNum, finalOsDenom, window=('kaiser', 10))
+    iq = iq[int(wrapLocation * finalOsNum / finalOsDenom):int(-wrapLocation * finalOsNum / finalOsDenom)]
 
     # Scale signal to prevent compressing iq modulator
     sFactor = abs(np.amax(iq))
