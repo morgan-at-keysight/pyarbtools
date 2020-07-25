@@ -122,7 +122,7 @@ def chirp_closest_m_2_n(chirpRate, chirpRateRes=21.822):
     return output
 
 
-def analog_bin_pdw_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, width=0, power=1, markers=0, pulseMode=2, phaseControl=0,
+def analog_bin_pdw_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, width=0, powerLin=1, markers=0, pulseMode=2, phaseControl=0,
                     bandAdjust=0, chirpControl=0, code=0, chirpRate=0, freqMap=0):
     """
     This function builds a single format-1 PDW from a list of parameters.
@@ -136,7 +136,7 @@ def analog_bin_pdw_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, width
         phase (float): Phase of CW frequency of PDW.
         startTimeSec (float): Start time of the 50% rising edge power.
         width (float): Width of the pulse from 50% rise power to 50% fall power.
-        power (float): Linear scaling of the output in Vrms. (basically just leave this at 1)
+        powerLin (float): Linear scaling of the output in Vrms. (basically just leave this at 1)
         markers (int): Bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0100 in binary).
         pulseMode (int): Configures pulse mode. (0-CW, 1-RF off, 2-Pulse enabled)
         phaseControl (int): Switches between phase mode. (0-coherent, 1-continuous)
@@ -156,7 +156,7 @@ def analog_bin_pdw_builder(operation=0, freq=1e9, phase=0, startTimeSec=0, width
     _phase = int(phase * 4096 / 360 + 0.5)
     _startTimePs = int(startTimeSec * 1e12)
     _widthNs = int(width * 1e9)
-    _power = convert_to_floating_point(math.pow(10, power / 20), -26, 10, 5)
+    _power = convert_to_floating_point(powerLin, -26, 10, 5)
     _chirpRate = chirp_closest_m_2_n(chirpRate)
 
     # Build PDW
@@ -381,7 +381,7 @@ def analog_bin_pdw_file_builder(pdwList):
 
 
 # noinspection PyPep8
-def vector_bin_pdw_builder_3(operation=0, freq=1e9, phase=0, startTimeSec=0, width=10e-6, maxPower=0, markers=0, power=0,
+def vector_bin_pdw_builder_3(operation=0, freq=1e9, phase=0, startTimeSec=0, width=10e-6, maxPower=0, markers=0, powerDbm=0,
                       phaseControl=0, rfOff=0, autoBlank=0, zeroHold=0, loLead=0, wfmMkrMask=0, wIndex=0):
     """
     This function builds a single format-3 PDW from a list of parameters.
@@ -397,7 +397,7 @@ def vector_bin_pdw_builder_3(operation=0, freq=1e9, phase=0, startTimeSec=0, wid
         width (float): Width of the pulse from 50% rise power to 50% fall power.
         maxPower (float): Max output power in dBm.
         markers (int): Enables or disables PDW markers via bit masking. (e.g. to activate marker 3, send the number 4, which is 0100 in binary).
-        power (float): Sets power for individual PDW.
+        powerDbm (float): Sets power for individual PDW in dBm.
         phaseControl (int): Switches between phase mode. (0-coherent, 1-continuous)
         rfOff (int): Activates or deactivates RF Off mode. (0-RF on, 1-RF off). I know, the nomenclature here is TRASH.
         autoBlank (int): Activates blanking. (0-no blanking, 1-blanking)
@@ -416,7 +416,7 @@ def vector_bin_pdw_builder_3(operation=0, freq=1e9, phase=0, startTimeSec=0, wid
     # you multiplied this by 2, it's probably not going to work.
     _pulseWidthPs = int(width * 1e12 * 2)
     _maxPower = int((maxPower + 140) / 0.005 + 0.5)
-    _power = int((power + 140) / 0.005 + 0.5)
+    _power = int((powerDbm + 140) / 0.005 + 0.5)
     _loLead = int(loLead / 4e-9)
     _newWfm = 1
     _wfmType = 0
@@ -445,7 +445,7 @@ def vector_bin_pdw_builder_3(operation=0, freq=1e9, phase=0, startTimeSec=0, wid
     return pdw
 
 
-def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers, phaseControl, rfOff, wIndex, wfmMkrMask):
+def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, powerDbm, markers, phaseControl, rfOff, wIndex, wfmMkrMask):
     """
     This function builds a single format-1 PDW from a list of parameters.
     PDW format-1 is now deprecated.  This format is still supported as legacy
@@ -458,7 +458,7 @@ def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers,
         freq (float): CW frequency of PDW.
         phase (float): Phase of CW frequency of PDW.
         startTimeSec (float): Start time of the 50% rising edge power.
-        power (float): Sets power for individual PDW.
+        powerDbm (float): Sets power for individual PDW in dBm.
         markers (int): Enables or disables PDW markers via bit masking. (e.g. to activate marker 3, send the number 4, which is 0100 in binary).
         phaseControl (int): Switches between phase mode. (0-coherent, 1-continuous)
         rfOff (int): Activates or deactivates RF Off mode. (0-RF on, 1-RF off). I know, the nomenclature here is TRASH.
@@ -474,7 +474,7 @@ def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers,
     _freq = int(freq * 1024 + 0.5)
     _phase = int(phase * 4096 / 360 + 0.5)
     _startTimePs = int(startTimeSec * 1e12)
-    _power = int((power + 140) / 0.005 + 0.5)
+    _power = int((powerDbm + 140) / 0.005 + 0.5)
 
     # Build PDW
     pdw = np.zeros(6, dtype=np.uint32)

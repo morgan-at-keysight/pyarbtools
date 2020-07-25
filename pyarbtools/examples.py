@@ -576,12 +576,12 @@ def main():
     # vsg_dig_mod_example('141.121.198.207')
     # vsg_am_example('141.121.198.207')
     # vsg_mtone_example('141.121.198.207')
-    # vector_uxg_dig_mod_example('10.81.188.32')
-    # vector_uxg_pdw_example('10.81.188.32')
-    # vector_uxg_lan_streaming_example('10.81.188.32')
-    # analog_uxg_pdw_example('10.0.0.109')
+    # vector_uxg_dig_mod_example('10.0.0.52')
+    # vector_uxg_pdw_example('10.0.0.52')
+    # vector_uxg_lan_streaming_example('10.0.0.52')
+    analog_uxg_pdw_example('10.0.0.55')
     # wfm_to_vsa_example('127.0.0.1')
-    vsa_vector_example('127.0.0.1')
+    # vsa_vector_example('127.0.0.1')
 
 
 if __name__ == '__main__':
