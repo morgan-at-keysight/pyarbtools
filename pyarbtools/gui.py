@@ -8,21 +8,25 @@ from tkinter import *
 from tkinter import ttk
 # from tkinter import filedialog
 from tkinter import messagebox
+from os import path
 import ipaddress
 import pyarbtools
 import socketscpi
 
 """
 TODO
+* Update GUI for new digmod_generator() function
+* Add an export waveform button
+* Add a stop playback button
+* Make the default waveform name context-sensitive
 * Direct user to Configure the instrument before creating waveforms.
-* Gray out waveform creation until instrument is configured.
-* Color-code waveforms based on download status
 * For future help box to explain what the different DAC modes mean
     # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
     #                     'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
     #                     'Dual Channel Duplicate (Ch 3 & 4 copy Ch 1 & 2)': 'dcd',
     #                     'Dual Channel Marker (Sign Ch 1 & 2, Ch 1 mkr on Ch 3 & 4)': 'dcm'}
 """
+
 
 
 # noinspection PyUnusedLocal,PyAttributeOutsideInit
@@ -37,7 +41,9 @@ class PyarbtoolsGUI:
                             'VectorUXG': pyarbtools.instruments.VectorUXG}
 
         # Variables
-        self.ipAddress = '127.0.0.1'
+        # self.ipAddress = '127.0.0.1'
+        self.ipAddress = '192.168.50.124'
+        defaultInstrument = 3
         self.inst = None
         self.cbWidth = 17
 
@@ -72,7 +78,7 @@ class PyarbtoolsGUI:
         # setupFrame Widgets
         self.lblInstruments = Label(setupFrame, text='Instrument Class')
         self.cbInstruments = ttk.Combobox(setupFrame, state='readonly', values=list(self.instClasses.keys()))
-        self.cbInstruments.current(0)
+        self.cbInstruments.current(defaultInstrument)
 
         v = StringVar()
         self.lblInstIPAddress = Label(setupFrame, text='Instrument IP Address')
@@ -360,7 +366,7 @@ class PyarbtoolsGUI:
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
 
             lblModType = Label(self.wfmFrame, text='Modulation Type')
-            modTypeList = ['bpsk', 'qpsk', '8psk', '16psk', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256']
+            modTypeList = ['bpsk', 'qpsk', 'psk8', 'psk16', 'apsk16', 'apsk32', 'apsk64', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256']
             self.cbModType = ttk.Combobox(self.wfmFrame, state='readonly', values=modTypeList)
             self.cbModType.current(0)
 
@@ -820,7 +826,7 @@ class PyarbtoolsGUI:
                               'iqScale': int(self.eIqScale.get())}
             else:
                 raise ValueError('Invalid instrument selected. This should never happen.')
-            self.inst.configure(*configArgs.values())
+            self.inst.configure(**configArgs)
             self.memDiv_select()
             self.res_select()
             self.statusBar.configure(text=f'{self.instKey} configured.', bg='white')
@@ -1303,7 +1309,10 @@ class PyarbtoolsGUI:
 def main():
     root = Tk()
     root.resizable(False, False)
-    root.title('pyarbtools')
+    root.title('Keysight PyArbTools')
+    basePath = path.dirname(__file__)
+    iconPath = path.abspath(path.join(basePath, '..', 'Resources', 'favicon.ico'))
+    root.iconbitmap(iconPath)
 
     PyarbtoolsGUI(root)
 
