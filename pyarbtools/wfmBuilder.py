@@ -1346,6 +1346,14 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     # Use 10 samples per symbol for creating the initial signal prior to final resampling
     osFactor = 10
 
+    # Calculate oversampling factors for resampling
+    finalOsFactor = fs / (symRate * osFactor)
+
+    # Python's built-in fractions module makes this easy
+    fracOs = Fraction(finalOsFactor).limit_denominator(1000)
+    finalOsNum = fracOs.numerator
+    finalOsDenom = fracOs.denominator
+
     if symRate >= fs:
         raise error.WfmBuilderError('symRate violates Nyquist. Reduce symbol rate or increase sample rate.')
 
@@ -1424,18 +1432,12 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
 
     # Apply pulse shaping filter to symbols via convolution
     iq = np.convolve(temp, psFilter, mode='same')
-
-    # Calculate oversampling factors for resampling
-    finalOsFactor = fs / (symRate * osFactor)
-
-    # Python's built-in fractions module makes this easy
-    fracOs = Fraction(finalOsFactor).limit_denominator(1000)
-    finalOsNum = fracOs.numerator
-    finalOsDenom = fracOs.denominator
+    # iq = iq[wrapLocation:-wrapLocation]
 
     # Resample and filter out images
-    iq = sig.resample_poly(iq, finalOsNum, finalOsDenom, window=('kaiser', 10))
-    iq = iq[int(wrapLocation * finalOsNum / finalOsDenom):int(-wrapLocation * finalOsNum / finalOsDenom)]
+    # iq = sig.
+    iq = sig.resample_poly(iq, finalOsNum, finalOsDenom, window=('kaiser', 11))
+    iq = iq[int(wrapLocation * finalOsNum / finalOsDenom) + 1:int(-wrapLocation * finalOsNum / finalOsDenom) - 1]
 
     # Scale signal to prevent compressing iq modulator
     sFactor = abs(np.amax(iq))
