@@ -19,6 +19,7 @@ TODO
 * Add an export waveform button
 * Add a stop playback button
 * Make the default waveform name context-sensitive
+* Make the carrier frequency in the waveform creation section match the carrier frequency of the sig gen (same way you did with sample rate)
 * Direct user to Configure the instrument before creating waveforms.
 * For future help box to explain what the different DAC modes mean
     # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
@@ -360,28 +361,29 @@ class PyarbtoolsGUI:
             lblPhase.grid(row=r, column=0, sticky=E)
             self.cbPhase.grid(row=r, column=1, sticky=W)
 
+            """YOU NEED TO REWORK THIS WHOLE DAMN THING"""
         elif self.wfmType == 'Digital Modulation':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
-
-            lblModType = Label(self.wfmFrame, text='Modulation Type')
-            modTypeList = ['bpsk', 'qpsk', 'psk8', 'psk16', 'apsk16', 'apsk32', 'apsk64', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256']
-            self.cbModType = ttk.Combobox(self.wfmFrame, state='readonly', values=modTypeList)
-            self.cbModType.current(0)
 
             lblSymrate = Label(self.wfmFrame, text='Symbol Rate')
             symRateVar = StringVar()
             self.eSymrate = Entry(self.wfmFrame, textvariable=symRateVar)
             symRateVar.set('10e6')
 
-            lblPrbsOrder = Label(self.wfmFrame, text='PRBS Order')
-            prbsOrderList = [7, 9, 11, 13, 15, 17]
-            self.cbPrbsOrder = ttk.Combobox(self.wfmFrame, state='readonly', values=prbsOrderList)
-            self.cbPrbsOrder.current(0)
+            lblModType = Label(self.wfmFrame, text='Modulation Type')
+            modTypeList = ['bpsk', 'qpsk', 'psk8', 'psk16', 'apsk16', 'apsk32', 'apsk64', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256']
+            self.cbModType = ttk.Combobox(self.wfmFrame, state='readonly', values=modTypeList)
+            self.cbModType.current(0)
+
+            lblNumSymbols = Label(self.wfmFrame, text='Number of Symbols')
+            numSymbolsVar = StringVar()
+            self.eNumSymbols = Entry(self.wfmFrame, textvariable=numSymbolsVar)
+            numSymbolsVar.set('1000')
 
             lblFiltType = Label(self.wfmFrame, text='Filter Type')
-            filtTypeList = ['Root Raised Cosine', 'Raised Cosine']
+            filtTypeList = ['rootraisedcosine', 'raisedcosine']
             self.cbFiltType = ttk.Combobox(self.wfmFrame, state='readonly', values=filtTypeList)
             self.cbFiltType.current(0)
 
@@ -396,16 +398,16 @@ class PyarbtoolsGUI:
             self.eFsWfm.grid(row=r, column=1, sticky=W)
 
             r += 1
-            lblModType.grid(row=r, column=0, sticky=E)
-            self.cbModType.grid(row=r, column=1, sticky=W)
-
-            r += 1
             lblSymrate.grid(row=r, column=0, sticky=E)
             self.eSymrate.grid(row=r, column=1, sticky=W)
 
             r += 1
-            lblPrbsOrder.grid(row=r, column=0, sticky=E)
-            self.cbPrbsOrder.grid(row=r, column=1, sticky=W)
+            lblModType.grid(row=r, column=0, sticky=E)
+            self.cbModType.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblNumSymbols.grid(row=r, column=0, sticky=E)
+            self.eNumSymbols.grid(row=r, column=1, sticky=W)
 
             r += 1
             lblFiltType.grid(row=r, column=0, sticky=E)
@@ -418,10 +420,22 @@ class PyarbtoolsGUI:
         else:
             raise ValueError('Invalid wfmType selected, this should never happen.')
 
+        """THIS IS WHERE TO AUTOMATICALLY QUERY CF FROM INSTRUMENT SETUP"""
         lblCf = Label(self.wfmFrame, text='Carrier Frequency')
         cfVar = StringVar()
         self.eCf = Entry(self.wfmFrame, textvariable=cfVar)
-        cfVar.set('1e9')
+        # PSEUDOCODE
+        """
+        if self.instFrame.eCf exists FIGURE OUT A BETTER WAY TO TEST THIS
+            cfVar.set(f'{self.instFrame.eCf.get()}'
+        else:
+        """
+        # print(globals())
+        # print('configFrame.eCf' in globals())
+        # print('configFrame.eCf' in locals())
+        # cfVar.set(1e9)
+        # or
+        # cfVar.set(0)
 
         lblWfmFormat = Label(self.wfmFrame, text='Waveform Format')
         formatList = ['IQ', 'Real']
@@ -442,6 +456,7 @@ class PyarbtoolsGUI:
 
         self.cbWfmFormat.event_generate("<<ComboboxSelected>>")
 
+        """HERE IS WHERE YOU NEED TO SET THE DEFAULT WAVEFORM NAME"""
         lblWfmName = Label(self.wfmFrame, text='Name')
         wfmNameVar = StringVar()
         self.eWfmName = Entry(self.wfmFrame, textvariable=wfmNameVar)
@@ -505,17 +520,11 @@ class PyarbtoolsGUI:
                            int(self.eNumTones.get()), self.cbPhase.get(),
                            float(self.eCf.get()), self.cbWfmFormat.get()]
                 wfmRaw = pyarbtools.wfmBuilder.multitone_generator(*wfmArgs)
+                """YOU NEED TO REWORK THIS WHOLE DAMN THING"""
             elif self.wfmType == 'Digital Modulation':
-                filtArg = self.cbFiltType.get()
-                if filtArg == 'Root Raised Cosine':
-                    filtType = pyarbtools.wfmBuilder.rrc_filter
-                elif filtArg == 'Raised Cosine':
-                    filtType = pyarbtools.wfmBuilder.rc_filter
-                else:
-                    raise ValueError('Invalid filter type chosen, this should never happen.')
                 wfmArgs = [float(self.eFsWfm.get()), self.cbModType.get(),
                            float(self.eSymrate.get()), int(self.cbPrbsOrder.get()),
-                           filtType, float(self.eFiltAlpha.get()), self.cbWfmFormat.get()]
+                           self.cbFiltType.get(), float(self.eFiltAlpha.get()), self.cbWfmFormat.get()]
                 wfmRaw = pyarbtools.wfmBuilder.digmod_prbs_generator(*wfmArgs)
             else:
                 raise ValueError('Invalid selection chosen, this should never happen.')
