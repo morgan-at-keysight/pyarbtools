@@ -61,3 +61,8 @@ History
 ----------------------
 
 * BUGFIX: corrected a problem with the 16-QAM modulator in digmod_generator(). Fixed a math error in power level calculations in PDW functions.
+
+2020.07.3 (2020-07-31)
+----------------------
+
+* Dramatically improved resampling and wraparound handling in digmod_generator().
