@@ -13,6 +13,7 @@ from pyarbtools import error
 from fractions import Fraction
 import os
 import cmath
+from warnings import warn
 
 
 class WFM:
@@ -1325,6 +1326,9 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     Generates a digitally modulated signal at baseband with a given modulation type, number of symbols, and filter type/alpha
     using random data.
 
+    WARNING: Reading through this function is not for the faint of heart. There are a lot of details in here that you don't think
+    about unless you're interacting with hardware.
+
     Args:
         fs (float): Sample rate used to create the waveform in samples/sec.
         symRate (float): Symbol rate in symbols/sec.
@@ -1343,14 +1347,42 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
         Add an argument that allows user to specify symbol data.
     """
 
-    # Use 10 samples per symbol for creating the initial signal prior to final resampling
-    osFactor = 10
-
     if symRate >= fs:
         raise error.WfmBuilderError('symRate violates Nyquist. Reduce symbol rate or increase sample rate.')
 
     if wfmFormat.lower() != 'iq':
         raise error.WfmBuilderError('Digital modulation currently supports IQ waveform format only.')
+
+    if not isinstance(numSymbols, int) or numSymbols < 1:
+        raise error.WfmBuilderError('"numSymbols" must be a positive integer value.')
+
+    if not isinstance(zeroLast, bool):
+        raise error.WfmBuilderError('"zeroLast" must be a boolean.')
+
+    if not isinstance(plot, bool):
+        raise error.WfmBuilderError('"plot" must be a boolean')
+
+    # Use 20 samples per symbol for creating and pulse shaping the signal prior to final resampling
+    intermediateOsFactor = 20
+
+    # Calculate oversampling factors for resampling
+    finalOsFactor = fs / (symRate * intermediateOsFactor)
+
+    # Python's built-in fractions module makes this easy
+    fracOs = Fraction(finalOsFactor).limit_denominator(1000)
+    finalOsNum = fracOs.numerator
+    finalOsDenom = fracOs.denominator
+    # print(f'Oversampling factor: {finalOsNum} / {finalOsDenom}')
+    if finalOsNum > 200 and finalOsDenom > 200:
+        print(f'Oversampling factor: {finalOsNum} / {finalOsDenom}')
+        warn(f'Poor choice of sample rate/symbol rate. Resulting waveform will be large and slightly distorted. Choose sample rate so that it is an integer multiple of symbol rate.')
+
+    # If necessary, adjust the number of symbols to ensure an integer number of samples after final resampling
+    numSamples = numSymbols * finalOsNum / finalOsDenom
+    # print(f'Initial numSymbols: {numSymbols}')
+    if not numSamples.is_integer():
+        numSymbols = np.lcm(numSymbols, finalOsDenom)
+        # print(f'Adjusted numSymbols: {numSymbols}')
 
     # Define bits per symbol and modulator function based on modType
     if modType.lower() == 'bpsk':
@@ -1365,9 +1397,6 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     elif modType.lower() == 'psk16':
         bitsPerSym = 4
         modulator = psk16_modulator
-    elif modType.lower() == 'qam16':
-        bitsPerSym = 4
-        modulator = qam16_modulator
     elif modType.lower() == 'apsk16':
         bitsPerSym = 4
         modulator = apsk16_modulator
@@ -1377,6 +1406,9 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     elif modType.lower() == 'apsk64':
         bitsPerSym = 6
         modulator = apsk64_modulator
+    elif modType.lower() == 'qam16':
+        bitsPerSym = 4
+        modulator = qam16_modulator
     elif modType.lower() == 'qam32':
         bitsPerSym = 5
         modulator = qam32_modulator
@@ -1392,65 +1424,87 @@ def digmod_generator(fs=10, symRate=1, modType='bpsk', numSymbols=1000, filt='ra
     else:
         raise ValueError('Invalid modType chosen.')
 
-    # Create random bit pattern and repeat to ensure integer number of symbols.
+    # Create random bit pattern
     bits = np.random.randint(0, 2, bitsPerSym * numSymbols)
-    temp = bits
-    repeats = 1
-    while len(bits) % bitsPerSym:
-        bits = np.tile(temp, repeats)
-        repeats += 1
+    # tempBits = bits
+    # repeats = 1
+    # while len(bits) % bitsPerSym:
+    #     bits = np.tile(tempBits, repeats)
+    #     repeats += 1
 
     # Group the bits into symbol values and then map the symbols to locations in the complex plane.
-    symbols = modulator(bits)
+    modulatedValues = modulator(bits)
 
-    # Zero-pad symbols to satisfy oversampling factor.
-    temp = np.zeros(len(symbols) * osFactor, dtype=np.complex)
-    temp[::osFactor] = symbols
+    # Zero-pad symbols to satisfy oversampling factor and provide impulse-like response for better pulse shaping performance.
+    rawSymbols = np.zeros(len(modulatedValues) * intermediateOsFactor, dtype=np.complex)
+    rawSymbols[::intermediateOsFactor] = modulatedValues
 
     # Create pulse shaping filter
     # The number of taps required must be a multiple of the oversampling factor
-    taps = 8 * osFactor
+    taps = 4 * intermediateOsFactor
+
     if filt.lower() == 'rootraisedcosine':
-        psFilter = rrc_filter(alpha, taps, osFactor)
+        psFilter = rrc_filter(alpha, taps, intermediateOsFactor)
     elif filt.lower() == 'raisedcosine':
-        psFilter = rc_filter(alpha, taps, osFactor)
+        psFilter = rc_filter(alpha, taps, intermediateOsFactor)
     else:
         raise error.WfmBuilderError('Invalid pulse shaping filter chosen. Use \'raisedcosine\' or \'rootraisedcosine\'')
 
-    # Prepend the end of the signal onto the beginning and append the beginning onto the end
-    # to ensure there are no phase discontinuities created when convolving with the filter taps
-    wrapLocation = int(taps / 2)
-    temp = np.concatenate([temp[-wrapLocation:], temp, temp[:wrapLocation]])
+    """There are several considerations here."""
+    # At the beginning and the end of convolution, the two arrays don't
+    # fully overlap, which results in invalid data. We don't want to
+    # keep that data, so we're prepending the end of the signal onto
+    # the beginning and append the beginning onto the end to provide
+    # "runway" for the convolution. We will be throwing this prepended
+    # and appended data away at the end of the signal creation process.
+    #
+    # In order to eliminate wraparound issues, we need to ensure that
+    # the prepended and appended segments will be an integer number of
+    # samples AFTER final resampling. The extra segments must also
+    # be at least as long as the pulse shaping filter so that we have
+    # enough runway to get all the invalid samples out before getting
+    # into the meat of the waveform.
+
+    # Determine wraparound location
+    wrapLocation = finalOsDenom
+    # Make sure it's at least as long as the pulse shaping filter
+    while wrapLocation < taps:
+        wrapLocation *= 2
+
+    # Prepend and append
+    rawSymbols = np.concatenate([rawSymbols[-wrapLocation:], rawSymbols, rawSymbols[:wrapLocation]])
 
     # Apply pulse shaping filter to symbols via convolution
-    iq = np.convolve(temp, psFilter, mode='same')
+    filteredSymbols = np.convolve(rawSymbols, psFilter, mode='same')
 
-    # Calculate oversampling factors for resampling
-    finalOsFactor = fs / (symRate * osFactor)
+    # Perform the final resampling AND filter out images using a single SciPy function
+    iq = sig.resample_poly(filteredSymbols, finalOsNum, finalOsDenom, window=('kaiser', 11))
 
-    # Python's built-in fractions module makes this easy
-    fracOs = Fraction(finalOsFactor).limit_denominator(1000)
-    finalOsNum = fracOs.numerator
-    finalOsDenom = fracOs.denominator
+    # Calculate location of final prepended and appended segments
+    finalWrapLocation = wrapLocation * finalOsNum / finalOsDenom
+    if finalWrapLocation.is_integer():
+        finalWrapLocation = int(finalWrapLocation)
+    else:
+        raise error.WfmBuilderError('Signal does not meet conditions for wraparound mitigation, choose sample rate so that it is an integer multiple of symbol rate.')
 
-    # Resample and filter out images
-    iq = sig.resample_poly(iq, finalOsNum, finalOsDenom, window=('kaiser', 10))
-    iq = iq[int(wrapLocation * finalOsNum / finalOsDenom):int(-wrapLocation * finalOsNum / finalOsDenom)]
+    # Trim off prepended and appended segments
+    iq = iq[finalWrapLocation:-finalWrapLocation]
 
     # Scale signal to prevent compressing iq modulator
     sFactor = abs(np.amax(iq))
     iq = iq / sFactor * 0.707
 
+    # Zero the last sample if needed
     if zeroLast:
         iq[-1] = 0 + 1j * 0
 
     if plot:
         # Calculate symbol locations and symbol values for real and imaginary components
-        symbolLocations = np.arange(0, len(iq), osFactor)
+        symbolLocations = np.arange(0, len(iq), intermediateOsFactor)
         realSymbolValues = iq.real[symbolLocations]
         imagSymbolValues = iq.imag[symbolLocations]
         plotSymbols = 100
-        plotSamples = osFactor * plotSymbols
+        plotSamples = intermediateOsFactor * plotSymbols
 
         # Plot both time domain and constellation diagram with decision points
         plt.subplot(211)
