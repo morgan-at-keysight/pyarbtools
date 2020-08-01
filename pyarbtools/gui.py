@@ -420,22 +420,10 @@ class PyarbtoolsGUI:
         else:
             raise ValueError('Invalid wfmType selected, this should never happen.')
 
-        """THIS IS WHERE TO AUTOMATICALLY QUERY CF FROM INSTRUMENT SETUP"""
         lblCf = Label(self.wfmFrame, text='Carrier Frequency')
         cfVar = StringVar()
+        cfVar.set('1e9')
         self.eCf = Entry(self.wfmFrame, textvariable=cfVar)
-        # PSEUDOCODE
-        """
-        if self.instFrame.eCf exists FIGURE OUT A BETTER WAY TO TEST THIS
-            cfVar.set(f'{self.instFrame.eCf.get()}'
-        else:
-        """
-        # print(globals())
-        # print('configFrame.eCf' in globals())
-        # print('configFrame.eCf' in locals())
-        # cfVar.set(1e9)
-        # or
-        # cfVar.set(0)
 
         lblWfmFormat = Label(self.wfmFrame, text='Waveform Format')
         formatList = ['IQ', 'Real']
@@ -460,7 +448,7 @@ class PyarbtoolsGUI:
         lblWfmName = Label(self.wfmFrame, text='Name')
         wfmNameVar = StringVar()
         self.eWfmName = Entry(self.wfmFrame, textvariable=wfmNameVar)
-        wfmNameVar.set('wfm')
+        wfmNameVar.set(f'{self.cbWfmType.get()}')
 
         self.btnCreateWfm = ttk.Button(self.wfmFrame, text='Create Waveform', command=self.create_wfm)
 
@@ -522,10 +510,11 @@ class PyarbtoolsGUI:
                 wfmRaw = pyarbtools.wfmBuilder.multitone_generator(*wfmArgs)
                 """YOU NEED TO REWORK THIS WHOLE DAMN THING"""
             elif self.wfmType == 'Digital Modulation':
-                wfmArgs = [float(self.eFsWfm.get()), self.cbModType.get(),
-                           float(self.eSymrate.get()), int(self.cbPrbsOrder.get()),
-                           self.cbFiltType.get(), float(self.eFiltAlpha.get()), self.cbWfmFormat.get()]
-                wfmRaw = pyarbtools.wfmBuilder.digmod_prbs_generator(*wfmArgs)
+                wfmArgs = [float(self.eFsWfm.get()), float(self.eSymrate.get()),
+                           self.cbModType.get(), int(self.eNumSymbols.get()),
+                           self.cbFiltType.get(), float(self.eFiltAlpha.get()),
+                           self.cbWfmFormat.get()]
+                wfmRaw = pyarbtools.wfmBuilder.digmod_generator(*wfmArgs)
             else:
                 raise ValueError('Invalid selection chosen, this should never happen.')
             name = self.eWfmName.get()
