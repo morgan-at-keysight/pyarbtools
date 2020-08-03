@@ -66,3 +66,4 @@ History
 ----------------------
 
 * Dramatically improved resampling and wraparound handling in digmod_generator().
+
