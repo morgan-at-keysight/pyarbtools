@@ -8,21 +8,22 @@ from tkinter import *
 from tkinter import ttk
 # from tkinter import filedialog
 from tkinter import messagebox
+from os import path
 import ipaddress
 import pyarbtools
 import socketscpi
 
 """
 TODO
-* Direct user to Configure the instrument before creating waveforms.
-* Gray out waveform creation until instrument is configured.
-* Color-code waveforms based on download status
+* Add an export waveform button
+* Add a stop playback button
 * For future help box to explain what the different DAC modes mean
     # self.dacModeArgs = {'Single (Ch 1)': 'single', 'Dual (Ch 1 & 4)': 'dual',
     #                     'Four (All Ch)': 'four', 'Marker (Sig Ch 1, Mkr Ch 3 & 4)': 'marker',
     #                     'Dual Channel Duplicate (Ch 3 & 4 copy Ch 1 & 2)': 'dcd',
     #                     'Dual Channel Marker (Sign Ch 1 & 2, Ch 1 mkr on Ch 3 & 4)': 'dcm'}
 """
+
 
 
 # noinspection PyUnusedLocal,PyAttributeOutsideInit
@@ -37,7 +38,9 @@ class PyarbtoolsGUI:
                             'VectorUXG': pyarbtools.instruments.VectorUXG}
 
         # Variables
-        self.ipAddress = '127.0.0.1'
+        # self.ipAddress = '127.0.0.1'
+        self.ipAddress = '192.168.50.124'
+        defaultInstrument = 3
         self.inst = None
         self.cbWidth = 17
 
@@ -72,7 +75,7 @@ class PyarbtoolsGUI:
         # setupFrame Widgets
         self.lblInstruments = Label(setupFrame, text='Instrument Class')
         self.cbInstruments = ttk.Combobox(setupFrame, state='readonly', values=list(self.instClasses.keys()))
-        self.cbInstruments.current(0)
+        self.cbInstruments.current(defaultInstrument)
 
         v = StringVar()
         self.lblInstIPAddress = Label(setupFrame, text='Instrument IP Address')
@@ -135,7 +138,7 @@ class PyarbtoolsGUI:
         """wfmTypeSelectFrame"""
         # wfmTypeSelectFrame Widgets
         wfmLabel = Label(self.wfmTypeSelectFrame, text='Waveform Type')
-        self.wfmTypeList = ['AM', 'Chirp', 'Barker Code', 'Multitone', 'Digital Modulation']
+        self.wfmTypeList = ['Sine', 'AM', 'CW Pulse', 'Chirped Pulse', 'Barker Coded Pulse', 'Multitone', 'Digital Modulation']
         self.cbWfmType = ttk.Combobox(self.wfmTypeSelectFrame, state='readonly', values=self.wfmTypeList, width=self.cbWidth)
         self.cbWfmType.current(0)
 
@@ -149,7 +152,7 @@ class PyarbtoolsGUI:
 
         """wfmFrame"""
         self.open_wfm_builder()
-        self.disable_wfmFrame()
+        # self.disable_wfmFrame()
 
         """wfmListFrame"""
         self.wfmList = []
@@ -209,13 +212,51 @@ class PyarbtoolsGUI:
         self.statusBar.grid(row=0, sticky=N+S+E+W)
 
     def open_wfm_builder(self, event=None):
+        """
+
+        Args:
+            event:
+
+        Returns:
+
+        TODO:
+            Update the Sine generator to incorporate the CF input AFTER the wfmBuilder.sine_generator() method has been updated.
+        """
         self.wfmFrame.destroy()
         self.wfmFrame = Frame(self.master, bd=5)
         self.wfmFrame.grid(row=1, column=1, sticky=N)
 
         self.wfmType = self.cbWfmType.get()
 
-        if self.wfmType == 'AM':
+        if self.wfmType == 'Sine':
+            lblFs = Label(self.wfmFrame, text='Sample Rate')
+            fsVar = StringVar()
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
+
+            lblSineFreq = Label(self.wfmFrame, text='Sine Frequency')
+            freqOffsetVar = StringVar()
+            self.eFreqOffset = Entry(self.wfmFrame, textvariable=freqOffsetVar)
+            freqOffsetVar.set('0')
+
+            lblSinePhase = Label(self.wfmFrame, text='Sine Phase')
+            sinePhaseVar = StringVar()
+            self.eSinePhase = Entry(self.wfmFrame, textvariable=sinePhaseVar)
+            sinePhaseVar.set('0')
+
+            # Sine Geometry
+            r = 0
+            lblFs.grid(row=r, column=0, sticky=E)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblSineFreq.grid(row=r, column=0, sticky=E)
+            self.eFreqOffset.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblSinePhase.grid(row=r, column=0, sticky=E)
+            self.eSinePhase.grid(row=r, column=1, sticky=W)
+
+        elif self.wfmType == 'AM':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
@@ -243,7 +284,44 @@ class PyarbtoolsGUI:
             lblModRate.grid(row=r, column=0, sticky=E)
             self.eModRate.grid(row=r, column=1, sticky=W)
 
-        elif self.wfmType == 'Chirp':
+        elif self.wfmType == 'CW Pulse':
+            lblFs = Label(self.wfmFrame, text='Sample Rate')
+            fsVar = StringVar()
+            self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
+
+            lblPulseWidth = Label(self.wfmFrame, text='Pulse Width')
+            lengthVar = StringVar()
+            self.ePulseWidth = Entry(self.wfmFrame, textvariable=lengthVar)
+            lengthVar.set('1e-6')
+
+            lblPri = Label(self.wfmFrame, text='Pulse Rep Interval')
+            priVar = StringVar()
+            self.ePri = Entry(self.wfmFrame, textvariable=priVar)
+            priVar.set('10e-6')
+
+            lblFreqOffset = Label(self.wfmFrame, text='Frequency Offset')
+            freqOffsetVar = StringVar()
+            self.eFreqOffset = Entry(self.wfmFrame, textvariable=freqOffsetVar)
+            freqOffsetVar.set('0')
+
+            # Chirp Geometry
+            r = 0
+            lblFs.grid(row=r, column=0, sticky=E)
+            self.eFsWfm.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblPulseWidth.grid(row=r, column=0, sticky=E)
+            self.ePulseWidth.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblPri.grid(row=r, column=0, sticky=E)
+            self.ePri.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblFreqOffset.grid(row=r, column=0, sticky=E)
+            self.eFreqOffset.grid(row=r, column=1, sticky=W)
+
+        elif self.wfmType == 'Chirped Pulse':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
@@ -280,7 +358,7 @@ class PyarbtoolsGUI:
             lblChirpBw.grid(row=r, column=0, sticky=E)
             self.eChirpBw.grid(row=r, column=1, sticky=W)
 
-        elif self.wfmType == 'Barker Code':
+        elif self.wfmType == 'Barker Coded Pulse':
             lblFs = Label(self.wfmFrame, text='Sample Rate')
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
@@ -297,7 +375,7 @@ class PyarbtoolsGUI:
 
             lblCode = Label(self.wfmFrame, text='Code Order')
             codeList = ['b2', 'b3', 'b41', 'b42', 'b5', 'b7', 'b11', 'b13']
-            self.cbCode = ttk.Combobox(self.wfmFrame, state='readonly', values=codeList)
+            self.cbCode = ttk.Combobox(self.wfmFrame, state='readonly', values=codeList, width=self.cbWidth)
             self.cbCode.current(0)
 
             # Barker Geometry
@@ -334,7 +412,7 @@ class PyarbtoolsGUI:
 
             lblPhase = Label(self.wfmFrame, text='Phase Relationship')
             phaseList = ['random', 'zero', 'increasing', 'parabolic']
-            self.cbPhase = ttk.Combobox(self.wfmFrame, state='readonly', values=phaseList)
+            self.cbPhase = ttk.Combobox(self.wfmFrame, state='readonly', values=phaseList, width=self.cbWidth)
             self.cbPhase.current(0)
 
             # Multitone Geometry
@@ -359,24 +437,24 @@ class PyarbtoolsGUI:
             fsVar = StringVar()
             self.eFsWfm = Entry(self.wfmFrame, textvariable=fsVar)
 
-            lblModType = Label(self.wfmFrame, text='Modulation Type')
-            modTypeList = ['bpsk', 'qpsk', '8psk', '16psk', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256']
-            self.cbModType = ttk.Combobox(self.wfmFrame, state='readonly', values=modTypeList)
-            self.cbModType.current(0)
-
             lblSymrate = Label(self.wfmFrame, text='Symbol Rate')
             symRateVar = StringVar()
             self.eSymrate = Entry(self.wfmFrame, textvariable=symRateVar)
             symRateVar.set('10e6')
 
-            lblPrbsOrder = Label(self.wfmFrame, text='PRBS Order')
-            prbsOrderList = [7, 9, 11, 13, 15, 17]
-            self.cbPrbsOrder = ttk.Combobox(self.wfmFrame, state='readonly', values=prbsOrderList)
-            self.cbPrbsOrder.current(0)
+            lblModType = Label(self.wfmFrame, text='Modulation Type')
+            modTypeList = ['bpsk', 'qpsk', 'psk8', 'psk16', 'apsk16', 'apsk32', 'apsk64', 'qam16', 'qam32', 'qam64', 'qam128', 'qam256']
+            self.cbModType = ttk.Combobox(self.wfmFrame, state='readonly', values=modTypeList, width=self.cbWidth)
+            self.cbModType.current(0)
+
+            lblNumSymbols = Label(self.wfmFrame, text='Number of Symbols')
+            numSymbolsVar = StringVar()
+            self.eNumSymbols = Entry(self.wfmFrame, textvariable=numSymbolsVar)
+            numSymbolsVar.set('1000')
 
             lblFiltType = Label(self.wfmFrame, text='Filter Type')
-            filtTypeList = ['Root Raised Cosine', 'Raised Cosine']
-            self.cbFiltType = ttk.Combobox(self.wfmFrame, state='readonly', values=filtTypeList)
+            filtTypeList = ['rootraisedcosine', 'raisedcosine']
+            self.cbFiltType = ttk.Combobox(self.wfmFrame, state='readonly', values=filtTypeList, width=self.cbWidth)
             self.cbFiltType.current(0)
 
             lblFiltAlpha = Label(self.wfmFrame, text='Filter Alpha')
@@ -390,16 +468,16 @@ class PyarbtoolsGUI:
             self.eFsWfm.grid(row=r, column=1, sticky=W)
 
             r += 1
-            lblModType.grid(row=r, column=0, sticky=E)
-            self.cbModType.grid(row=r, column=1, sticky=W)
-
-            r += 1
             lblSymrate.grid(row=r, column=0, sticky=E)
             self.eSymrate.grid(row=r, column=1, sticky=W)
 
             r += 1
-            lblPrbsOrder.grid(row=r, column=0, sticky=E)
-            self.cbPrbsOrder.grid(row=r, column=1, sticky=W)
+            lblModType.grid(row=r, column=0, sticky=E)
+            self.cbModType.grid(row=r, column=1, sticky=W)
+
+            r += 1
+            lblNumSymbols.grid(row=r, column=0, sticky=E)
+            self.eNumSymbols.grid(row=r, column=1, sticky=W)
 
             r += 1
             lblFiltType.grid(row=r, column=0, sticky=E)
@@ -410,12 +488,13 @@ class PyarbtoolsGUI:
             self.eFiltAlpha.grid(row=r, column=1, sticky=W)
 
         else:
+            print(self.wfmType)
             raise ValueError('Invalid wfmType selected, this should never happen.')
 
         lblCf = Label(self.wfmFrame, text='Carrier Frequency')
         cfVar = StringVar()
-        self.eCf = Entry(self.wfmFrame, textvariable=cfVar)
         cfVar.set('1e9')
+        self.eCf = Entry(self.wfmFrame, textvariable=cfVar)
 
         lblWfmFormat = Label(self.wfmFrame, text='Waveform Format')
         formatList = ['IQ', 'Real']
@@ -439,7 +518,7 @@ class PyarbtoolsGUI:
         lblWfmName = Label(self.wfmFrame, text='Name')
         wfmNameVar = StringVar()
         self.eWfmName = Entry(self.wfmFrame, textvariable=wfmNameVar)
-        wfmNameVar.set('wfm')
+        wfmNameVar.set(f'{self.cbWfmType.get()}')
 
         self.btnCreateWfm = ttk.Button(self.wfmFrame, text='Create Waveform', command=self.create_wfm)
 
@@ -477,19 +556,32 @@ class PyarbtoolsGUI:
 
     def create_wfm(self):
         """Calls the function to create the selected type of waveform
-        and stores it in the waveform list."""
+        and stores it in the waveform list.
+        TODO
+            Update Sine arguments after function gets updated in wfmBuilder.
+        """
+
         try:
-            if self.wfmType == 'AM':
+            if self.wfmType == 'Sine':
+                wfmArgs = [float(self.eFsWfm.get()), float(self.eFreqOffset.get()),
+                           float(self.eSinePhase.get()), self.cbWfmFormat.get()]
+                wfmRaw = pyarbtools.wfmBuilder.sine_generator(*wfmArgs)
+            elif self.wfmType == 'AM':
                 wfmArgs = [float(self.eFsWfm.get()), int(self.eAmDepth.get()),
                            float(self.eModRate.get()), float(self.eCf.get()),
                            self.cbWfmFormat.get()]
                 wfmRaw = pyarbtools.wfmBuilder.am_generator(*wfmArgs)
-            elif self.wfmType == 'Chirp':
+            elif self.wfmType == 'CW Pulse':
+                wfmArgs = [float(self.eFsWfm.get()), float(self.ePulseWidth.get()),
+                           float(self.ePri.get()), float(self.eFreqOffset.get()),
+                           float(self.eCf.get()), self.cbWfmFormat.get()]
+                wfmRaw = pyarbtools.wfmBuilder.cw_pulse_generator(*wfmArgs)
+            elif self.wfmType == 'Chirped Pulse':
                 wfmArgs = [float(self.eFsWfm.get()), float(self.ePulseWidth.get()),
                            float(self.ePri.get()), float(self.eChirpBw.get()),
                            float(self.eCf.get()), self.cbWfmFormat.get()]
                 wfmRaw = pyarbtools.wfmBuilder.chirp_generator(*wfmArgs)
-            elif self.wfmType == 'Barker Code':
+            elif self.wfmType == 'Barker Coded Pulse':
                 wfmArgs = [float(self.eFsWfm.get()), float(self.ePulseWidth.get()),
                            float(self.ePri.get()), self.cbCode.get(),
                            float(self.eCf.get()), self.cbWfmFormat.get()]
@@ -500,21 +592,15 @@ class PyarbtoolsGUI:
                            float(self.eCf.get()), self.cbWfmFormat.get()]
                 wfmRaw = pyarbtools.wfmBuilder.multitone_generator(*wfmArgs)
             elif self.wfmType == 'Digital Modulation':
-                filtArg = self.cbFiltType.get()
-                if filtArg == 'Root Raised Cosine':
-                    filtType = pyarbtools.wfmBuilder.rrc_filter
-                elif filtArg == 'Raised Cosine':
-                    filtType = pyarbtools.wfmBuilder.rc_filter
-                else:
-                    raise ValueError('Invalid filter type chosen, this should never happen.')
-                wfmArgs = [float(self.eFsWfm.get()), self.cbModType.get(),
-                           float(self.eSymrate.get()), int(self.cbPrbsOrder.get()),
-                           filtType, float(self.eFiltAlpha.get()), self.cbWfmFormat.get()]
-                wfmRaw = pyarbtools.wfmBuilder.digmod_prbs_generator(*wfmArgs)
+                wfmArgs = [float(self.eFsWfm.get()), float(self.eSymrate.get()),
+                           self.cbModType.get(), int(self.eNumSymbols.get()),
+                           self.cbFiltType.get(), float(self.eFiltAlpha.get()),
+                           self.cbWfmFormat.get()]
+                wfmRaw = pyarbtools.wfmBuilder.digmod_generator(*wfmArgs)
             else:
                 raise ValueError('Invalid selection chosen, this should never happen.')
-            name = self.eWfmName.get()
 
+            name = self.eWfmName.get()
             names = [w['name'] for w in self.wfmList]
             try:
                 if name in names:
@@ -820,7 +906,7 @@ class PyarbtoolsGUI:
                               'iqScale': int(self.eIqScale.get())}
             else:
                 raise ValueError('Invalid instrument selected. This should never happen.')
-            self.inst.configure(*configArgs.values())
+            self.inst.configure(**configArgs)
             self.memDiv_select()
             self.res_select()
             self.statusBar.configure(text=f'{self.instKey} configured.', bg='white')
@@ -1303,7 +1389,10 @@ class PyarbtoolsGUI:
 def main():
     root = Tk()
     root.resizable(False, False)
-    root.title('pyarbtools')
+    root.title('Keysight PyArbTools')
+    basePath = path.dirname(__file__)
+    iconPath = path.abspath(path.join(basePath, '..', 'Resources', 'favicon.ico'))
+    root.iconbitmap(iconPath)
 
     PyarbtoolsGUI(root)
 
