@@ -22,3 +22,4 @@ from pyarbtools import instruments
 from pyarbtools import wfmBuilder
 from pyarbtools import error
 from pyarbtools import vsaControl
+from pyarbtools import pdwBuilder
