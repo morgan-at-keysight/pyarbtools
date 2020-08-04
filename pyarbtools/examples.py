@@ -561,6 +561,10 @@ def vsa_vector_example(ipAddress):
     vsa.err_check()
     vsa.disconnect()
 
+def gui_example():
+    """Starts experimental PyArbTools GUI"""
+    pyarbtools.gui.main()
+
 
 def main():
     """Uncomment the example you'd like to run. For each example,
@@ -579,9 +583,10 @@ def main():
     # vector_uxg_dig_mod_example('10.0.0.52')
     # vector_uxg_pdw_example('10.0.0.52')
     # vector_uxg_lan_streaming_example('10.0.0.52')
-    analog_uxg_pdw_example('10.0.0.55')
+    # analog_uxg_pdw_example('10.0.0.55')
     # wfm_to_vsa_example('127.0.0.1')
     # vsa_vector_example('127.0.0.1')
+    gui_example()
 
 
 if __name__ == '__main__':

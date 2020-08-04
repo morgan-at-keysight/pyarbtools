@@ -38,9 +38,8 @@ class PyarbtoolsGUI:
                             'VectorUXG': pyarbtools.instruments.VectorUXG}
 
         # Variables
-        # self.ipAddress = '127.0.0.1'
-        self.ipAddress = '192.168.50.124'
-        defaultInstrument = 3
+        self.ipAddress = '127.0.0.1'
+        defaultInstrument = 0
         self.inst = None
         self.cbWidth = 17
 

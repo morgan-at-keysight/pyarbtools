@@ -67,3 +67,7 @@ History
 
 * Dramatically improved resampling and wraparound handling in digmod_generator().
 
+2020.08.1 (2020-08-03)
+----------------------
+
+* Updated GUI to reflect changes to instrument configuration functions and improvements to wfmBuilder functions. You can now access pyarbtools.pdwBuilder directly. Improved version updating.
