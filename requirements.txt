@@ -5,3 +5,4 @@ twine
 numpy
 scipy
 socketscpi
+matplotlib
