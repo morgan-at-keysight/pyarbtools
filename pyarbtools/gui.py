@@ -1390,7 +1390,7 @@ def main():
     root.resizable(False, False)
     root.title('Keysight PyArbTools')
     basePath = path.dirname(__file__)
-    iconPath = path.abspath(path.join(basePath, '..', 'Resources', 'favicon.ico'))
+    iconPath = path.abspath(path.join(basePath, '..', 'pyarbtools', 'favicon.ico'))
     root.iconbitmap(iconPath)
 
     PyarbtoolsGUI(root)
