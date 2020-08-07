@@ -1460,12 +1460,6 @@ class VXG(socketscpi.SocketInstrument):
             Add check to ensure that the correct instrument is connected
         """
 
-        """
-        ************************************
-        THIS CLASS IS STILL LARGELY UNTESTED
-        ************************************
-        """
-
         super().__init__(host, port, timeout)
         if reset:
             self.write('*rst')
@@ -1480,16 +1474,16 @@ class VXG(socketscpi.SocketInstrument):
         self.cf2 = float(self.query('source:rf2:frequency?').strip())
         self.amp1 = float(self.query('rf1:power?').strip())
         self.amp2 = float(self.query('rf2:power?').strip())
-
-        self.arbState = self.query('radio:arb:state?').strip()
-
+        self.arbState1 = self.query('signal1:state?').strip()
+        self.arbState2 = self.query('signal2:state?').strip()
         self.alcState1 = self.query('rf1:power:alc?')
         self.alcState2 = self.query('rf2:power:alc?')
         self.iqScale1 = float(self.query('source:signal1:waveform:scale?').strip())
         self.iqScale2 = float(self.query('source:signal2:waveform:scale?').strip())
+        self.fs1 = float(self.query('signal1:waveform:sclock:rate?').strip())
+        self.fs2 = float(self.query('signal2:waveform:sclock:rate?').strip())
 
         self.refSrc = self.query('roscillator:source?').strip()
-        self.fs = float(self.query('signal:waveform:sclock:rate?').strip())
 
         if 'int' in self.refSrc.lower():
             self.refFreq = 10e6
@@ -1533,6 +1527,10 @@ class VXG(socketscpi.SocketInstrument):
                 self.set_modState(value, ch=1)
             elif key == 'modState2':
                 self.set_modState(value, ch=2)
+            elif key == 'arbdState1' or key == 'arbState':
+                self.set_arbState(value, ch=1)
+            elif key == 'arbState2':
+                self.set_modState(value, ch=2)
             elif key == 'cf1' or key == 'cf':
                 self.set_cf(value, ch=1)
             elif key == 'cf2':
@@ -1549,10 +1547,12 @@ class VXG(socketscpi.SocketInstrument):
                 self.set_iqScale(value, ch=1)
             elif key == 'iqScale2':
                 self.set_iqScale(value, ch=2)
+            elif key == 'fs1' or key == 'fs':
+                self.set_fs(value, ch=1)
+            elif key == 'fs2':
+                self.set_fs(value, ch=2)
             elif key == 'refSrc':
                 self.set_refSrc(value)
-            elif key == 'fs':
-                self.set_fs(value)
             else:
                 raise KeyError(f'Invalid keyword argument: "{key}"')  # raise KeyError('Invalid keyword argument.')
 
@@ -1567,7 +1567,11 @@ class VXG(socketscpi.SocketInstrument):
         Sets and reads the state of the RF output using SCPI commands.
         Args:
             rfState (int): Turns the RF output on or off. (1, 0)
+            ch (int): Specified channel being adjusted.
         """
+
+        if not isinstance(ch, int) or ch < 0 or ch > 2:
+            raise error.VXGError('Invalid channel selected. Choose 1 or 2.')
 
         self.write(f'source:rf{ch}:output:state {rfState}')
         exec(f'self.rfState{ch} = int(self.query(f"source:rf{ch}:output:state?").strip())')
@@ -1577,17 +1581,39 @@ class VXG(socketscpi.SocketInstrument):
         Sets and reads the state of the internal baseband modulator output using SCPI commands.
         Args:
             modState (int): Turns the baseband modulator on or off. (1, 0)
+            ch (int): Specified channel being adjusted.
         """
+
+        if not isinstance(ch, int) or ch < 0 or ch > 2:
+            raise error.VXGError('Invalid channel selected. Choose 1 or 2.')
 
         self.write(f'source:rf{ch}:output:modulation {modState}')
         exec(f'self.modState{ch} = int(self.query(f"source:rf{ch}:output:modulation?").strip())')
+
+    def set_arbState(self, arbState, ch):
+        """
+        Sets and reads the state of the internal arb waveform generator using SCPI commands.
+        Args:
+            modState (int): Turns the arb waveform generator on or off. (1, 0)
+            ch (int): Specified channel being adjusted.
+        """
+
+        if not isinstance(ch, int) or ch < 0 or ch > 2:
+            raise error.VXGError('Invalid channel selected. Choose 1 or 2.')
+
+        self.write(f'source:signal{ch}:state {arbState}')
+        exec(f'self.arbState{ch} = int(self.query(f"source:signal{ch}:state?").strip())')
 
     def set_cf(self, cf, ch):
         """
         Sets and reads the center frequency of the signal generator output using SCPI commands.
         Args:
             cf (float): Sets the generator's carrier frequency.
+            ch (int): Specified channel being adjusted.
         """
+
+        if not isinstance(ch, int) or ch < 0 or ch > 2:
+            raise error.VXGError('Invalid channel selected. Choose 1 or 2.')
 
         if not isinstance(cf, float) or cf <= 0:
             raise ValueError('Carrier frequency must be a positive floating point value.')
@@ -1599,7 +1625,11 @@ class VXG(socketscpi.SocketInstrument):
         Sets and reads the output amplitude of signal generator output using SCPI commands.
         Args:
             amp (int/float): Sets the generator's RF output power.
+            ch (int): Specified channel being adjusted.
         """
+
+        if not isinstance(ch, int) or ch < 0 or ch > 2:
+            raise error.VXGError('Invalid channel selected. Choose 1 or 2.')
 
         if not isinstance(amp, int):
             raise ValueError('Amp argument must be an integer.')
@@ -1612,7 +1642,11 @@ class VXG(socketscpi.SocketInstrument):
         This should be turned off for narrow pulses and signals with rapid amplitude changes.
         Args:
             alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
+            ch (int): Specified channel being adjusted.
         """
+
+        if not isinstance(ch, int) or ch < 0 or ch > 2:
+            raise error.VXGError('Invalid channel selected. Choose 1 or 2.')
 
         self.write(f'source:rf{ch}:power:alc {alcState}')
         exec(f'self.alcState{ch} = int(self.query(f"source:rf{ch}:power:alc?").strip())')
@@ -1623,7 +1657,11 @@ class VXG(socketscpi.SocketInstrument):
         Should be about 70 percent to avoid clipping.
         Args:
             iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
+            ch (int): Specified channel being adjusted.
         """
+
+        if not isinstance(ch, int) or ch < 0 or ch > 2:
+            raise error.VXGError('Invalid channel selected. Choose 1 or 2.')
 
         if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
             raise ValueError('iqScale argument must be an integer between 1 and 100.')
@@ -1649,7 +1687,7 @@ class VXG(socketscpi.SocketInstrument):
         else:
             raise error.VSGError('Unknown refSrc selected.')
 
-    def set_fs(self, fs):
+    def set_fs(self, fs, ch=1):
         """
         Sets and reads sample  rate of internal arb using SCPI commands.
         Args:
@@ -1658,8 +1696,8 @@ class VXG(socketscpi.SocketInstrument):
 
         if not isinstance(fs, float) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
-        self.write(f'signal:waveform:sclock:rate {fs}')
-        self.fs = float(self.query('signal:waveform:sclock:rate?').strip())
+        self.write(f'signal{ch}:waveform:sclock:rate {fs}')
+        exec(f"self.fs{ch} = float(self.query('signal{ch}:waveform:sclock:rate?').strip())")
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -1676,10 +1714,10 @@ class VXG(socketscpi.SocketInstrument):
         print('IQ Scaling 1', self.iqScale1)
         print('IQ Scaling 2', self.iqScale2)
         print('Reference Source:', self.refSrc)
-        print('Internal Arb State:', self.arbState)
-        print('Internal Arb Sample Rate:', self.fs)
-        if 'M938' not in self.instId:
-            print('IQ Scaling:', self.iqScale)
+        print('Internal Arb1 State:', self.arbState1)
+        print('Internal Arb2 State:', self.arbState2)
+        print('Internal Arb1 Sample Rate:', self.fs1)
+        print('Internal Arb2 Sample Rate:', self.fs2)
 
     def download_wfm(self, wfmData, wfmID='wfm'):
         """
@@ -1715,7 +1753,7 @@ class VXG(socketscpi.SocketInstrument):
         #     print('Waveform doesn\'t exist, skipping delete operation.')
             # pass
         self.binblockwrite(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm)
-        self.write(f'source:signal:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
+        # self.write(f'source:signal:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
         return wfmID
 
     @staticmethod
@@ -1791,17 +1829,15 @@ class VXG(socketscpi.SocketInstrument):
         """
 
         # self.write(f'source:signal:waveform "WFM1:{wfmID}"')
+        self.write(f'source:signal:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
         self.write(f'source:signal{ch}:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
 
-        # New command
-        # self.write('signal1:state on')
-        # Backwards compatibility
-        self.write('radio:arb:state on')
-        self.arbState = self.query('radio:arb:state?').strip()
-        self.set_rfState('on', ch)
-        self.set_modState('on', ch)
+        # Turn on arb, RF output and modulation
+        self.set_arbState(1, ch)
+        self.set_rfState(1, ch)
+        self.set_modState(1, ch)
         # Don't know why, but the VXG uses a weird sample rate number when the waveform is selected
-        self.configure(fs=self.fs)
+        exec(f"self.set_fs(self.fs{ch}, {ch})")
         self.err_check()
 
     def stop(self):
