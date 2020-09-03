@@ -71,3 +71,8 @@ History
 ----------------------
 
 * Updated GUI to reflect changes to instrument configuration functions and improvements to wfmBuilder functions. You can now access pyarbtools.pdwBuilder directly. Improved version updating.
+
+2020.09.1 (2020-09-03)
+----------------------
+
+* Added ``VXG`` instrument class for controlling the M9384B VXG signal generators.

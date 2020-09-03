@@ -1489,13 +1489,8 @@ class VXG(socketscpi.SocketInstrument):
             self.refFreq = 10e6
         elif 'ext' in self.refSrc.lower():
             self.refFreq = float(self.query('roscillator:frequency:external?').strip())
-        elif 'bbg' in self.refSrc.lower():
-            if 'M938' not in self.instId:
-                self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
-            else:
-                raise error.VSGError('Invalid reference source chosen, select \'int\' or \'ext\'.')
         else:
-            raise error.VSGError('Unknown refSrc selected.')
+            raise error.VXGError('Unknown refSrc selected.')
 
         # Initialize waveform format constants and populate them with check_resolution()
         self.minLen = 512
