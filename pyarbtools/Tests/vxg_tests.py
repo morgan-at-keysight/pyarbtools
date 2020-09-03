@@ -3,7 +3,6 @@
 from pyarbtools.instruments import VXG
 from pyarbtools.vsaControl import VSA
 from pyarbtools import wfmBuilder
-import socketscpi
 import unittest
 
 
@@ -48,6 +47,7 @@ class VXGTests(unittest.TestCase):
             exec(f'self.vxg.configure(rfState{ch}="off")')
             exec(f'self.assertEqual(self.vxg.rfState{ch}, 0)')
 
+        self.assertRaises(ValueError, self.vxg.set_rfState, 0, ch=3)
         # self.assertRaises(ValueError, self.vxg.configure, rfState2=self.string)
         # self.assertRaises(ValueError, self.vxg.configure, rfState2=self.num)
         # self.assertRaises(ValueError, self.vxg.configure, rfState2=self.neg)
@@ -70,6 +70,8 @@ class VXGTests(unittest.TestCase):
             exec(f'self.vxg.configure(modState{ch}="off")')
             exec(f'self.assertEqual(self.vxg.modState{ch}, 0)')
 
+        self.assertRaises(ValueError, self.vxg.set_modState, 0, ch=3)
+
         # self.assertRaises(ValueError, self.vxg.configure, modState1=self.string)
         # self.assertRaises(ValueError, self.vxg.configure, modState1=self.num)
         # self.assertRaises(ValueError, self.vxg.configure, modState1=self.neg)
@@ -90,6 +92,8 @@ class VXGTests(unittest.TestCase):
             exec(f'self.vxg.configure(cf{ch}={cf})')
             exec(f'self.assertEqual(self.vxg.cf{ch}, {cf})')
 
+        self.assertRaises(ValueError, self.vxg.set_cf, 0, ch=3)
+
     # @unittest.skip('Saving time testing the tests.')
     def test_amp(self):
         # amp
@@ -99,6 +103,8 @@ class VXGTests(unittest.TestCase):
             amp = -20
             exec(f'self.vxg.configure(amp{ch}=amp)')
             exec(f'self.assertEqual(self.vxg.amp{ch}, amp)')
+
+            self.assertRaises(ValueError, self.vxg.set_amp, 0, ch=3)
 
     # @unittest.skip('Saving time testing the tests.')
     def test_alcState(self):
@@ -113,16 +119,21 @@ class VXGTests(unittest.TestCase):
             exec(f'self.vxg.configure(alcState{ch}="off")')
             exec(f'self.assertEqual(self.vxg.alcState{ch}, 0)')
 
+        self.assertRaises(ValueError, self.vxg.set_alcState, 0, ch=3)
+
     # @unittest.skip('Saving time testing the tests.')
     def test_iqScale(self):
         # iqScale
-        self.assertRaises(ValueError, self.vxg.configure, iqScale1=self.string)
-        self.assertRaises(ValueError, self.vxg.configure, iqScale1=self.num)
-        self.assertRaises(ValueError, self.vxg.configure, iqScale1=self.neg)
+        for ch in [1, 2]:
+            exec(f'self.assertRaises(ValueError, self.vxg.configure, iqScale{ch}=self.string)')
+            exec(f'self.assertRaises(ValueError, self.vxg.configure, iqScale{ch}=self.num)')
+            exec(f'self.assertRaises(ValueError, self.vxg.configure, iqScale{ch}=self.neg)')
 
-        iqScale = 65
-        self.vxg.configure(iqScale1=iqScale)
-        self.assertEqual(self.vxg.iqScale1, iqScale)
+            iqScale = 65
+            exec(f'self.vxg.configure(iqScale{ch}=iqScale)')
+            exec(f'self.assertEqual(self.vxg.iqScale{ch}, iqScale)')
+
+        self.assertRaises(ValueError, self.vxg.set_iqScale, 0, ch=3)
 
     # @unittest.skip('Saving time testing the tests.')
     def test_refSrc(self):
@@ -146,8 +157,7 @@ class VXGTests(unittest.TestCase):
             exec(f'self.vxg.configure(fs{ch}=fs)')
             exec(f'self.assertEqual(self.vxg.fs{ch}, fs)')
 
-        # self.vxg.configure(rfState=1)
-        # print(self.vxg.rfState)
+        self.assertRaises(ValueError, self.vxg.set_fs, 0, ch=3)
 
     # @unittest.skip('Saving time testing the tests.')
     def test_download_play_stop(self):
@@ -162,23 +172,26 @@ class VXGTests(unittest.TestCase):
         id = self.vxg.download_wfm(wfmData)
         self.vxg.err_check()
 
-        self.vxg.play(id)
-        self.assertEqual(self.vxg.rfState1, 1)
-        self.assertEqual(self.vxg.modState1, 1)
-        self.assertEqual(self.vxg.arbState1, 1)
+        for ch in [1, 2]:
+            self.vxg.play(id, ch=ch)
+            exec(f'self.assertEqual(self.vxg.rfState{ch}, 1)')
+            exec(f'self.assertEqual(self.vxg.modState{ch}, 1)')
+            exec(f'self.assertEqual(self.vxg.arbState{ch}, 1)')
 
-        self.vxg.stop()
-        self.assertEqual(self.vxg.rfState1, 0)
-        self.assertEqual(self.vxg.modState1, 0)
-        self.assertEqual(self.vxg.arbState1, 0)
+            self.vxg.stop(ch=ch)
+            exec(f'self.assertEqual(self.vxg.rfState{ch}, 0)')
+            exec(f'self.assertEqual(self.vxg.modState{ch}, 0)')
+            exec(f'self.assertEqual(self.vxg.arbState{ch}, 0)')
 
-    # @unittest.skip('Saving time testing the tests.')
+    @unittest.skip('Saving time testing the tests.')
     def test_wfm_fidelity(self):
+        ch = 2
+        vsaHardware = 'VXG-MXA'
 
         amplitude = -10
-        fs = 40e6
+        fs = 45e6
         freq = 1e9
-        self.vxg.configure(amp=amplitude, fs=fs, cf=freq)
+        exec(f'self.vxg.configure(amp{ch}=amplitude, fs{ch}=fs, cf{ch}=freq)')
 
         # Waveform creation variables
         symRate = 10e6
@@ -191,15 +204,14 @@ class VXGTests(unittest.TestCase):
 
         print('Creating waveform.')
         # This is the new digital modulation waveform creation function
-        data = wfmBuilder.digmod_generator(fs=fs, symRate=symRate, modType=modType, filt=psFilter, numSymbols=1000,
-                                                      alpha=alpha)
+        data = wfmBuilder.digmod_generator(fs=fs, symRate=symRate, modType=modType, filt=psFilter, numSymbols=1000, alpha=alpha)
 
         # Download and play waveform
         self.vxg.download_wfm(data, wfmID=name)
-        self.vxg.play(name)
+        self.vxg.play(name, ch=ch)
 
         # Create VSA object
-        vsa = VSA('127.0.0.1', vsaHardware='VXG-MXA', timeout=30, reset=False)
+        vsa = VSA('127.0.0.1', vsaHardware=vsaHardware, timeout=30, reset=False)
 
         # Select a digital demod measurement and configure it to measure the saved waveform
         vsa.set_measurement('ddemod')
