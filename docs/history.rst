@@ -70,9 +70,9 @@ History
 2020.08.1 (2020-08-03)
 ----------------------
 
-* Updated GUI to reflect changes to instrument configuration functions and improvements to wfmBuilder functions. You can now access pyarbtools.pdwBuilder directly. Improved version updating.
+* BROKEN: Updated GUI to reflect changes to instrument configuration functions and improvements to wfmBuilder functions. You can now access pyarbtools.pdwBuilder directly. Improved version updating.
 
-2020.09.1 (2020-09-03)
+2020.08.2 (2020-08-06)
 ----------------------
 
-* Added ``VXG`` instrument class for controlling the M9384B VXG signal generators.
+* Fixed issue where the GUI icon was not included with the PyArbTools package, which prevented the GUI from running.
