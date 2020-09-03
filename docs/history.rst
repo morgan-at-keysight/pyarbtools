@@ -76,3 +76,8 @@ History
 ----------------------
 
 * Fixed issue where the GUI icon was not included with the PyArbTools package, which prevented the GUI from running.
+
+2020.09.1 (2020-09-03)
+----------------------
+
+* Added VXG instrument class for controlling the M9384B VXG signal generators.

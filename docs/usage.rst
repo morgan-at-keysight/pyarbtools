@@ -24,6 +24,7 @@ Supported instruments include:
     * N5182B MXG
     * N5172B EXG
     * M9381A/M9383A
+* :ref:`VXG`
 * :ref:`VectorUXG`
     * N5194A
 * :ref:`AnalogUXG`
@@ -61,23 +62,13 @@ Supported VSA control functions include:
 **instruments**
 ===============
 
-To use/control a signal generator, create a class of the signal
-generator's instrument type and enter the instrument's IP address
-as the first argument. There are additional keyword arguments you
-can add to set things like ``port``, ``timeout``, and ``reset``::
+To use/control a signal generator, create a class of the signal generator's instrument type and enter the instrument's IP address as the first argument. There are additional keyword arguments you can add to set things like ``port``, ``timeout``, and ``reset``::
 
     # Example
     awg = pyarbtools.instruments.M8910A('192.168.1.12')
     vsg = pyarbtools.instruments.VSG('192.168.1.13', port=5025, timeout=10, reset=True)
 
-Every class is built on a robust socket connection that allows the user
-to send SCPI commands/queries, send/receive data using IEEE 488.2
-binary block format, check for errors, and gracefully disconnect
-from the instrument. Methods were named so that those coming from
-using a VISA interface would be familiar with syntax. This
-architectural decision to include an open SCPI interface was
-made to provide additional flexibility for users who need to
-use specific setup commands *not* covered by built-in functions::
+Every class is built on a robust socket connection that allows the user to send SCPI commands/queries, send/receive data using IEEE 488.2 binary block format, check for errors, and gracefully disconnect from the instrument. Methods were named so that those coming from using a VISA interface would be familiar with syntax. This architectural decision to include an open SCPI interface wasmade to provide additional flexibility for users who need to use specific setup commands *not* covered by built-in functions::
 
     # Example
     awg.write('*RST')
@@ -86,18 +77,9 @@ use specific setup commands *not* covered by built-in functions::
     awg.disconnect()
 
 
-When an instance of an instrument is created, PyArbTools connects to
-the instrument at the IP address given by the user and sends a few
-queries. Each class constructor has a ``reset`` keyword argument that
-causes the instrument to perform a default setup prior to running the
-rest of the code. It's set to ``False`` by default to prevent unwanted
-settings changes.
+When an instance of an instrument is created, PyArbTools connects to the instrument at the IP address given by the user and sends a fewq ueries. Each class constructor has a ``reset`` keyword argument that causes the instrument to perform a default setup prior to running the rest of the code. It's set to ``False`` by default to prevent unwanted settings changes.
 
-Each instrument class includes a ``.download_wfm()`` method, which takes
-care of the binary formatting, minimum length, and granularity requirements
-for you. It also makes a reasonable effort to correct for length/granularity
-violations and raises a descriptive exception if any requirements aren't
-met by the waveform::
+Each instrument class includes a ``.download_wfm()`` method, which takes care of the binary formatting, minimum length, and granularity requirements for you. It also makes a reasonable effort to correct for length/granularity violations and raises a descriptive exception if any requirements aren't met by the waveform::
 
     # Example
     iq = pyarbtools.wfmBuilder.multitone_generator(fs=100e6, spacing=1e6, num=11, wfmFormat='iq')
@@ -107,11 +89,7 @@ met by the waveform::
     awg.download_wfm(real)
 
 
-Each instrument class also includes a ``.configure()`` method. It provides
-keyword arguments to configure selected settings on the signal generator
-*and sets relevant class attributes* so that the user knows how the
-generator is configured and can use those variables in code without
-having to send a SCPI query to determine values::
+Each instrument class also includes a ``.configure()`` method. It provides keyword arguments to configure selected settings on the signal generator *and sets relevant class attributes* so that the user knows how the generator is configured and can use those variables in code without having to send a SCPI query to determine values::
 
     awg.configure(res='wsp', clkSrc='int', fs=7.2e9)
     print(f'Sample rate is {awg.fs} samples/sec.')
@@ -133,9 +111,7 @@ having to send a SCPI query to determine values::
 **attributes**
 --------------
 
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure()`` method. Generally speaking, they are also the keyword arguments for ``.configure()``.
 
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``res`` ``(str)``: AWG resolution. Values are ``'wpr'`` (14 bit), ``'wsp'`` (12 bit) (default), ``'intx3'``, ``'intx12'``, ``'intx24'``, or ``'intx48'`` (intxX resolutions are all 15 bit).
@@ -161,9 +137,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
     # Example
     M8190A.configure(fs=12e9, out1='dac', func1='arb')
 
-Sets the basic configuration for the M8190A and populates class
-attributes accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
+Sets the basic configuration for the M8190A and populates class attributes accordingly. It *only* changes the setting(s) for the keyword argument(s) sent by the user.
 
 **Keyword Arguments**
 
@@ -281,9 +255,7 @@ Turns off analog output and stops playback.
 **attributes**
 --------------
 
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure()`` method. Generally speaking, they are also the keyword arguments for ``.configure()``.
 
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``dacMode`` ``(str)``: Sets the DAC mode. Values are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, ``'dcd'``, or ``'dcm'``.
@@ -307,9 +279,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
     # Example
     M8195A.configure(dacMode='single', fs=64e9)
 
-Sets the basic configuration for the M8195A and populates class
-attributes accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
+Sets the basic configuration for the M8195A and populates class attributes accordingly. It *only* changes the setting(s) for the keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -331,8 +301,7 @@ keyword argument(s) sent by the user.
 
     M8195A.download_wfm(wfmData, ch=1, name='wfm')
 
-Defines and downloads a waveform into the lowest available segment slot.
-Returns useful waveform identifier.
+Defines and downloads a waveform into the lowest available segment slot. Returns useful waveform identifier.
 
 **Arguments**
 
@@ -423,9 +392,7 @@ Turns off analog output and stops playback.
 **attributes**
 --------------
 
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure()`` method. Generally speaking, they are also the keyword arguments for ``.configure()``.
 
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``dacMode`` ``(str)``: Sets the DAC mode. Values are ``'single'`` (default), ``'dual'``, ``'four'``, ``'marker'``, or ``'dcmarker'``.
@@ -446,9 +413,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
     # Example
     M8196A.configure(dacMode='single', fs=92e9)
 
-Sets the basic configuration for the M8196A and populates class
-attributes accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
+Sets the basic configuration for the M8196A and populates class attributes accordingly. It *only* changes the setting(s) for the keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -467,8 +432,7 @@ keyword argument(s) sent by the user.
 
     M8196A.download_wfm(wfmData, ch=1, name='wfm')
 
-Defines and downloads a waveform into the lowest available segment slot.
-Returns useful waveform identifier.
+Defines and downloads a waveform into the lowest available segment slot. Returns useful waveform identifier.
 
 **Arguments**
 
@@ -558,9 +522,7 @@ Turns off analog output and stops playback.
 **attributes**
 --------------
 
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure()`` method. Generally speaking, they are also the keyword arguments for ``.configure()``.
 
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
@@ -592,9 +554,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
     # Example
     VSG.configure(rfState=1, cf=1e9, amp=-20)
 
-Sets the basic configuration for the VSG and populates class attributes
-accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
+Sets the basic configuration for the VSG and populates class attributes accordingly. It *only* changes the setting(s) for the keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -623,9 +583,7 @@ keyword argument(s) sent by the user.
 
     VSG.download_wfm(wfmData, wfmID='wfm')
 
-Defines and downloads a waveform into WFM1: memory directory and checks
-that the waveform meets minimum waveform length and granularity
-requirements. Returns useful waveform identifier.
+Defines and downloads a waveform into WFM1: memory directory and checks that the waveform meets minimum waveform length and granularity requirements. Returns useful waveform identifier.
 
 **Arguments**
 
@@ -700,6 +658,139 @@ Deactivates arb mode, RF output, and modulation.
 
 * None
 
+
+.. _VXG:
+
+=============
+**VXG**
+=============
+
+::
+
+    vxg = pyarbtools.instruments.VXG(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure()`` method. Generally speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``rfState1 | rfState2`` ``(int)``: RF output state per channel. Values are ``0`` (default) or ``1``.
+* ``modState1 | modState2`` ``(int)``: Modulation state per channel. Values are ``0`` (default) or ``1``.
+* ``cf1 | cf2`` ``(float)``: Output carrier frequency in Hz per channel. Values range from ``10e6`` to ``44e9``. Default is ``1e9``.
+* ``amp1 | amp2`` ``(float)``: Output power in dBm per channel. Values range from ``-110`` to ``+23``. Default is ``-110``.
+* ``arbState1 | arbState2`` ``(int)``: State of the internal arb generator per channel. Values are ``0`` (default) or ``1``.
+* ``alcState1 | alcState2`` ``(int)``: State of the automatic level control per channel. Values are ``0`` (default) or ``1``.
+* ``iqScale1 | iqScale2`` ``(int)``: Scale for the IQ modulator per channel. Values range from ``0`` to ``100``. Default is ``70``.
+* ``fs1 | fs2`` ``(float)``: Sample rate of the baseband generator per channel. Values range from ``1`` to ``2.56e9``.
+* ``refSrc`` ``(str)``: Frequency reference source. Values are ``'internal'`` or ``'external'``.
+
+::
+
+    print(f'VXG Channel 1 Carrier Frequency: {vxg.cf1} Hz.')
+    >>> VXG Channel 1 Carrier Frequency: 1000000000 Hz.
+
+**configure**
+-------------
+::
+
+    VXG.configure(**kwargs)
+    # Example
+    VXG.configure(rfState1=1, cf1=1e9, amp1=-20)
+
+Sets the basic configuration for the VXG and populates class attributes accordingly. It *only* changes the setting(s) for the keyword argument(s) sent by the user.
+
+* ``rfState1 | rfState2`` ``(int)``: RF output state per channel. Values are ``0`` (default) or ``1``.
+* ``modState1 | modState2`` ``(int)``: Modulation state per channel. Values are ``0`` (default) or ``1``.
+* ``cf1 | cf2`` ``(float)``: Output carrier frequency in Hz per channel. Values range from ``10e6`` to ``44e9``. Default is ``1e9``.
+* ``amp1 | amp2`` ``(float)``: Output power in dBm per channel. Values range from ``-110`` to ``+23``. Default is ``-110``.
+* ``arbState1 | arbState2`` ``(int)``: State of the internal arb generator per channel. Values are ``0`` (default) or ``1``.
+* ``alcState1 | alcState2`` ``(int)``: State of the automatic level control per channel. Values are ``0`` (default) or ``1``.
+* ``iqScale1 | iqScale2`` ``(int)``: Scale for the IQ modulator per channel. Values range from ``0`` to ``100``. Default is ``70``.
+* ``fs1 | fs2`` ``(float)``: Sample rate of the baseband generator per channel. Values range from ``1`` to ``2.56e9``.
+* ``refSrc`` ``(str)``: Frequency reference source. Values are ``'internal'`` or ``'external'``.
+
+**download_wfm**
+----------------
+::
+
+    VXG.download_wfm(wfmData, wfmID='wfm')
+
+Defines and downloads a waveform into the VXG hard drive at the D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\ directory and checks that the waveform meets minimum waveform length and granularity requirements. Returns useful waveform identifier.
+
+**Arguments**
+
+* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
+
+**Returns**
+
+* ``wfmID`` (string): Useful waveform name or identifier. Use this as the waveform identifier for ``.play()``.
+
+**delete_wfm**
+--------------
+::
+
+    VXG.delete_wfm(wfmID)
+
+Deletes a waveform from the waveform memory.
+
+**Arguments**
+
+* ``wfmID`` ``(str)``: Name of the waveform to be deleted.
+
+**Returns**
+
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    VXG.clear_all_wfm()
+
+Stops playback and deletes all waveforms from the waveform memory.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**play**
+--------
+::
+
+    VXG.play(wfmID='wfm', ch=1)
+
+Selects waveform and activates arb, RF output, and modulation state per channel.
+
+**Arguments**
+
+* ``wfmID`` ``(str)``: Name of the waveform to be loaded. Default is ``'wfm'``.
+* ``ch`` ``(int)``: Channel out of which to play the waveform. Values are ``1`` (default) or ``2``.
+
+**Returns**
+
+* None
+
+**stop**
+--------
+::
+
+    VXG.stop(ch=1)
+
+Deactivates arb, RF output, and modulation state.
+
+**Arguments**
+
+* ``ch`` ``(int)``: Channel on which to stop the waveform. Values are ``1`` (default) or ``2``.
+
+**Returns**
+
+* None
+
 .. _AnalogUXG:
 
 =============
@@ -712,9 +803,7 @@ Deactivates arb mode, RF output, and modulation.
 
 **attributes**
 --------------
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure()`` method. Generally speaking, they are also the keyword arguments for ``.configure()``.
 
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
@@ -736,9 +825,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
     AnalogUXG.configure(rfState=1, cf=20e9)
 
 
-Sets the basic configuration for the UXG and populates class attributes
-accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
+Sets the basic configuration for the UXG and populates class attributes accordingly. It *only* changes the setting(s) for the keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -757,8 +844,7 @@ keyword argument(s) sent by the user.
 
     AnalogUXG.open_lan_stream()
 
-Open connection to port 5033 for LAN streaming to the UXG. Use this
-directly prior to starting streaming control.
+Open connection to port 5033 for LAN streaming to the UXG. Use this directly prior to starting streaming control.
 
 **Arguments**
 
@@ -775,8 +861,7 @@ directly prior to starting streaming control.
 
     AnalogUXG.close_lan_stream()
 
-Close connection to port 5033 for LAN streaming on the UXG. Use this
-after streaming is complete.
+Close connection to port 5033 for LAN streaming on the UXG. Use this after streaming is complete.
 
 **Arguments**
 
@@ -826,8 +911,7 @@ Dectivates RF output, modulation, and streaming mode.
                         pulseMode=2, phaseControl=0, bandAdjust=0, chirpControl=0, code=0,
                         chirpRate=0, freqMap=0)
 
-Builds a single format-1 PDW from a set of input parameters.
-See User's Guide>Streaming Use>PDW Definitions section of Keysight `Analog UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
+Builds a single format-1 PDW from a set of input parameters. See User's Guide>Streaming Use>PDW Definitions section of Keysight `Analog UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
 
 **Arguments**
     * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
@@ -873,8 +957,7 @@ Example::
 
     AnalogUXG.bin_pdw_file_builder(pdwList)
 
-Builds a binary PDW file with a padding block to ensure the PDW section
-begins at an offset of 4096 bytes (required by UXG).
+Builds a binary PDW file with a padding block to ensure the PDW section begins at an offset of 4096 bytes (required by UXG).
 
 See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight `Analog UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
 
@@ -940,9 +1023,7 @@ Downloads binary PDW file to PDW directory in UXG.
 
 **attributes**
 --------------
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure()`` method. Generally speaking, they are also the keyword arguments for ``.configure()``.
 
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
@@ -964,9 +1045,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
     # Example
     VectorUXG.configure(rfState=1, cf=6e9, amp=-20)
 
-Sets the basic configuration for the UXG and populates class attributes
-accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
+Sets the basic configuration for the UXG and populates class attributes accordingly. It *only* changes the setting(s) for the keyword argument(s) sent by the user.
 
 **Arguments**
 
@@ -986,9 +1065,7 @@ keyword argument(s) sent by the user.
 
     VectorUXG.download_wfm(wfmData, wfmID='wfm')
 
-Defines and downloads a waveform into WFM1: memory directory and checks
-that the waveform meets minimum waveform length and granularity
-requirements. Returns a useful waveform identifier.
+Defines and downloads a waveform into WFM1: memory directory and checks that the waveform meets minimum waveform length and granularity requirements. Returns a useful waveform identifier.
 
 **Arguments**
 
@@ -1069,8 +1146,7 @@ Dectivates RF output, modulation, and arb mode.
 
     VectorUXG.open_lan_stream()
 
-Open connection to port 5033 for LAN streaming to the UXG. Use this
-directly prior to starting streaming control.
+Open connection to port 5033 for LAN streaming to the UXG. Use this directly prior to starting streaming control.
 
 **Arguments**
 
@@ -1087,8 +1163,7 @@ directly prior to starting streaming control.
 
     VectorUXG.close_lan_stream()
 
-Close connection to port 5033 for LAN streaming on the UXG. Use this
-after streaming is complete.
+Close connection to port 5033 for LAN streaming on the UXG. Use this after streaming is complete.
 
 **Arguments**
 
@@ -1104,8 +1179,7 @@ after streaming is complete.
 
     VectorUXG.bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers, phaseControl, rfOff, wIndex, wfmMkrMask)
 
-Builds a single format-1 PDW from a set of parameters.
-See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
+Builds a single format-1 PDW from a set of parameters. See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
     * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
@@ -1128,8 +1202,7 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG O
 
     VectorUXG.bin_pdw_file_builder(pdwList)
 
-Builds a binary PDW file with a padding block to ensure the PDW section
-begins at an offset of 4096 bytes (required by UXG).
+Builds a binary PDW file with a padding block to ensure the PDW section begins at an offset of 4096 bytes (required by UXG).
 
 See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
@@ -1183,11 +1256,7 @@ Write header fields separated by commas and terminated with ``\n``
 
     VectorUXG.csv_pdw_file_download(fileName, fields=['Operation', 'Time'], data=[[1, 0], [2, 100e-6]])
 
-Builds a CSV PDW file, sends it into the UXG, and converts it to a
-binary PDW file. There are *a lot* of fields to choose from, but *you
-do not need to specify all of them.* It really is easier than it looks.
-See User's Guide>Streaming Use>CSV File Use>Streaming CSV File Creation
-section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
+Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file. There are *a lot* of fields to choose from, but *you do not need to specify all of them.* It really is easier than it looks. See User's Guide>Streaming Use>CSV File Use>Streaming CSV File Creation section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
 
 **Arguments**
 
@@ -1274,9 +1343,7 @@ Dectivates RF output, modulation, and streaming mode.
 **wfmBuilder**
 ==============
 
-In addition to instrument control and communication, PyArbTools allows
-you to create waveforms and load them into your signal generator or use
-them as generic signals for DSP work::
+In addition to instrument control and communication, PyArbTools allows you to create waveforms and load them into your signal generator or use them as generic signals for DSP work::
 
     # Create a sine wave
     fs = 12e9
@@ -1498,12 +1565,7 @@ NOTE - The ring ratios for APSK modulations are as follows:
     iq_correction(iq, inst, vsaIPAddress='127.0.0.1', vsaHardware='"Analyzer1"', cf=1e9, osFactor=4, thresh=0.4, convergence=2e-8):
 
 
-Creates a 16-QAM signal from a signal generator at a user-selected
-center frequency and sample rate. Symbol rate and effective bandwidth
-of the calibration signal is determined by the oversampling rate in VSA.
-Creates a VSA instrument, which receives the 16-QAM signal and extracts
-& inverts an equalization filter and applies it to the user-defined
-waveform.
+Creates a 16-QAM signal from a signal generator at a user-selected center frequency and sample rate. Symbol rate and effective bandwidth of the calibration signal is determined by the oversampling rate in VSA. Creates a VSA instrument, which receives the 16-QAM signal and extracts & inverts an equalization filter and applies it to the user-defined waveform.
 
 **Arguments**
 
@@ -1527,23 +1589,12 @@ waveform.
 **vsaControl**
 ==============
 
-To use/control an instance of Keysight 89600 VSA software, create an
-instance of ``pyarbtools.vsaControl.VSA`` and enter VSA's IP address
-as the first argument. There are additional keyword arguments you
-can add to set things like ``port``, ``timeout``, and ``reset``::
+To use/control an instance of Keysight 89600 VSA software, create an instance of ``pyarbtools.vsaControl.VSA`` and enter VSA's IP address as the first argument. There are additional keyword arguments you can add to set things like ``port``, ``timeout``, and ``reset``::
 
     # Example
     vsa = pyarbtools.vsaControl.VSA('127.0.0.1')
 
-Just like all the ``pyarbtools.instruments`` classes, the VSA class
-is built on a robust socket connection that allows the user
-to send SCPI commands/queries, send/receive data using IEEE 488.2
-binary block format, check for errors, and gracefully disconnect
-from the instrument. Methods were named so that those coming from
-using a VISA interface would be familiar with syntax. This
-architectural decision to include an open SCPI interface was
-made to provide additional flexibility for users who need to
-use specific setup commands *not* covered by built-in functions::
+Just like all the ``pyarbtools.instruments`` classes, the VSA class is built on a robust socket connection that allows the user to send SCPI commands/queries, send/receive data using IEEE 488.2 binary block format, check for errors, and gracefully disconnect from the instrument. Methods were named so that those coming from using a VISA interface would be familiar with syntax. This architectural decision to include an open SCPI interface was made to provide additional flexibility for users who need to use specific setup commands *not* covered by built-in functions::
 
     # Example
     vsa.write('*RST')
@@ -1553,19 +1604,9 @@ use specific setup commands *not* covered by built-in functions::
     vsa.disconnect()
 
 
-When an instance of ``VSA`` is created, PyArbTools connects to
-the software at the IP address given by the user and sends a few
-queries. The ``VSA``` class has a ``reset`` keyword argument that
-causes the software to perform a default setup prior to running the
-rest of the code. It's set to ``False`` by default to prevent unwanted
-settings changes.
+When an instance of ``VSA`` is created, PyArbTools connects to the software at the IP address given by the user and sends a few queries. The ``VSA``` class has a ``reset`` keyword argument that causes the software to perform a default setup prior to running the rest of the code. It's set to ``False`` by default to prevent unwanted settings changes.
 
-``VSA`` currently supports two measurement types: ``vector`` and ``ddemod``
-(digital demodulation) and includes a configuration method for each measurement.
-They provide keyword arguments to configure selected settings for the
-measurements *and set relevant class attributes* so that the user knows
-how the analysis software is configured and can use those variables in
-code without having to send a SCPI query to determine values::
+``VSA`` currently supports two measurement types: ``vector`` and ``ddemod`` (digital demodulation) and includes a configuration method for each measurement. They provide keyword arguments to configure selected settings for the measurements *and set relevant class attributes* so that the user knows how the analysis software is configured and can use those variables in code without having to send a SCPI query to determine values::
 
     vsa.configure_ddemod(modType='bpsk', symRate=10e6, measLength=128)
     print(f'Modulation type is {vsa.modType}.')
@@ -1583,10 +1624,7 @@ code without having to send a SCPI query to determine values::
 **attributes**
 --------------
 
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure_ddemod()`` and
-``.configure_vector()`` methods. Generally speaking, they are also
-the keyword arguments for the ``.configure_***()`` methods.
+These attributes are automatically populated when connecting to the instrument and when calling the ``.configure_ddemod()`` and ``.configure_vector()`` methods. Generally speaking, they are also the keyword arguments for the ``.configure_***()`` methods.
 
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``cf`` ``(float)``: Analyzer center frequency in Hz.
@@ -1809,8 +1847,7 @@ Configures digital demodulation settings in VSA using SCPI commands.
     # Example
     VSA.configure_vector(cf=1e9, span=40e6, rbw=100e3)
 
-Configures vector measurement mode in VSA using SCPI commands. Note that the ``time`` and ``rbw``
-settings are interconnected. If you set both, the latter setting will override the first one set.
+Configures vector measurement mode in VSA using SCPI commands. Note that the ``time`` and ``rbw`` settings are interconnected. If you set both, the latter setting will override the first one set.
 
 **Keyword Arguments**
 
@@ -1878,71 +1915,71 @@ The PyArbTools GUI is experimental. Please provide `feedback and feature request
 
 This is what you will see upon starting the GUI.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-main.png
+.. image:: images\\gui-main.png
     :alt: Main PyArbTools GUI
 
 
 Select an **Instrument Class** from the dropdown menu. For a list of supported equipment, go to the top of this page.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-inst-class.png
+.. image:: images\\gui-inst-class.png
     :alt: Select instrument class
 
 
 Enter the IP address of your instrument and click **Connect**.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-ip-address.png
+.. image:: images\\gui-ip-address.png
     :alt: Enter IP address
 
 
 Choose the relevant hardware settings in your instrument and click **Configure**.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-connect.png
+.. image:: images\\gui-connect.png
     :alt: Connect to instrument
 
 
 You'll see the status bar along the bottom shows a message on config status.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-configure.png
+.. image:: images\\gui-configure.png
     :alt: Configure instrument and unlock waveform creation
 
 
 Now we can start creating waveforms. Pick a **Waveform Type** from the dropdown menu.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-select.png
+.. image:: images\\gui-wfm-select.png
     :alt: Select waveform type
 
 
 Choose the specific settings for your waveform and click **Create Waveform**.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-configure.png
+.. image:: images\\gui-wfm-configure.png
     :alt: Configure waveform parameters and click Create Waveform
 
 
 You'll now see an entry in with a yellow background in the **Waveform List**. This means it's been created but not downloaded to the signal generator.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-list.png
+.. image:: images\\gui-wfm-list.png
     :alt: Waveform goes into the waveform list. Yellow means created but not downloaded
 
 
 Click **Download** and the yellow entry will turn to green. This means the waveform has been downloaded to the signal generator.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-download.png
+.. image:: images\\gui-wfm-download.png
     :alt: Downloaded waveform turns green
 
 
 Click **Play** to start playback out of the signal generator.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-play.png
+.. image:: images\\gui-wfm-play.png
     :alt: Waveform playing
 
 
 Below are the results of the steps we just took in Keysight's VSA software.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\vsa-digmod-results.png
+.. image:: images\\vsa-digmod-results.png
     :alt: Resulting waveform measured on VSA
 
 
 You can also use PyArbTools as an **Interactive SCPI I/O** tool. Below are the results of the '*IDN?' query.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-scpi-io.png
+.. image:: images\\gui-scpi-io.png
     :alt: Result of '*idn?' query in interactive I/O
