@@ -2,9 +2,9 @@
 PyArbTools: Keysight Signal Generator Control & Waveform Creation
 =================================================================
 
-*Current version: 2020.08.2*
+*Current version: 2020.09.2*
 
-Frustrated with looking through hundreds of pages of user manuals to find out how to download a waveform to a signal generator?
+Frustrated after looking through hundreds of pages of user manuals to find out how to download a waveform to a signal generator?
 
 Need to test your amplifier or filter with a complex signal but don't want to crack open your digital signal processing books from college?
 
