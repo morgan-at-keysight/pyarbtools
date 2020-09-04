@@ -1878,71 +1878,71 @@ The PyArbTools GUI is experimental. Please provide `feedback and feature request
 
 This is what you will see upon starting the GUI.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-main.png
+.. image:: https://imgur.com/CFXLiSJ.png
     :alt: Main PyArbTools GUI
 
 
 Select an **Instrument Class** from the dropdown menu. For a list of supported equipment, go to the top of this page.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-inst-class.png
+.. image:: https://imgur.com/gC6PpBN.png
     :alt: Select instrument class
 
 
 Enter the IP address of your instrument and click **Connect**.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-ip-address.png
+.. image:: https://imgur.com/wduWQK0.png
     :alt: Enter IP address
 
 
 Choose the relevant hardware settings in your instrument and click **Configure**.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-connect.png
+.. image:: https://imgur.com/OF5MVYd.png
     :alt: Connect to instrument
 
 
 You'll see the status bar along the bottom shows a message on config status.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-configure.png
+.. image:: https://imgur.com/vWcw9Wq.png
     :alt: Configure instrument and unlock waveform creation
 
 
 Now we can start creating waveforms. Pick a **Waveform Type** from the dropdown menu.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-select.png
+.. image:: https://imgur.com/IHSoEaM.png
     :alt: Select waveform type
 
 
 Choose the specific settings for your waveform and click **Create Waveform**.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-configure.png
+.. image:: https://imgur.com/PX4pp8Y.png
     :alt: Configure waveform parameters and click Create Waveform
 
 
 You'll now see an entry in with a yellow background in the **Waveform List**. This means it's been created but not downloaded to the signal generator.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-list.png
+.. image:: https://imgur.com/ECGohek.png
     :alt: Waveform goes into the waveform list. Yellow means created but not downloaded
 
 
 Click **Download** and the yellow entry will turn to green. This means the waveform has been downloaded to the signal generator.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-download.png
+.. image:: https://imgur.com/CAUopMb.png
     :alt: Downloaded waveform turns green
 
 
 Click **Play** to start playback out of the signal generator.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-wfm-play.png
+.. image:: https://imgur.com/xmpSgMv.png
     :alt: Waveform playing
 
 
 Below are the results of the steps we just took in Keysight's VSA software.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\vsa-digmod-results.png
+.. image:: https://imgur.com/hiUtpV8.png
     :alt: Resulting waveform measured on VSA
 
 
 You can also use PyArbTools as an **Interactive SCPI I/O** tool. Below are the results of the '*IDN?' query.
 
-.. image:: C:\\Users\\moalliso\\Documents\\GitHub\\pyarbtools\\docs\\images\\gui-scpi-io.png
+.. image:: https://imgur.com/e12dHI2.png
     :alt: Result of '*idn?' query in interactive I/O
