@@ -565,6 +565,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
 * ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
 * ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
 * ``modState`` ``(int)``: Modulation state. Values are ``0`` (default) or ``1``.
+* ``arbState`` ``(int)``: Internal arb state. Values are ``0`` (default) or ``1``.
 * ``cf`` ``(float)``: Output carrier frequency in Hz. Value range is instrument dependent. Default is ``1e9``.
     * EXG/MXG: ``9e3`` to ``6e9``
     * PSG: ``100e3`` to ``44e9``
@@ -600,6 +601,7 @@ keyword argument(s) sent by the user.
 
 * ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
 * ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
+* ``arbState`` ``(int)``: Turns the internal arb on or off. Arguments are ``0`` (default) or ``1``.
 * ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is instrument dependent. Default is ``1e9``.
     * EXG/MXG: ``9e3`` to ``6e9``
     * PSG: ``100e3`` to ``44e9``

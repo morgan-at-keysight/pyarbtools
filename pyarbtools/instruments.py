@@ -1174,6 +1174,9 @@ class VSG(socketscpi.SocketInstrument):
             rfState (int): Turns the RF output on or off. (1, 0)
         """
 
+        if rfState not in [1, 0, 'on', 'off', 'ON', 'OFF', 'On', 'Off']:
+            raise ValueError('"rfState" should be 1, 0, "on", or "off"')
+
         self.write(f'output {rfState}')
         self.rfState = int(self.query('output?').strip())
 
@@ -1184,8 +1187,25 @@ class VSG(socketscpi.SocketInstrument):
             modState (int): Turns the baseband modulator on or off. (1, 0)
         """
 
+        if modState not in [1, 0, 'on', 'off', 'ON', 'OFF', 'On', 'Off']:
+            raise ValueError('"modState" should be 1, 0, "on", or "off"')
+
         self.write(f'output:modulation {modState}')
         self.modState = int(self.query('output:modulation?').strip())
+
+    def set_arbState(self, arbState):
+        """
+        Sets and reads the state of the internal arb waveform generator using SCPI commands.
+        Args:
+            arbState (int): Turns the arb waveform generator on or off. (1, 0)
+        """
+
+        if arbState not in [1, 0, 'on', 'off', 'ON', 'OFF', 'On', 'Off']:
+            raise ValueError('"arbState" should be 1, 0, "on", or "off"')
+
+        self.write(f'radio:arb:state {arbState}')
+        self.arbState = int(self.query('radio:arb:state?').strip())
+
 
     def set_cf(self, cf):
         """
@@ -1206,8 +1226,8 @@ class VSG(socketscpi.SocketInstrument):
             amp (int/float): Sets the generator's RF output power.
         """
 
-        if not isinstance(amp, int):
-            raise ValueError('Amp argument must be an integer.')
+        if not isinstance(amp, (float, int)):
+            raise ValueError('Amp argument must be a numerical value.')
         self.write(f'power {amp}')
         self.amp = float(self.query('power?').strip())
 
@@ -1218,6 +1238,9 @@ class VSG(socketscpi.SocketInstrument):
         Args:
             alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
         """
+
+        if alcState not in [1, 0, 'on', 'off', 'ON', 'OFF', 'On', 'Off']:
+            raise ValueError('"rfState" should be 1, 0, "on", or "off"')
 
         self.write(f'power:alc {alcState}')
         self.alcState = int(self.query('power:alc?').strip())
@@ -1238,24 +1261,6 @@ class VSG(socketscpi.SocketInstrument):
             self.write(f'radio:arb:rscaling {iqScale}')
             self.iqScale = float(self.query('radio:arb:rscaling?').strip())
 
-    def set_refSrc(self, refSrc):
-        """
-        Sets and reads the reference clock source output using SCPI commands.
-        Args:
-            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
-        """
-
-        self.write(f'roscillator:source {refSrc}')
-        self.refSrc = self.query('roscillator:source?').strip()
-        if 'int' in self.refSrc.lower():
-            self.refFreq = 10e6
-        elif 'ext' in self.refSrc.lower():
-            self.refFreq = float(self.query('roscillator:frequency:external?').strip())
-        elif 'bbg' in self.refSrc.lower():
-            self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
-        else:
-            raise error.VSGError('Unknown refSrc selected.')
-
     def set_fs(self, fs):
         """
         Sets and reads sample  rate of internal arb output using SCPI commands.
@@ -1267,6 +1272,27 @@ class VSG(socketscpi.SocketInstrument):
             raise ValueError('Sample rate must be a positive floating point value.')
         self.write(f'radio:arb:sclock:rate {fs}')
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
+
+    def set_refSrc(self, refSrc):
+        """
+        Sets and reads the reference clock source output using SCPI commands.
+        Args:
+            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
+        """
+
+        if not isinstance(refSrc, str) or refSrc.lower() not in ['int', 'ext', 'internal', 'external', 'bbg']:
+            raise ValueError('"refSrc" must be "internal", "external", or "bbg".')
+
+        self.write(f'roscillator:source {refSrc}')
+        self.refSrc = self.query('roscillator:source?').strip()
+        if 'int' in self.refSrc.lower():
+            self.refFreq = 10e6
+        elif 'ext' in self.refSrc.lower():
+            self.refFreq = float(self.query('roscillator:frequency:external?').strip())
+        elif 'bbg' in self.refSrc.lower():
+            self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
+        else:
+            raise error.VSGError('Unknown refSrc selected.')
 
     def sanity_check(self):
         """Prints out user-accessible class attributes."""
@@ -1294,15 +1320,18 @@ class VSG(socketscpi.SocketInstrument):
         """
 
         # Stop output before doing anything else
-        self.write('radio:arb:state off')
-        self.write('modulation:state off')
-        self.arbState = self.query('radio:arb:state?').strip()
+        self.set_modState(0)
+        self.set_arbState(0)
 
         # Adjust endianness for M9381/3A
         if 'M938' in self.instId:
             bigEndian = False
         else:
             bigEndian = True
+
+        # Data type checking
+        if not isinstance(wfmData, np.ndarray):
+            raise TypeError('wfmData should be a complex NumPy array.')
 
         # Waveform format checking. VSGs can only use 'iq' format waveforms.
         if wfmData.dtype != np.complex:
@@ -1422,22 +1451,17 @@ class VSG(socketscpi.SocketInstrument):
         else:
             self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
-        self.write('radio:arb:state on')
-        self.arbState = self.query('radio:arb:state?').strip()
-        self.write('output on')
-        self.rfState = self.query('output?').strip()
-        self.write('output:modulation on')
-        self.modState = self.query('output:modulation?').strip()
+        self.set_rfState(1)
+        self.set_modState(1)
+        self.set_arbState(1)
         self.err_check()
 
     def stop(self):
         """Dectivates arb mode, RF output, and modulation."""
-        self.write('radio:arb:state off')
-        self.arbState = self.query('radio:arb:state?').strip()
-        self.write('output off')
-        self.rfState = self.query('output?').strip()
-        self.write('output:modulation off')
-        self.modState = self.query('output:modulation?').strip()
+
+        self.set_rfState(0)
+        self.set_modState(0)
+        self.set_arbState(0)
 
 
 # noinspection PyAttributeOutsideInit,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
@@ -1591,6 +1615,23 @@ class VXG(socketscpi.SocketInstrument):
         self.write(f'source:rf{ch}:output:modulation {modState}')
         exec(f'self.modState{ch} = int(self.query(f"source:rf{ch}:output:modulation?").strip())')
 
+    def set_arbState(self, arbState, ch=1):
+        """
+        Sets and reads the state of the internal arb waveform generator using SCPI commands.
+        Args:
+            arbState (int): Turns the arb waveform generator on or off. (1, 0)
+            ch (int): Specified channel being adjusted.
+        """
+
+        if ch not in [1, 2]:
+            raise ValueError('Invalid channel selected. Choose 1 or 2.')
+
+        if arbState not in [1, 0, 'on', 'off', 'ON', 'OFF', 'On', 'Off']:
+            raise ValueError('"arbState" should be 1, 0, "on", or "off"')
+
+        self.write(f'source:signal{ch}:state {arbState}')
+        exec(f'self.arbState{ch} = int(self.query(f"source:signal{ch}:state?").strip())')
+
     def set_cf(self, cf, ch=1):
         """
         Sets and reads the center frequency of the signal generator output using SCPI commands.
@@ -1661,6 +1702,20 @@ class VXG(socketscpi.SocketInstrument):
         self.write(f'source:signal{ch}:waveform:scale {iqScale}')
         exec(f'self.iqScale{ch} = float(self.query(f"source:signal{ch}:waveform:scale?").strip())')
 
+    def set_fs(self, fs, ch=1):
+        """
+        Sets and reads sample  rate of internal arb using SCPI commands.
+        Args:
+            fs (float): Sample rate.
+            ch (int): Specified channel being adjusted.
+        """
+
+        if not isinstance(fs, float) or fs <= 0:
+            raise ValueError('Sample rate must be a positive floating point value.')
+
+        self.write(f'signal{ch}:waveform:sclock:rate {fs}')
+        exec(f"self.fs{ch} = float(self.query('signal{ch}:waveform:sclock:rate?').strip())")
+
     def set_refSrc(self, refSrc):
         """
         Sets and reads the reference clock source output using SCPI commands.
@@ -1681,37 +1736,6 @@ class VXG(socketscpi.SocketInstrument):
             self.refFreq = float(self.query('roscillator:frequency:bbg?').strip())
         else:
             raise error.VSGError('Unknown refSrc selected.')
-
-    def set_fs(self, fs, ch=1):
-        """
-        Sets and reads sample  rate of internal arb using SCPI commands.
-        Args:
-            fs (float): Sample rate.
-            ch (int): Specified channel being adjusted.
-        """
-
-        if not isinstance(fs, float) or fs <= 0:
-            raise ValueError('Sample rate must be a positive floating point value.')
-
-        self.write(f'signal{ch}:waveform:sclock:rate {fs}')
-        exec(f"self.fs{ch} = float(self.query('signal{ch}:waveform:sclock:rate?').strip())")
-
-    def set_arbState(self, arbState, ch=1):
-        """
-        Sets and reads the state of the internal arb waveform generator using SCPI commands.
-        Args:
-            arbState (int): Turns the arb waveform generator on or off. (1, 0)
-            ch (int): Specified channel being adjusted.
-        """
-
-        if ch not in [1, 2]:
-            raise ValueError('Invalid channel selected. Choose 1 or 2.')
-
-        if arbState not in [1, 0, 'on', 'off', 'ON', 'OFF', 'On', 'Off']:
-            raise ValueError('"arbState" should be 1, 0, "on", or "off"')
-
-        self.write(f'source:signal{ch}:state {arbState}')
-        exec(f'self.arbState{ch} = int(self.query(f"source:signal{ch}:state?").strip())')
 
     def sanity_check(self):
         """Prints out initialized values."""

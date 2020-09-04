@@ -18,6 +18,7 @@ class VSGTests(unittest.TestCase):
         cls.numList = [0, 1, 2]
         cls.stringList = ['zero', 'one', 'two']
         cls.mixList = [0, 'one', 2e2]
+        cls.vsg.err_check()
 
     # @unittest.skip('Saving time testing the tests.')
     def test_constructor(self):
@@ -130,10 +131,12 @@ class VSGTests(unittest.TestCase):
         fs = 40e6
         self.vsg.configure(cf=1e9, amp=-20, fs=fs)
         wfmData = wfmBuilder.digmod_generator(fs=fs, symRate=10e6, modType='qpsk')
+        badData = wfmBuilder.sine_generator(fs=fs, wfmFormat='real')
 
         self.assertRaises(TypeError, self.vsg.download_wfm, self.string)
         self.assertRaises(TypeError, self.vsg.download_wfm, self.num)
         self.assertRaises(TypeError, self.vsg.download_wfm, self.neg)
+        self.assertRaises(TypeError, self.vsg.download_wfm, badData)
 
         id = self.vsg.download_wfm(wfmData)
         self.vsg.err_check()
