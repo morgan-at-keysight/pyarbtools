@@ -7,6 +7,7 @@ Generic waveform creation capabilities for PyArbTools.
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sig
+import scipy.io 
 import socketscpi
 import warnings
 from pyarbtools import error
@@ -27,7 +28,7 @@ class WFM:
         wfmID (str): Waveform name/identifier.
     """
 
-    def __init__(self, data, wfmFormat='iq', fs=100e6, wfmID='wfm'):
+    def __init__(self, data=np.array([]), wfmFormat='iq', fs=100e6, wfmID='wfm'):
         """
         Initializes the WFM.
 
@@ -78,6 +79,62 @@ class WFM:
                     raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
         except AttributeError:
             raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
+
+    def import_mat(self, path):
+        """
+            Imports waveform from .mat file in 1D real or complex array
+            Detects data type, and accepts data arrays in 1D real or complex, or 2 1D arrays for I and Q
+            Variable name for data array cannot appear as: "__[var_name]__", surrounded by double-undescores
+                This format is reserved for Matlab variables
+            Optionally data can be specified with variable 'data'
+            If using IQ format, assuming arrays labeled 'I' and 'Q' to distinguish them
+            Optional variable for waveform name: "wfmID"
+            Optional variable for sample rate: "fs"
+
+            Args:
+                path (str): Absolute source file path for .mat file
+
+            TODO Figure out why wfID string is not found in .mat file
+        """
+
+        if not os.path.exists(path):
+            raise IOError("Invalid path for import .mat file")
+        _, ext = os.path.splitext(path)
+        if not ext == ".mat":
+            raise IOError("File must have .mat extension")
+        data = scipy.io.loadmat(path)
+        # Check which variables contain valid data
+        data_vars = []
+        if 'data' in data.keys():
+            data_vars.append('data')
+        else:
+            # Eliminate Matlab variables, and check for valid numpy arrays 
+            for key,value in data.items():
+                if (key[:2] != "__" and key[-2:] != "__") and isinstance(value, np.ndarray) and value.size > 1:
+                    data_vars.append(key)
+        # Check if there's one or two data arrays 
+        if len(data_vars) == 1:
+            var = data_vars[0]
+            # Numpy arrays in .mat file are always 2D, so convert to 1D 
+            self.data = data[var][0,:]
+            self.wfmFormat = "iq" if data[var].dtype == np.dtype('complex') else "real"
+        elif len(data_vars) == 2:
+            if 'I' in data.keys() and 'Q' in data.keys():
+                I = data['I']; Q = data['Q']
+                if I.size != Q.size:
+                    raise error.WfmBuilderError("I and Q must contain same number of elements in mat file")
+                self.data = np.array([np.complex(I[0,i], Q[0,i]) for i in range(I.size)])
+                self.wfmFormat = "iq"
+            else:
+                raise error.WfmBuilderError("Need variables 'I' and 'Q' in .mat file")
+        else:
+            raise error.WfmBuilderError("Improper data format in .mat file")
+        # Check for optional variables 
+        if "wfmID" in data.keys():
+            self.wfmID = data["wfmID"]
+        if "fs" in data.keys():
+            self.fs = data["fs"][0,0]
+
 
     def repeat(self, numRepeats=2):
         """
