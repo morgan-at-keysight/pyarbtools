@@ -24,6 +24,7 @@ Supported instruments include:
     * N5182B MXG
     * N5172B EXG
     * M9381A/M9383A
+* :ref:`VXG`
 * :ref:`VectorUXG`
     * N5194A
 * :ref:`AnalogUXG`
@@ -32,6 +33,7 @@ Supported instruments include:
 Supported waveform building functions include:
 
 * :ref:`export_wfm`
+* :ref:`import_mat`
 * :ref:`sine_generator`
 * :ref:`am_generator`
 * :ref:`cw_pulse_generator`
@@ -702,6 +704,155 @@ Deactivates arb mode, RF output, and modulation.
 
 * None
 
+
+.. _VXG:
+
+=======
+**VXG**
+=======
+
+::
+
+    vxg = pyarbtools.instruments.VXG(host, port=5025, timeout=10, reset=False)
+
+**attributes**
+--------------
+
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``rfState1 | rfState2`` ``(int)``: RF output state per channel. Values are ``0`` (default) or ``1``.
+* ``modState1 | modState2`` ``(int)``: Modulation state per channel. Values are ``0`` (default) or ``1``.
+* ``arbState1 | arbState2`` ``(int)``: Internal arb state per channel. Values are ``0`` (default) or ``1``.
+* ``cf1 | cf2`` ``(float)``: Output carrier frequency in Hz per channel. Values are ``10e6`` to ``44e9``. Default is ``1e9``.
+* ``amp1 | amp2`` ``(float)``: Output power in dBm. Values are ``-110`` to ``+23``. Default is ``-100``.
+* ``alcState1 | alcState2`` ``(int)``: ALC (automatic level control) state per channel. Values are ``1`` or ``0`` (default).
+* ``iqScale1 | iqScale2`` ``(int)``: IQ scale factor in % per channel. Values range from ``1`` to ``100``. Default is ``70``.
+* ``fs1 | fs2`` ``(float)``: Sample rate in Hz per channel. Values ``1`` to ``2.56e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Values are ``'int'`` (default), or ``'ext'``.
+
+::
+
+    print(f'VXG Sample Rate: {vxg.fs1} samples/sec.')
+    >>> VXG Ch 1 Sample Rate: 200000000 samples/sec.
+
+
+**configure**
+-------------
+::
+
+    VXG.configure(**kwargs)
+    # Example
+    VXG.configure(rfState1=1, cf1=1e9, amp1=-20)
+
+Sets the basic configuration for the VXG and populates class attributes
+accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
+
+**Arguments**
+
+* ``rfState1 | rfState2`` ``(int)``: Turns the RF output state on or off per channel. Arguments are ``0`` (default) or ``1``.
+* ``modState1 | modState2`` ``(int)``: Turns the modulation state on or off per channel. Arguments are ``0`` (default) or ``1``.
+* ``arbState1 | arbState2`` ``(int)``: Turns the internal arb on or off per channel. Arguments are ``0`` (default) or ``1``.
+* ``cf1 | cf2`` ``(float)``: Output carrier frequency in Hz per channel. Arguments are ``10e6`` to ``44e9``. Default is ``1e9``.
+* ``amp1 | amp2`` ``(float)``: Output power in dBm per channel. Arguments are ``-110`` to ``+23``. Default is ``-100``.
+* ``alcState1 | alcState2`` ``(int)``: Turns the ALC (automatic level control) on or off per channel. Arguments are ``1`` or ``0`` (default).
+* ``iqScale1 | iqScale2`` ``(int)``: IQ scale factor in % per channel. Argument range is ``1`` to ``100``. Default is ``70``.
+* ``fs1 | fs2`` ``(float)``: Sample rate in Hz per channel. Arguments are ``1`` to ``2.56e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
+
+**Returns**
+
+* None
+
+**download_wfm**
+----------------
+::
+
+    VXG.download_wfm(wfmData, wfmID='wfm')
+
+Defines and downloads a waveform to the default waveform directory on the VXG's
+hard drive (D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\)
+and checks that the waveform meets minimum waveform length and
+granularity requirements. Returns useful waveform identifier.
+
+**Arguments**
+
+* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
+
+**Returns**
+
+* ``wfmID`` (string): Useful waveform name or identifier. Use this as the waveform identifier for ``.play()``.
+
+**delete_wfm**
+--------------
+::
+
+    VXG.delete_wfm(wfmID)
+
+Deletes a waveform from the waveform memory.
+
+**Arguments**
+
+* ``wfmID`` ``(str)``: Name of the waveform to be deleted.
+
+**Returns**
+
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    VXG.clear_all_wfm()
+
+Stops playback and deletes all waveforms from the waveform memory.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**play**
+--------
+::
+
+    VXG.play(wfmID='wfm', ch=1)
+
+Selects waveform and activates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* ``wfmID`` ``(str)``: Name of the waveform to be loaded. The return value from ``.download_wfm()`` should be used. Default is ``'wfm'``.
+* ``ch`` ``(int)``: Channel out of which the waveform will be played. Default is ``1``.
+
+**Returns**
+
+* None
+
+**stop**
+--------
+::
+
+    VXG.stop(ch=1)
+
+Deactivates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* ``ch`` ``(int)``: Channel for which playback will be stopped. Default is ``1``.
+
+**Returns**
+
+* None
+
+
 .. _AnalogUXG:
 
 =============
@@ -1302,7 +1453,7 @@ them as generic signals for DSP work::
 --------------
 ::
 
-    export_wfm(data, fileName, vsaCompatible=False, fs=0):
+    export_wfm(data, fileName, vsaCompatible=False, fs=0)
 
 Takes in waveform data and exports it to a csv file as plain text.
 
@@ -1317,13 +1468,37 @@ Takes in waveform data and exports it to a csv file as plain text.
 
 * None
 
+.. _import_mat:
+
+**import_mat**
+--------------
+::
+
+    import_mat(fileName, targetVariable='data')
+
+Imports waveform data from .mat file. Detects array data type, and accepts data arrays in 1D real or complex, or 2 separate 1D arrays for I and Q.
+
+
+**Arguments**
+
+* ``fileName`` ``(str)``: Full absolute file name for .mat file.
+* ``targetVariable`` ``(str)``: User-specifiable name of variable in .mat file containing waveform data.
+
+**Returns**
+
+* ``(dict)``:
+    * ``data`` (NumPy ndarray): Array of waveform samples.
+    * ``fs`` (float): Sample rate of imported waveform.
+    * ``wfmID`` ``(str)``: Waveform name.
+    * ``wfmFormat`` ``(str)``: Waveform format (``iq`` or ``real``).
+
 .. _sine_generator:
 
 **sine_generator**
 ------------------
 ::
 
-    sine_generator(fs=100e6, freq=0, phase=0, wfmFormat='iq', zeroLast=False):
+    sine_generator(fs=100e6, freq=0, phase=0, wfmFormat='iq', zeroLast=False)
 
 Generates a sine wave with configurable frequency and initial phase at baseband or RF.
 
@@ -1345,7 +1520,7 @@ Generates a sine wave with configurable frequency and initial phase at baseband 
 ----------------
 ::
 
-    am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq', zeroLast=False):
+    am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq', zeroLast=False)
 
 Generates a linear sinusoidal AM signal of specified depth and modulation rate at baseband or RF.
 
@@ -1368,7 +1543,7 @@ Generates a linear sinusoidal AM signal of specified depth and modulation rate a
 ----------------------
 ::
 
-    wfmBuilder.cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False):
+    wfmBuilder.cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False)
 
 Generates an unmodulated CW (continuous wave) pulse at baseband or RF.
 
@@ -1392,7 +1567,7 @@ Generates an unmodulated CW (continuous wave) pulse at baseband or RF.
 -------------------
 ::
 
-    wfmBuilder.chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wfmFormat='iq', zeroLast=False):
+    wfmBuilder.chirp_generator(fs=100e6, pWidth=10e-6, pri=100e-6, chirpBw=20e6, cf=1e9, wfmFormat='iq', zeroLast=False)
 
 Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction is determined by the sign of chirpBw
 (pos=up chirp, neg=down chirp).

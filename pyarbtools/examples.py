@@ -561,6 +561,41 @@ def vsa_vector_example(ipAddress):
     vsa.err_check()
     vsa.disconnect()
 
+
+def vxg_mat_import_example(ipAddress, fileName):
+    """Imports an IQ waveform from a .mat file, loads it into the VXG, and plays it out."""
+
+    """
+    import_mat() takes in a .mat file with an array containing the waveform data, and optional variables for
+    waveform identifier, sample rate, and waveform type.
+    The .mat file used as an example has the following variables:
+        iqdata (complex array): Array containing waveform samples
+        fs (float): Sample rate at which waveform was created
+        wfmID (string): Name of waveform.
+    In this case, we know the variable 'iqdata' in the .mat file contains our complex waveform data, so we use 'iqdata' as 
+    the 'targetVariable' argument.
+    import_mat() returns a dict with 'data', 'fs', 'wfmID', and 'wfmFormat' members.
+    If the .mat file contains the optional metadata variables, the corresponding dict members will be populated accordingly.
+    """
+
+    # Load waveform from .mat file
+    wfmDict = pyarbtools.wfmBuilder.import_mat(fileName, targetVariable='iqdata')
+
+    # Create VXG object
+    vxg = pyarbtools.instruments.VXG(ipAddress)
+
+    # Configure vxg based on variables imported from the .mat file
+    vxg.configure(cf2=1e9, fs2=wfmDict['fs'], rfState2=1, amp2=0)
+
+    # Download waveform to vxg by passing the complex array of samples and the waveform name from the dict
+    vxg.download_wfm(wfmDict['data'], wfmID=wfmDict['wfmID'])
+
+    # Play out the waveform by referencing the waveform name from the dict
+    vxg.play(wfmID=wfmDict['wfmID'], ch=2)
+
+    vxg.disconnect()
+
+
 def gui_example():
     """Starts experimental PyArbTools GUI"""
     pyarbtools.gui.main()
@@ -570,23 +605,27 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
+    # ipAddress = '192.168.1.17'
+    ipAddress = '141.121.151.242'
+    matFilePath = 'C:\\users\\moalliso\\desktop\\10mhz16qamat100mhz.mat'
 
-    # m8190a_simple_wfm_example('141.121.210.171')
-    # m8190a_duc_dig_mod_example('141.121.210.171')
-    # m8190a_duc_chirp_example('141.121.210.171')
-    # m8190a_iq_correction_example('141.121.210.171', '127.0.0.1', '"Analyzer1"')
-    # m8195a_simple_wfm_example('141.121.198.47')
-    # vsg_chirp_example('141.121.198.207')
-    # vsg_dig_mod_example('141.121.198.207')
-    # vsg_am_example('141.121.198.207')
-    # vsg_mtone_example('141.121.198.207')
-    # vector_uxg_dig_mod_example('10.0.0.52')
-    # vector_uxg_pdw_example('10.0.0.52')
-    # vector_uxg_lan_streaming_example('10.0.0.52')
-    # analog_uxg_pdw_example('10.0.0.55')
-    # wfm_to_vsa_example('127.0.0.1')
-    # vsa_vector_example('127.0.0.1')
-    gui_example()
+    # m8190a_simple_wfm_example(ipAddress)
+    # m8190a_duc_dig_mod_example(ipAddress)
+    # m8190a_duc_chirp_example(ipAddress)
+    # m8190a_iq_correction_example(ipAddress, '127.0.0.1', '"Analyzer1"')
+    # m8195a_simple_wfm_example(ipAddress)
+    # vsg_chirp_example(ipAddress)
+    # vsg_dig_mod_example(ipAddress)
+    # vsg_am_example(ipAddress)
+    # vsg_mtone_example(ipAddress)
+    # vector_uxg_dig_mod_example(ipAddress)
+    # vector_uxg_pdw_example(ipAddress)
+    # vector_uxg_lan_streaming_example(ipAddress)
+    # analog_uxg_pdw_example(ipAddress)
+    # wfm_to_vsa_example(ipAddress)
+    # vsa_vector_example(ipAddress)
+    vxg_mat_import_example(ipAddress, fileName=matFilePath)
+    # gui_example()
 
 
 if __name__ == '__main__':

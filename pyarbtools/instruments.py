@@ -190,7 +190,7 @@ class M8190A(socketscpi.SocketInstrument):
             fs (float): Sample clock rate.
         """
 
-        if not isinstance(fs, float) or fs <= 0:
+        if not isinstance(fs, (int, float)) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
 
         if 'int' in self.clkSrc:
@@ -655,7 +655,7 @@ class M8195A(socketscpi.SocketInstrument):
             fs (float): AWG sample rate.
         """
 
-        if not isinstance(fs, float) or fs <= 0:
+        if not isinstance(fs, (int, float)) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
         self.write(f'frequency:raster {fs}')
         self.fs = float(self.query('frequency:raster?').strip())
@@ -917,7 +917,7 @@ class M8196A(socketscpi.SocketInstrument):
             fs (float): AWG sample rate.
         """
 
-        if not isinstance(fs, float) or fs <= 0:
+        if not isinstance(fs, (int, float)) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
         self.write(f'frequency:raster {fs}')
         self.fs = float(self.query('frequency:raster?').strip())
@@ -1268,7 +1268,7 @@ class VSG(socketscpi.SocketInstrument):
             fs (float): Sample rate.
         """
 
-        if not isinstance(fs, float) or fs <= 0:
+        if not isinstance(fs, (int, float)) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
         self.write(f'radio:arb:sclock:rate {fs}')
         self.fs = float(self.query('radio:arb:sclock:rate?').strip())
@@ -1710,7 +1710,7 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if not isinstance(fs, float) or fs <= 0:
+        if not isinstance(fs, (int, float)) or fs <= 0:
             raise ValueError('Sample rate must be a positive floating point value.')
 
         self.write(f'signal{ch}:waveform:sclock:rate {fs}')
@@ -1874,7 +1874,6 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError('Invalid channel selected. Choose 1 or 2.')
 
         # self.write(f'source:signal:waveform "WFM1:{wfmID}"')
-        self.write(f'source:signal:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
         self.write(f'source:signal{ch}:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
 
         # Turn on arb, RF output and modulation

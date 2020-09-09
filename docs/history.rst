@@ -81,3 +81,8 @@ History
 ----------------------
 
 * Added VXG instrument class for controlling the M9384B VXG signal generators.
+
+2020.09.2 (2020-09-08)
+----------------------
+
+* Added import_mat() method to wfmBuilder.py that imports .mat files containing waveform data and optional metadata.
