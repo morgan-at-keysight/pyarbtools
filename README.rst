@@ -21,7 +21,7 @@ PyArbTools was built to satisfy the needs of signal generator users who can't/do
 
 **Features**
 
-* Supports M8190A, M8195A, and M8196A arbitrary waveform generators, N5182B MXG/N5172B EXG/E8267D PSG vector signal generators, and N5193/4A UXG agile waveform generators.
+* Supports M8190A, M8195A, and M8196A arbitrary waveform generators, N5182B MXG/N5172B EXG/E8267D PSG vector signal generators, the M9384B VXG vector signal generator, and N5193/4A UXG agile waveform generators.
 * Connect to and configure instruments, download waveforms, control playback, and load or stream PDWs (for UXG), all using easy-to-use functions rather than a list of SCPI commands.
 * Calibrate waveforms using Keysight's 89600 VSA software.
 * For custom applications, communicate with instruments using SCPI commands.
