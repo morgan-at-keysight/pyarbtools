@@ -369,11 +369,16 @@ def analog_bin_pdw_file_builder(pdwList):
     pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
     pdwBlock = [pdwBlockId, res4, pdwSize]
 
-    # Build PDW file from header, padBlock, pdwBlock, and PDWs
-    pdwFile = header + fpcBlock + paddingBlock + pdwBlock
+    # Build Raw PDW Data from list
+    rawPdwData = [analog_bin_pdw_builder(*p) for p in pdwList]
+    # Add 8 bytes of zero to make sure PDW block ends on 16 byte boundary.
+    rawPdwData += [(0).to_bytes(8, byteorder='little')]
 
-    pdwFile += [analog_bin_pdw_builder(*p) for p in pdwList]
-    pdwFile += [(0).to_bytes(24, byteorder='little')]
+    pdwEndBlock = [(0).to_bytes(16, byteorder='little')]
+
+    # Build PDW file from header, padBlock, pdwBlock, and PDWs
+    pdwFile = header + fpcBlock + paddingBlock + pdwBlock + rawPdwData + pdwEndBlock
+
     # Convert arrays of data to a single byte-type variable
     pdwFile = b''.join(pdwFile)
 

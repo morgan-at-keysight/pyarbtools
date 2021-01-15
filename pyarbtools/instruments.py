@@ -2095,6 +2095,25 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
         return pdwFile
 
+
+    def bin_raw_pdw_block_builder(self, pdwList):
+        """
+        Builds binary raw pdw block without header or end block for lan streaming
+        Args:
+            pdwList (list): List of lists. Each inner list contains a single pulse descriptor word.
+
+        Returns:
+            (bytes): Binary data that contains a binary block of raw 28 byte
+             PDWs without headers or other information to stream directly over
+             N5193A LAN port 5033
+        """
+        # Build Raw PDW Data from list
+        rawPdws = [pdwBuilder.analog_bin_pdw_builder(*p) for p in pdwList]
+        rawPdws = b''.join(rawPdws)
+
+        return rawPdws
+
+
     def download_bin_pdw_file(self, pdwFile, pdwName='wfm'):
         """
         Downloads binary PDW file to PDW directory in UXG.
@@ -2336,13 +2355,13 @@ class VectorUXG(socketscpi.SocketInstrument):
             (bytes): Binary data that contains a full PDW file that can
                 be downloaded to and played out of the UXG.
         """
-        
+
         pdwFile = pdwBuilder.vector_bin_pdw_file_builder(pdwList)
-        
+
         self.err_check()
-        
+
         return pdwFile
-        
+
     # noinspection PyDefaultArgument,PyDefaultArgument
     def csv_pdw_file_download(self, fileName, fields=['Operation', 'Time'], data=[[1, 0], [2, 100e-6]]):
         """
