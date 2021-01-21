@@ -1,7 +1,3 @@
-wheel
-flake8
-Sphinx
-twine
 numpy
 scipy
 socketscpi

@@ -448,7 +448,7 @@ def vector_uxg_lan_streaming_example(ipAddress):
     uxg.disconnect()
 
 
-def analog_uxg_pdw_example(ipAddress):
+def analog_uxg_file_stream_pdw_example(ipAddress):
     """Defines a pdw file for a chirp, and loads the
      pdw file into the UXG, and plays it out."""
 
@@ -485,6 +485,71 @@ def analog_uxg_pdw_example(ipAddress):
 
     # Begin streaming
     uxg.stream_play(pdwID=pdwName)
+
+    # Check for errors and gracefully disconnect
+    uxg.err_check()
+    uxg.disconnect()
+
+def analog_uxg_lan_stream_pdw_example(ipAddress):
+    """Defines a pdw file for a chirp, and loads the
+     pdw file into the UXG, and plays it out."""
+
+    # Create analog UXG object
+    uxg = pyarbtools.instruments.AnalogUXG(ipAddress, port=5025, timeout=10, reset=False)
+
+    # UXG configuration variables
+    output = 0
+    modulation = 1
+    freq = 1e9
+    amplitude = -5
+
+    # Configure UXG
+    uxg.configure(rfState=output, modState=modulation, cf=freq, amp=amplitude)
+    uxg.write(':stream:source lan')
+    uxg.write(':stream:trigger:play:source bus')
+
+    # Set stream-play marker to trigger 2 output
+    uxg.write('stream:markers:pdw1:mode begin')
+    uxg.write('rout:trigger2:output pmarker1')
+    uxg.err_check()
+
+    uxg.open_lan_stream()
+    uxg.query('*OPC?')
+
+    uxg.write('*TRG')
+    uxg.query('*OPC?')
+    # Press local key after this point to view PDW playback stats
+
+    burstStartTimeSec = 1
+    burstRepetitionSec = .5
+    numberOfBursts = 20
+
+    firstBurst = True
+
+    for dwellNumber in range(numberOfBursts):
+        # operation, freq, phase, startTimeSec, width, power, markers,
+        # pulseMode, phaseControl, bandAdjust, chirpControl, fpc_code_selection,
+        # chirpRate, freqMap
+
+        if firstBurst:
+            mop = 1
+        else:
+            mop = 0
+
+        pdwList = [[mop, 980e6,  0, burstStartTimeSec + 0    , 10e-6, 1, 1, 2, 0, 0, 3, 0, 4000000, 0],
+                   [0  , 1e9,    0, burstStartTimeSec + 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0,       0],
+                   [0  , 1.01e9, 0, burstStartTimeSec + 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0,       0],
+                   [0  , 1e9,    0, burstStartTimeSec + 80e-6, 5e-6,  1, 0, 2, 0, 0, 0, 1, 0,       0]]
+        binPdwBurst = uxg.bin_raw_pdw_block_builder(pdwList)
+
+        # Stream pdw block
+        uxg.lanStream.send(binPdwBurst)
+        burstStartTimeSec += burstRepetitionSec
+
+        firstBurst = False
+
+        # Note: the last PDW mode of operations can be set to
+        # '2' to reset the stream clock
 
     # Check for errors and gracefully disconnect
     uxg.err_check()
@@ -572,7 +637,7 @@ def vxg_mat_import_example(ipAddress, fileName):
         iqdata (complex array): Array containing waveform samples
         fs (float): Sample rate at which waveform was created
         wfmID (string): Name of waveform.
-    In this case, we know the variable 'iqdata' in the .mat file contains our complex waveform data, so we use 'iqdata' as 
+    In this case, we know the variable 'iqdata' in the .mat file contains our complex waveform data, so we use 'iqdata' as
     the 'targetVariable' argument.
     import_mat() returns a dict with 'data', 'fs', 'wfmID', and 'wfmFormat' members.
     If the .mat file contains the optional metadata variables, the corresponding dict members will be populated accordingly.
@@ -605,8 +670,8 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
-    # ipAddress = '192.168.1.17'
-    ipAddress = '141.121.151.242'
+    #ipAddress = '10.0.0.31'
+    ipAddress = '10.0.0.55'
     matFilePath = 'C:\\users\\moalliso\\desktop\\10mhz16qamat100mhz.mat'
 
     # m8190a_simple_wfm_example(ipAddress)
@@ -621,11 +686,12 @@ def main():
     # vector_uxg_dig_mod_example(ipAddress)
     # vector_uxg_pdw_example(ipAddress)
     # vector_uxg_lan_streaming_example(ipAddress)
-    # analog_uxg_pdw_example(ipAddress)
+    # analog_uxg_file_stream_pdw_example(ipAddress)
+    analog_uxg_lan_stream_pdw_example(ipAddress)
     # wfm_to_vsa_example(ipAddress)
     # vsa_vector_example(ipAddress)
-    vxg_mat_import_example(ipAddress, fileName=matFilePath)
-    # gui_example()
+    # vxg_mat_import_example(ipAddress, fileName=matFilePath)
+    gui_example()
 
 
 if __name__ == '__main__':
