@@ -86,3 +86,8 @@ History
 ----------------------
 
 * Added import_mat() method to wfmBuilder.py that imports .mat files containing waveform data and optional metadata.
+
+2021.01.1 (2021-01-20)
+----------------------
+
+* Added analog_uxg_lan_stream_pdw_example() analog uxg lan streaming example
