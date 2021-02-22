@@ -92,6 +92,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+pat-venv
 
 # Spyder project settings
 .spyderproject
@@ -110,3 +111,5 @@ venv.bak/
 Sandbox/
 .idea/
 pyarbtools/playground.py
+.vscode
+testing.py
