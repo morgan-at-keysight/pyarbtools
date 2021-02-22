@@ -670,9 +670,8 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
-    #ipAddress = '10.0.0.31'
-    ipAddress = '10.0.0.55'
-    matFilePath = 'C:\\users\\moalliso\\desktop\\10mhz16qamat100mhz.mat'
+    ipAddress = '10.0.0.100'
+    matFilePath = '<insert path to .mat file here>'
 
     # m8190a_simple_wfm_example(ipAddress)
     # m8190a_duc_dig_mod_example(ipAddress)
@@ -687,7 +686,7 @@ def main():
     # vector_uxg_pdw_example(ipAddress)
     # vector_uxg_lan_streaming_example(ipAddress)
     # analog_uxg_file_stream_pdw_example(ipAddress)
-    analog_uxg_lan_stream_pdw_example(ipAddress)
+    # analog_uxg_lan_stream_pdw_example(ipAddress)
     # wfm_to_vsa_example(ipAddress)
     # vsa_vector_example(ipAddress)
     # vxg_mat_import_example(ipAddress, fileName=matFilePath)
