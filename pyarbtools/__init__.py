@@ -6,13 +6,13 @@
 """
 YOU NEED TO UPDATE THE VERSION IN THE FOLLOWING FILES
     README.rst
-    docs\history.rst
+    docs/history.rst
 """
 
 
 __author__ = """Morgan Allison"""
-__email__ = 'morgan.allison@keysight.com'
-__version__ = '2021.01.1'
+__email__ = "morgan.allison@keysight.com"
+__version__ = "2021.02.1"
 
 from pyarbtools import instruments
 from pyarbtools import wfmBuilder

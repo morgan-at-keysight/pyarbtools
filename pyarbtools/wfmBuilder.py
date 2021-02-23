@@ -364,6 +364,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
         cf (float): Carrier frequency of the pulse in Hz (only used if generating a 'real' waveform).
         wfmFormat (str): Waveform format. ('iq' or 'real')
         zeroLast (bool): Force the last sample point to 0.
+        ampScale (int): Sets the linear voltage scaling of the waveform samples. 
 
     Returns:
         (NumPy array): Array containing the complex or real values of the waveform.
