@@ -91,3 +91,8 @@ History
 ----------------------
 
 * Added analog_uxg_lan_stream_pdw_example() analog uxg lan streaming example
+
+2021.02.1 (2021-01-20)
+----------------------
+
+* Added ampScale as an argument to cw_pulse_generator().

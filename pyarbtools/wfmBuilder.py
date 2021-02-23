@@ -353,7 +353,7 @@ def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat='iq', ze
         raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
-def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False):
+def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False, ampScale=100):
     """
     Generates an unmodulated cw pulse at baseband or RF.
     Args:
@@ -364,6 +364,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
         cf (float): Carrier frequency of the pulse in Hz (only used if generating a 'real' waveform).
         wfmFormat (str): Waveform format. ('iq' or 'real')
         zeroLast (bool): Force the last sample point to 0.
+        ampScale (int): Sets the linear voltage scaling of the waveform samples. 
 
     Returns:
         (NumPy array): Array containing the complex or real values of the waveform.
@@ -375,7 +376,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
     t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
 
     if wfmFormat.lower() == 'iq':
-        iq = np.exp(2 * np.pi * freqOffset * 1j * t)
+        iq = ampScale * np.exp(2 * np.pi * freqOffset * 1j * t)
         if zeroLast:
             iq[-1] = 0
         if pri > pWidth:
@@ -385,7 +386,7 @@ def cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9,
         return iq
     elif wfmFormat.lower() == 'real':
         if pri <= pWidth:
-            real = np.cos(2 * np.pi * cf * t)
+            real = ampScale * np.cos(2 * np.pi * cf * t)
         else:
             deadTime = np.zeros(int(fs * pri - rl))
             real = np.append(np.cos(2 * np.pi * (cf + freqOffset) * t), deadTime)

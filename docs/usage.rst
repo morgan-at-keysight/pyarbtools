@@ -1543,7 +1543,7 @@ Generates a linear sinusoidal AM signal of specified depth and modulation rate a
 ----------------------
 ::
 
-    wfmBuilder.cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False)
+    wfmBuilder.cw_pulse_generator(fs=100e6, pWidth=10e-6, pri=100e-6, freqOffset=0, cf=1e9, wfmFormat='iq', zeroLast=False, ampScale=100)
 
 Generates an unmodulated CW (continuous wave) pulse at baseband or RF.
 
@@ -1556,6 +1556,7 @@ Generates an unmodulated CW (continuous wave) pulse at baseband or RF.
 * ``cf`` ``(float)``: Center frequency for ``'real'`` format waveforms. Default is ``1e9``.
 * ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
 * ``zeroLast`` ``(bool)``: Allows user to force the last sample point to ``0``. Default is ``False``.
+* ``ampScale`` ``(int)``: Sets the linear voltage scaling of the waveform samples. Default is ``100``. Range is ``0`` to ``100``. 
 
 **Returns**
 
