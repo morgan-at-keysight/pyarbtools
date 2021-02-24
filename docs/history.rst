@@ -10,27 +10,27 @@ History
 0.0.8 (2018-11-26)
 ------------------
 
-* First major update. Added wfmBuilder.iq_correction(), which utilizes Keysight's VSA software and a Keysight receiver (either an oscilloscope or signal analyzer) and applies a digital predistortion filter to a waveform to flatten amplitude and phase response.
+* First major update. Added ``wfmBuilder.iq_correction()``, which utilizes Keysight's VSA software and a Keysight receiver (either an oscilloscope or signal analyzer) and applies a digital predistortion filter to a waveform to flatten amplitude and phase response.
 
 0.0.9 (2018-11-26)
 ------------------
 
-* Fixed a problem with UXG.csv_pdw_file_download() and UXG.csv_windex_file_download() that threw an error when trying to delete a file that didn't exist.
+* Fixed a problem with ``UXG.csv_pdw_file_download()`` and ``UXG.csv_windex_file_download()`` that threw an error when trying to delete a file that didn't exist.
 
 0.0.10 (2018-12-10)
 -------------------
 
-* Added multitone_generator generator. Added 128-QAM and 256-QAM. Streamlined UXG instrument class, split play()/stop into stream_play() and arb_play()/stream_stop() and arb_stop(). Updated index to include a better intro to the project.
+* Added ``multitone_generator`` method. Added 128-QAM and 256-QAM. Streamlined ``UXG`` instrument class, split ``play()`` into ``stream_play()`` & ``arb_play()`` and split ``stop()`` into ``stream_stop()`` & ``arb_stop()``. Updated index to include a better intro to the project.
 
 0.0.11 (2019-01-23)
 -------------------
 
-* Fixed bugs with multitone_generator generator. Added AM modulator.
+* Fixed bugs with ``multitone_generator`` method. Added AM modulator.
 
 0.0.12 (2019-02-20)
 -------------------
 
-* Removed UXG class and replaced it with two classes, AnalogUXG and VectorUXG. Expanded VSG class to include M9381A and M9383A without changing public API.
+* Removed ``UXG`` class and replaced it with two classes, ``AnalogUXG`` and ``VectorUXG``. Expanded ``VSG`` class to include M9381A and M9383A without changing public API.
 
 0.0.13 (2019-04-19)
 -------------------
@@ -40,7 +40,7 @@ History
 0.0.14 (2019-11-12)
 -------------------
 
-* Fixed bug in UXG classes that emitted a long CW pulse prior to starting streaming. Added "pri" argument to pulse creation methods.
+* Fixed bug in UXG classes that emitted a long CW pulse prior to starting streaming. Added ``pri`` argument to pulse creation methods.
 
 2020.04.0 (2020-04-29)
 ----------------------
@@ -50,7 +50,7 @@ History
 2020.05.0 (2020-05-13)
 ----------------------
 
-* Changed name of digmod_prbs_generator() to digmod_generator(). Overhauled digitally modulated waveform creation function, fixing bugs and producing better signal fidelity. Added vsaControl.py, which allows the user to control an instance of Keysight 89600 VSA software for waveform analysis.
+* Changed name of ``digmod_prbs_generator()`` to ``digmod_generator()``. Overhauled digitally modulated waveform creation function, fixing bugs and producing better signal fidelity. Added ``vsaControl.py``, which allows the user to control an instance of Keysight 89600 VSA software for waveform analysis.
 
 2020.06.0 (2020-06-01)
 ----------------------
@@ -60,17 +60,17 @@ History
 2020.07.1 (2020-07-06)
 ----------------------
 
-* BUGFIX: corrected a problem with the 16-QAM modulator in digmod_generator(). Fixed a math error in power level calculations in PDW functions.
+* BUGFIX: corrected a problem with the 16-QAM modulator in ``digmod_generator()``. Fixed a math error in power level calculations in PDW functions.
 
 2020.07.3 (2020-07-31)
 ----------------------
 
-* Dramatically improved resampling and wraparound handling in digmod_generator().
+* Dramatically improved resampling and wraparound handling in ``digmod_generator()``.
 
 2020.08.1 (2020-08-03)
 ----------------------
 
-* BROKEN: Updated GUI to reflect changes to instrument configuration functions and improvements to wfmBuilder functions. You can now access pyarbtools.pdwBuilder directly. Improved version updating.
+* BROKEN: Updated GUI to reflect changes to instrument configuration functions and improvements to wfmBuilder functions. You can now access ``pyarbtools.pdwBuilder`` directly. Improved version updating.
 
 2020.08.2 (2020-08-06)
 ----------------------
@@ -80,19 +80,24 @@ History
 2020.09.1 (2020-09-03)
 ----------------------
 
-* Added VXG instrument class for controlling the M9384B VXG signal generators.
+* Added ``VXG`` instrument class for controlling the M9384B VXG signal generators.
 
 2020.09.2 (2020-09-08)
 ----------------------
 
-* Added import_mat() method to wfmBuilder.py that imports .mat files containing waveform data and optional metadata.
+* Added ``import_mat()`` method to wfmBuilder.py that imports .mat files containing waveform data and optional metadata.
 
 2021.01.1 (2021-01-20)
 ----------------------
 
-* Added analog_uxg_lan_stream_pdw_example() analog uxg lan streaming example
+* Added ``analog_uxg_lan_stream_pdw_example()`` analog uxg lan streaming example
 
-2021.02.1 (2021-01-20)
+2021.02.1 (2021-02-22)
 ----------------------
 
-* Added ampScale as an argument to cw_pulse_generator().
+* Added ampScale as an argument to ``cw_pulse_generator()``.
+
+2021.02.2 (2021-02-23)
+----------------------
+
+* Added an ``rms`` keyword argument to ``VXG.play()`` that allows the user to manually override the RMS power calculation made by the VXG. This is an advanced feature primarily developed for waveforms containing pulsed signals with different power levels.
