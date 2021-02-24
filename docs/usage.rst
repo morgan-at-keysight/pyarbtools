@@ -823,7 +823,7 @@ Stops playback and deletes all waveforms from the waveform memory.
 --------
 ::
 
-    VXG.play(wfmID='wfm', ch=1)
+    VXG.play(wfmID='wfm', ch=1, *args, **kwargs)
 
 Selects waveform and activates arb mode, RF output, and modulation.
 
@@ -831,6 +831,10 @@ Selects waveform and activates arb mode, RF output, and modulation.
 
 * ``wfmID`` ``(str)``: Name of the waveform to be loaded. The return value from ``.download_wfm()`` should be used. Default is ``'wfm'``.
 * ``ch`` ``(int)``: Channel out of which the waveform will be played. Default is ``1``.
+
+**Keyword Arguments**
+
+* ``rms`` ``(float)``: Waveform RMS power calculation. VXG will offset RF power to ensure measured RMS power matches the user-specified RF power. Set to ``1.0`` for pulses with multiple power levels in a single waveform. This causes the peak power level to match the RF output power setting.
 
 **Returns**
 

@@ -665,10 +665,9 @@ class M8190A(socketscpi.SocketInstrument):
 
         controlEntry = segAdvanceBin | seqStartBin | seqEndBin | markerEnableBin
 
-        self.write(f"stable{ch}:data {seqIndex}, {controlEntry}, 1, {loopCount}, {wfmID}, {startOffset}, {endOffset}")
-        
-
-
+        self.write(
+            f"stable{ch}:data {seqIndex}, {controlEntry}, 1, {loopCount}, {wfmID}, {startOffset}, {endOffset}"
+        )
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
@@ -1508,7 +1507,7 @@ class VSG(socketscpi.SocketInstrument):
             raise TypeError("wfmData should be a complex NumPy array.")
 
         # Waveform format checking. VSGs can only use 'iq' format waveforms.
-        if wfmData.dtype != np.complex:
+        if wfmData.dtype != complex:
             raise TypeError(
                 "Invalid wfm type. IQ waveforms must be an array of complex values."
             )
@@ -1684,6 +1683,8 @@ class VXG(socketscpi.SocketInstrument):
         self.alcState2 = self.query("rf2:power:alc?")
         self.iqScale1 = float(self.query("source:signal1:waveform:scale?").strip())
         self.iqScale2 = float(self.query("source:signal2:waveform:scale?").strip())
+        self.rms1 = float(self.query("source:signal1:waveform:rms?").strip())
+        self.rms2 = float(self.query("source:signal2:waveform:rms?").strip())
         self.fs1 = float(self.query("signal1:waveform:sclock:rate?").strip())
         self.fs2 = float(self.query("signal2:waveform:sclock:rate?").strip())
 
@@ -1746,6 +1747,10 @@ class VXG(socketscpi.SocketInstrument):
                 self.set_iqScale(value, ch=1)
             elif key == "iqScale2":
                 self.set_iqScale(value, ch=2)
+            elif key == "rms1":
+                self.set_rms(value, ch=1)
+            elif key == "rms2":
+                self.set_rms(value, ch=2)
             elif key == "fs1" or key == "fs":
                 self.set_fs(value, ch=1)
             elif key == "fs2":
@@ -1896,6 +1901,28 @@ class VXG(socketscpi.SocketInstrument):
             f'self.iqScale{ch} = float(self.query(f"source:signal{ch}:waveform:scale?").strip())'
         )
 
+    def set_rms(self, rms, ch=1):
+        """
+        Sets and reads the RMS value of the baseband IQ waveform output using SCPI commands.
+        Should be set to 1 for combined pulsed signals.
+        Args:
+            rms (float): Waveform RMS power calculation. VXG will offset RF power to ensure measured RMS power matches the user-specified RF power.
+            ch (int): Specified channel being adjusted.
+        """
+
+        if ch not in [1, 2]:
+            raise ValueError("Invalid channel selected. Choose 1 or 2.")
+
+        if not isinstance(rms, (float, int)) or rms <= 0.1 or rms > 1.414213562:
+            raise ValueError(
+                "rms argument must be a floating point value between 0.1 and 1.414213562."
+            )
+
+        self.write(f"source:signal{ch}:waveform:rms {rms}")
+        exec(
+            f'self.rms{ch} = float(self.query(f"source:signal{ch}:waveform:rms?").strip())'
+        )
+
     def set_fs(self, fs, ch=1):
         """
         Sets and reads sample  rate of internal arb using SCPI commands.
@@ -1950,8 +1977,10 @@ class VXG(socketscpi.SocketInstrument):
         print("Output Amplitude 2:", self.amp2)
         print("ALC state 1:", self.alcState1)
         print("ALC state 2:", self.alcState2)
-        print("IQ Scaling 1", self.iqScale1)
-        print("IQ Scaling 2", self.iqScale2)
+        print("IQ Scaling 1:", self.iqScale1)
+        print("IQ Scaling 2:", self.iqScale2)
+        print("RMS 1:", self.rms1)
+        print("RMS 2:", self.rms2)
         print("Reference Source:", self.refSrc)
         print("Internal Arb1 State:", self.arbState1)
         print("Internal Arb2 State:", self.arbState2)
@@ -1979,7 +2008,7 @@ class VXG(socketscpi.SocketInstrument):
         if not isinstance(wfmData, np.ndarray):
             raise TypeError("wfmData should be a complex NumPy array.")
 
-        if wfmData.dtype != np.complex:
+        if wfmData.dtype != complex:
             raise TypeError(
                 "Invalid wfm type. IQ waveforms must be an array of complex values."
             )
@@ -2072,12 +2101,14 @@ class VXG(socketscpi.SocketInstrument):
         self.write("mmemory:delete:wfm")
         self.err_check()
 
-    def play(self, wfmID="wfm", ch=1):
+    def play(self, wfmID="wfm", ch=1, *args, **kwargs):
         """
         Selects waveform and activates arb mode, RF output, and modulation.
         Args:
             wfmID (str): Waveform identifier, used to select waveform to be played.
             ch (int): Specified channel being adjusted.
+        **kwargs:
+            rms (float): Waveform RMS power calculation. VXG will offset RF power to ensure measured RMS power matches the user-specified RF power.
         """
 
         if ch not in [1, 2]:
@@ -2092,8 +2123,15 @@ class VXG(socketscpi.SocketInstrument):
         self.set_arbState(1, ch)
         self.set_rfState(1, ch)
         self.set_modState(1, ch)
-        # Don't know why, but the VXG uses a weird sample rate number when the waveform is selected
+
+        # Don't know why, but the VXG uses a weird sample rate number when the waveform is selected, so we use the one we set in .configure()
         exec(f"self.set_fs(self.fs{ch}, {ch})")
+
+        # The RMS value set by .configure() is overwritten by the VXG's internal calculation when waveform is selected, so we will apply the one we set in .configure() if the 'rms' keyword arg is present.
+        for key, value in kwargs.items():
+            if key == "rms":
+                self.set_rms(value, ch=ch)
+
         self.err_check()
 
     def stop(self, ch=1):
