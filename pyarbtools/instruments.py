@@ -45,6 +45,8 @@ def wraparound_calc(length, gran, minLen):
     while temp % gran != 0 or temp < minLen:
         temp += length
         repeats += 1
+    if repeats > 1:
+        print(f"Information: Waveform repeated {repeats} times.")
     return repeats
 
 
@@ -251,9 +253,7 @@ class M8190A(socketscpi.SocketInstrument):
         if not isinstance(ch, int) or ch < 1 or ch > 2:
             raise ValueError("'ch' must be 1 or 2.")
         if func not in ["arb", "sts", "stsc"]:
-            raise ValueError(
-                "'func' must be 'arb', 'sts' (sequence), or 'stsc' (scenario)."
-            )
+            raise ValueError("'func' must be 'arb', 'sts' (sequence), or 'stsc' (scenario).")
 
         self.write(f"func{ch}:mode {func}")
         if ch == 1:
@@ -272,9 +272,7 @@ class M8190A(socketscpi.SocketInstrument):
         if not isinstance(ch, int) or ch < 1 or ch > 2:
             raise ValueError("'ch' must be 1 or 2.")
         if not isinstance(cf, float) or cf <= 0:
-            raise socketscpi.SockInstError(
-                "Carrier frequency must be a positive floating point value."
-            )
+            raise socketscpi.SockInstError("Carrier frequency must be a positive floating point value.")
         self.write(f"carrier{ch}:freq {cf}")
         if ch == 1:
             self.cf1 = float(self.query(f"carrier{ch}:freq?").strip().split(",")[0])
@@ -302,9 +300,7 @@ class M8190A(socketscpi.SocketInstrument):
         """
 
         if not isinstance(refFreq, float) or refFreq <= 0:
-            raise ValueError(
-                "Reference frequency must be a positive floating point value."
-            )
+            raise ValueError("Reference frequency must be a positive floating point value.")
 
         self.write(f"roscillator:frequency {refFreq}")
         self.refFreq = float(self.query("roscillator:frequency?").strip())
@@ -317,9 +313,7 @@ class M8190A(socketscpi.SocketInstrument):
         """
 
         if res.lower() not in ["wsp", "wpr", "intx3", "intx12", "intx24", "intx48"]:
-            raise ValueError(
-                "res must be 'wsp', 'wpr', 'intx3', 'intx12', 'intx24', or 'intx48'."
-            )
+            raise ValueError("res must be 'wsp', 'wpr', 'intx3', 'intx12', 'intx24', or 'intx48'.")
 
         self.write(f"trace1:dwidth {res}")
         self.res = self.query("trace1:dwidth?").strip().lower()
@@ -360,13 +354,9 @@ class M8190A(socketscpi.SocketInstrument):
             elif self.intFactor == 24 or self.intFactor == 48:
                 self.idleGran = 1
         else:
-            raise ValueError(
-                "res argument must be 'wsp', 'wpr', 'intx3', 'intx12', 'intx24', or 'intx48'."
-            )
+            raise ValueError("res argument must be 'wsp', 'wpr', 'intx3', 'intx12', 'intx24', or 'intx48'.")
 
-    def download_wfm(
-        self, wfmData, ch=1, name="wfm", wfmFormat="iq", sampleMkr=0, syncMkr=0
-    ):
+    def download_wfm(self, wfmData, ch=1, name="wfm", wfmFormat="iq", sampleMkr=0, syncMkr=0):
         """
         Defines and downloads a waveform into the segment memory.
         Assigns a waveform name to the segment. Returns segment number.
@@ -394,9 +384,7 @@ class M8190A(socketscpi.SocketInstrument):
         # IQ format is a little complex (hahaha)
         if wfmFormat.lower() == "iq":
             if wfmData.dtype != np.complex:
-                raise TypeError(
-                    "Invalid wfm type. IQ waveforms must be an array of complex values."
-                )
+                raise TypeError("Invalid wfm type. IQ waveforms must be an array of complex values.")
             else:
                 i = self.check_wfm(np.real(wfmData))
                 q = self.check_wfm(np.imag(wfmData))
@@ -420,9 +408,7 @@ class M8190A(socketscpi.SocketInstrument):
             wfm = self.check_wfm(wfmData)
             length = len(wfm)
         else:
-            raise socketscpi.SockInstError(
-                'Invalid wfmFormat chosen. Use "iq" or "real".'
-            )
+            raise socketscpi.SockInstError('Invalid wfmFormat chosen. Use "iq" or "real".')
 
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
@@ -494,14 +480,10 @@ class M8190A(socketscpi.SocketInstrument):
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.AWGError(
-                f"Waveform length: {rl}, must be at least {self.minLen}."
-            )
+            raise error.AWGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         rem = rl % self.gran
         if rem != 0:
-            raise error.GranularityError(
-                f"Waveform must have a granularity of {self.gran}. Extra samples: {rem}"
-            )
+            raise error.GranularityError(f"Waveform must have a granularity of {self.gran}. Extra samples: {rem}")
 
         # Apply the binary multiplier, cast to int16, and shift samples over if required
         return np.array(self.binMult * wfm, dtype=np.int16) << self.binShift
@@ -543,6 +525,20 @@ class M8190A(socketscpi.SocketInstrument):
         self.write("init:imm")
         self.query("*opc?")
 
+    def play_sequence(self, ch=1):
+        """
+        Turns on sequence mode, selects sequence 0, turns on analog output, and begins playback.
+        Args:
+            ch (int): AWG channel out of which the sequence will be played.
+        """
+
+        self.write("abort")
+        self.write(f"stable{ch}:sequence:select 0")
+        self.write(f"output{ch}:norm on")
+        self.write("init:cont on")
+        self.write("init:imm")
+        self.query("*opc?")
+
     def stop(self, ch=1):
         """
         Turns off analog output and stops playback.
@@ -552,6 +548,182 @@ class M8190A(socketscpi.SocketInstrument):
 
         self.write(f"output{ch}:norm off")
         self.write("abort")
+
+    def create_sequence(self, numSteps, ch=1):
+        """
+        Deletes all sequences and creates a new sequence.
+        Args:
+            numSteps (int): Number of steps in the sequence. Max is 512k.
+            ch (int): Channel for which sequence is created (values are 1 or 2, default is 1).
+        """
+
+        if ch not in [1, 2]:
+            raise ValueError("ch argument must be 1 or 2.")
+        if not isinstance(numSteps, int):
+            raise TypeError("numSteps must be an int.")
+        if numSteps > (2 ** 19 - 1):
+            raise ValueError(f"numSteps must be less than {2**19 - 1}.")
+
+        # Delete all sequences
+        self.write(f"sequence{ch}:delete:all")
+
+        # Create new sequence with specified number of steps.
+        seqReturn = self.query(f"sequence{ch}:define:new? {numSteps}")
+
+    def insert_wfm_in_sequence(
+        self,
+        wfmID,
+        seqIndex,
+        seqStart=False,
+        seqEnd=False,
+        markerEnable=False,
+        segAdvance="auto",
+        loopCount=1,
+        startOffset=0,
+        endOffset=0xFFFFFFFF,
+        ch=1,
+    ):
+        """
+        Inserts a specific waveform segment to a specific index in the sequence.
+        Args:
+            wfmID (int): Identifier/number of the segment to be added to the sequence.
+            seqIndex (int): Index in the sequence where the segment should be added.
+            seqStart (bool): Determines if this segment is the start of the sequence.
+            seqEnd (bool): Determines if this segment is the end of the sequence.
+            markerEnable (bool): Enables or disables the marker for this segment.
+            segAdvance (str): Defines segment advance behavior. 'auto', 'conditional', 'repeat', 'single'.
+            loopCount (int): Determines how many times this segment will be repeated.
+            startOffset (int): Determines the start offset of the waveform in samples if only a part of the waveform is to be used. Default is 0 and should likely remain that way.
+            endOffset (int): Determines the end offset of the waveform in samples if only a part of the waveform is to be used. Default is the hex value 0xffffffff and should likely remain that way.
+            Note that endOffset is zero-indexed, so if you want an offset of 1000, use 999.
+            ch (int): Channel for which sequence is created (values are 1 or 2, default is 1).
+        """
+
+        """
+        Command Documentation
+        Load sequence index with wfm segment
+        stable:data <seq_id> <seq_table_index>, <control_entry>, <seq_loop_cnt>, <seg_loop_cnt>, <seg_id>, <seg_start>, <seg_end>
+        Load sequence index with idle waveform
+        stable:data <seq_id> <seq_table_index>, <control_entry>, <seq_loop_cnt>, <command_code>, <idle_sample>, <idle_delay>, 0
+        Descriptions of the command arguments (<control_entry>, <seq_loop_cnt>, etc.) can be found
+        on pages 262-265 in Keysight M8190A User's Guide (Edition 13.0, October 2017).
+        """
+
+        # Argument checking
+        if ch not in [1, 2]:
+            raise ValueError("ch argument must be 1 or 2.")
+        if not isinstance(wfmID, int) or wfmID < 1:
+            raise ValueError("wfmID must be a nonzero integer.")
+
+        # Get length of the sequence for seqIndex checking
+        cat = self.query(f"sequence{ch}:catalog?")
+        seqLength = int(cat.strip().split(",")[1])
+
+        if not isinstance(seqIndex, int) or seqIndex < 0 or seqIndex > seqLength:
+            raise ValueError("seqIndex must be a nonnegative integer that is less than seqLength.")
+
+        if not isinstance(seqStart, bool):
+            raise TypeError("seqStart must be True or False.")
+
+        if not isinstance(seqEnd, bool):
+            raise TypeError("seqEnd must be True or False.")
+
+        if not isinstance(markerEnable, bool):
+            raise TypeError("markerEnable must be True or False.")
+
+        if not isinstance(segAdvance, str) or segAdvance.lower() not in [
+            "auto",
+            "conditional",
+            "repeat",
+            "single",
+        ]:
+            raise ValueError("segAdvance must be 'auto', 'conditional', 'repeat', or 'single'.")
+
+        if not isinstance(loopCount, int) or loopCount < 1 or loopCount > (4 * 2 ** 30 - 1):
+            raise ValueError("loopCount must be an integer between 1 and 4294967295.")
+
+        if not isinstance(startOffset, int) or startOffset % self.gran != 0:
+            raise ValueError(f"startOffset must be an integer and must obey granularity requirements. i.e. must be divisible by {self.gran}.")
+
+        if not isinstance(endOffset, int) or (endOffset != 0xFFFFFFFF and (endOffset + 1) % self.gran != 0):
+            raise ValueError(f"endOffset must be an integer and must obey granularity requirements. i.e. must be divisible by {self.gran}. It's also zero-indexed, which can cause confusion.")
+
+        # Convert input arguments into binary for the control_sequence argument for the STABLE:DATA SCPI command
+        if segAdvance.lower() == "auto":
+            segAdvanceBin = 0 << 16
+        elif segAdvance.lower() == "conditional":
+            segAdvanceBin = 1 << 16
+        elif segAdvanceBin.lower() == "repeat":
+            segAdvanceBin = 2 << 16
+        elif segAdvanceBin.lower() == "single":
+            segAdvanceBin = 3 << 16
+
+        if seqStart:
+            seqStartBin = 1 << 28
+        else:
+            seqStartBin = 0 << 28
+
+        if seqEnd:
+            seqEndBin = 1 << 30
+        else:
+            seqEndBin = 0 << 30
+
+        if markerEnable:
+            markerEnableBin = 1 << 24
+        else:
+            markerEnableBin = 1 << 24
+
+        # Combine all individual members of control_entry and convert to integer
+        controlEntry = int(segAdvanceBin | seqStartBin | seqEndBin | markerEnableBin)
+
+        # Send the STABLE:DATA command to populate the sequence index.
+        self.write(f"stable{ch}:data {seqIndex}, {controlEntry}, 1, {loopCount}, {wfmID}, {startOffset}, {endOffset}")
+
+        self.err_check()
+
+    def insert_idle_in_sequence(self, seqIndex, seqStart=False, idleSample=0, idleDelay=640, ch=1):
+        """
+        Inserts a delay segment in the sequence table.
+        Args:
+            seqIndex (int): Index in the sequence where the segment should be added.
+            seqStart (bool): Determines if this segment is the beginning of the sequence.
+            idleSample (float): Sample value to be used as the DAC output during the idle time. Default is 0.
+            idleDelay (int): Duration of delay in samples. Default (and minimum) is waveform granularity * 10. Max is (2^25 * gran) + (gran - 1).
+            ch (int): Channel for which sequence is created (values are 1 or 2, default is 1).
+        """
+        
+        # Input checking
+        if ch not in [1, 2]:
+            raise ValueError("ch argument must be 1 or 2.")
+
+        # Get length of the sequence for seqIndex checking
+        cat = self.query(f"sequence{ch}:catalog?")
+        seqLength = int(cat.strip().split(",")[1])
+
+        if not isinstance(seqIndex, int) or seqIndex < 0 or seqIndex > seqLength:
+            raise ValueError("seqIndex must be a nonnegative integer that is less than seqLength.")
+
+        if not isinstance(seqStart, bool):
+            raise TypeError("seqStart must be True or False.")
+
+        if not isinstance(idleSample, (int, float, complex)):
+            raise TypeError("idleSample must be a valid waveform sample value. It is usually 0 or 0 + 1j*0 for complex waveforms.")
+        if not isinstance(idleDelay, int) or idleDelay < self.gran * 10 or idleDelay > ((2 ** 25 * self.gran) + (self.gran - 1)):
+            raise ValueError("idleDelay must be an integer value between gran * 10 and (2^25 * gran) + (gran - 1).")
+
+        # Convert input arguments to the appropriate binary values
+        if seqStart:
+            seqStartBin = 1 << 28
+        else:
+            seqStartBin = 0 << 28
+
+        # The (1 << 31) indicates that this is an idle segment.
+        controlEntry = int(seqStartBin | (1 << 31))
+
+        # Populate the sequence index with an idle segment
+        self.write(f"stable1:data {seqIndex}, {controlEntry}, 1, 0, {idleSample}, {idleDelay}, 0")
+
+        self.err_check()
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
@@ -638,9 +810,7 @@ class M8195A(socketscpi.SocketInstrument):
             elif key == "func":
                 self.set_func(value)
             else:
-                raise KeyError(
-                    f'Invalid keyword argument: "{key}"'
-                )  # raise KeyError('Invalid keyword argument. Use "dacMode", "memDiv", "fs", "refSrc", "refFreq", "amp1/2/3/4", or "func".')
+                raise KeyError(f'Invalid keyword argument: "{key}"')  # raise KeyError('Invalid keyword argument. Use "dacMode", "memDiv", "fs", "refSrc", "refFreq", "amp1/2/3/4", or "func".')
 
         self.err_check()
 
@@ -652,9 +822,7 @@ class M8195A(socketscpi.SocketInstrument):
         """
 
         if dacMode not in ["single", "dual", "four", "marker", "dcd", "dcmarker"]:
-            raise ValueError(
-                "'dacMode' must be 'single', 'dual', 'four', 'marker', 'dcd', or 'dcmarker'."
-            )
+            raise ValueError("'dacMode' must be 'single', 'dual', 'four', 'marker', 'dcd', or 'dcmarker'.")
 
         self.write(f"inst:dacm {dacMode}")
         self.dacMode = self.query("inst:dacm?").strip().lower()
@@ -669,9 +837,7 @@ class M8195A(socketscpi.SocketInstrument):
         if memDiv not in [1, 2, 4]:
             raise ValueError("Memory divider must be 1, 2, or 4.")
         self.write(f"instrument:memory:extended:rdivider div{memDiv}")
-        self.memDiv = int(
-            self.query("instrument:memory:extended:rdivider?").strip().split("DIV")[-1]
-        )
+        self.memDiv = int(self.query("instrument:memory:extended:rdivider?").strip().split("DIV")[-1])
 
     def set_fs(self, fs=65e9):
         """
@@ -718,9 +884,7 @@ class M8195A(socketscpi.SocketInstrument):
         """
 
         if not isinstance(refFreq, float) or refFreq <= 0:
-            raise ValueError(
-                "Reference frequency must be a positive floating point value."
-            )
+            raise ValueError("Reference frequency must be a positive floating point value.")
         self.write(f"roscillator:frequency {refFreq}")
         self.refFreq = float(self.query("roscillator:frequency?").strip())
 
@@ -806,13 +970,9 @@ class M8195A(socketscpi.SocketInstrument):
         wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.AWGError(
-                f"Waveform length: {rl}, must be at least {self.minLen}."
-            )
+            raise error.AWGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl % self.gran != 0:
-            raise error.GranularityError(
-                f"Waveform must have a granularity of {self.gran}."
-            )
+            raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
         # Apply the binary multiplier, cast to int16, and shift samples over if required
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
@@ -915,21 +1075,15 @@ class M8196A(socketscpi.SocketInstrument):
         # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
             if key == "dacMode":
-                self.set_dacMode(
-                    value
-                )  # self.dacMode = self.query('inst:dacm?').strip().lower()
+                self.set_dacMode(value)  # self.dacMode = self.query('inst:dacm?').strip().lower()
             elif key == "fs":
-                self.set_fs(
-                    value
-                )  # self.fs = float(self.query('frequency:raster?').strip())
+                self.set_fs(value)  # self.fs = float(self.query('frequency:raster?').strip())
             elif key == "refSrc":
                 self.set_refSrc(value)
             elif key == "refFreq":
                 self.set_refFreq(value)
             else:
-                raise KeyError(
-                    f'Invalid keyword argument: "{key}"'
-                )  # raise KeyError('Invalid keyword argument. Use "dacMode", "fs", "refSrc", "refFreq".')
+                raise KeyError(f'Invalid keyword argument: "{key}"')  # raise KeyError('Invalid keyword argument. Use "dacMode", "fs", "refSrc", "refFreq".')
 
         self.err_check()
 
@@ -941,9 +1095,7 @@ class M8196A(socketscpi.SocketInstrument):
         """
 
         if dacMode not in ["single", "dual", "four", "marker", "dcmarker"]:
-            raise ValueError(
-                "Invalid DAC mode. Must be 'single', 'dual', 'four', 'marker', or 'dcmarker'"
-            )
+            raise ValueError("Invalid DAC mode. Must be 'single', 'dual', 'four', 'marker', or 'dcmarker'")
 
         self.write(f"inst:dacm {dacMode}")
         self.dacMode = self.query("inst:dacm?").strip().lower()
@@ -1003,9 +1155,7 @@ class M8196A(socketscpi.SocketInstrument):
             elif 162e6 <= refFreq <= 17e9:
                 self.write("roscillator:range rang2")
             else:
-                raise error.AWGError(
-                    "Selected reference clock frequency outside allowable range."
-                )
+                raise error.AWGError("Selected reference clock frequency outside allowable range.")
             self.write(f"roscillator:frequency {refFreq}")
         self.refFreq = float(self.query("roscillator:frequency?").strip())
 
@@ -1068,17 +1218,11 @@ class M8196A(socketscpi.SocketInstrument):
         wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.AWGError(
-                f"Waveform length: {rl}, must be at least {self.minLen}."
-            )
+            raise error.AWGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl > self.maxLen:
-            raise error.AWGError(
-                f"Waveform length: {rl}, must be shorter than {self.maxLen}."
-            )
+            raise error.AWGError(f"Waveform length: {rl}, must be shorter than {self.maxLen}.")
         if rl % self.gran != 0:
-            raise error.GranularityError(
-                f"Waveform must have a granularity of {self.gran}."
-            )
+            raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
         # Apply the binary multiplier, cast to int16, and shift samples over if required
         return np.array(self.binMult * wfm, dtype=np.int8) << self.binShift
@@ -1158,9 +1302,7 @@ class VSG(socketscpi.SocketInstrument):
             if "M938" not in self.instId:
                 self.refFreq = float(self.query("roscillator:frequency:bbg?").strip())
             else:
-                raise error.VSGError(
-                    "Invalid reference source chosen, select 'int' or 'ext'."
-                )
+                raise error.VSGError("Invalid reference source chosen, select 'int' or 'ext'.")
         else:
             raise error.VSGError("Unknown refSrc selected.")
 
@@ -1207,9 +1349,7 @@ class VSG(socketscpi.SocketInstrument):
             elif key == "fs":
                 self.set_fs(value)
             else:
-                raise KeyError(
-                    f'Invalid keyword argument: "{key}"'
-                )  # raise KeyError('Invalid keyword argument.')
+                raise KeyError(f'Invalid keyword argument: "{key}"')  # raise KeyError('Invalid keyword argument.')
 
         # Arb state can only be turned on after a waveform has been loaded/selected
         # self.write(f'radio:arb:state {arbState}')
@@ -1264,9 +1404,7 @@ class VSG(socketscpi.SocketInstrument):
         """
 
         if not isinstance(cf, float) or cf <= 0:
-            raise ValueError(
-                "Carrier frequency must be a positive floating point value."
-            )
+            raise ValueError("Carrier frequency must be a positive floating point value.")
         self.write(f"frequency {cf}")
         self.cf = float(self.query("frequency?").strip())
 
@@ -1392,9 +1530,7 @@ class VSG(socketscpi.SocketInstrument):
 
         # Waveform format checking. VSGs can only use 'iq' format waveforms.
         if wfmData.dtype != complex:
-            raise TypeError(
-                "Invalid wfm type. IQ waveforms must be an array of complex values."
-            )
+            raise TypeError("Invalid wfm type. IQ waveforms must be an array of complex values.")
         else:
             i = self.check_wfm(np.real(wfmData), bigEndian=bigEndian)
             q = self.check_wfm(np.imag(wfmData), bigEndian=bigEndian)
@@ -1464,13 +1600,9 @@ class VSG(socketscpi.SocketInstrument):
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.VSGError(
-                f"Waveform length: {rl}, must be at least {self.minLen}."
-            )
+            raise error.VSGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl % self.gran != 0:
-            raise error.GranularityError(
-                f"Waveform must have a granularity of {self.gran}."
-            )
+            raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
         if bigEndian:
             return np.array(self.binMult * wfm, dtype=np.int16).byteswap()
@@ -1642,9 +1774,7 @@ class VXG(socketscpi.SocketInstrument):
             elif key == "refSrc":
                 self.set_refSrc(value)
             else:
-                raise KeyError(
-                    f'Invalid keyword argument: "{key}"'
-                )  # raise KeyError('Invalid keyword argument.')
+                raise KeyError(f'Invalid keyword argument: "{key}"')  # raise KeyError('Invalid keyword argument.')
 
         # Arb state can only be turned on after a waveform has been loaded/selected
         # self.write(f'radio:arb:state {arbState}')
@@ -1667,9 +1797,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError('"rfState" should be 1, 0, "on", or "off"')
 
         self.write(f"source:rf{ch}:output:state {rfState}")
-        exec(
-            f'self.rfState{ch} = int(self.query(f"source:rf{ch}:output:state?").strip())'
-        )
+        exec(f'self.rfState{ch} = int(self.query(f"source:rf{ch}:output:state?").strip())')
 
     def set_modState(self, modState, ch=1):
         """
@@ -1686,9 +1814,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError('"modState" should be 1, 0, "on", or "off"')
 
         self.write(f"source:rf{ch}:output:modulation {modState}")
-        exec(
-            f'self.modState{ch} = int(self.query(f"source:rf{ch}:output:modulation?").strip())'
-        )
+        exec(f'self.modState{ch} = int(self.query(f"source:rf{ch}:output:modulation?").strip())')
 
     def set_arbState(self, arbState, ch=1):
         """
@@ -1705,9 +1831,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError('"arbState" should be 1, 0, "on", or "off"')
 
         self.write(f"source:signal{ch}:state {arbState}")
-        exec(
-            f'self.arbState{ch} = int(self.query(f"source:signal{ch}:state?").strip())'
-        )
+        exec(f'self.arbState{ch} = int(self.query(f"source:signal{ch}:state?").strip())')
 
     def set_cf(self, cf, ch=1):
         """
@@ -1721,9 +1845,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError("Invalid channel selected. Choose 1 or 2.")
 
         if not isinstance(cf, float) or cf <= 0:
-            raise ValueError(
-                "Carrier frequency must be a positive floating point value."
-            )
+            raise ValueError("Carrier frequency must be a positive floating point value.")
 
         self.write(f"source:rf{ch}:frequency {cf}")
         exec(f'self.cf = float(self.query(f"source:rf{ch}:frequency?").strip())')
@@ -1761,9 +1883,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError('"alcState" should be 1, 0, "on", or "off"')
 
         self.write(f"source:rf{ch}:power:alc {alcState}")
-        exec(
-            f'self.alcState{ch} = int(self.query(f"source:rf{ch}:power:alc?").strip())'
-        )
+        exec(f'self.alcState{ch} = int(self.query(f"source:rf{ch}:power:alc?").strip())')
 
     def set_iqScale(self, iqScale, ch=1):
         """
@@ -1781,9 +1901,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError("iqScale argument must be an integer between 1 and 100.")
 
         self.write(f"source:signal{ch}:waveform:scale {iqScale}")
-        exec(
-            f'self.iqScale{ch} = float(self.query(f"source:signal{ch}:waveform:scale?").strip())'
-        )
+        exec(f'self.iqScale{ch} = float(self.query(f"source:signal{ch}:waveform:scale?").strip())')
 
     def set_rms(self, rms, ch=1):
         """
@@ -1798,14 +1916,10 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError("Invalid channel selected. Choose 1 or 2.")
 
         if not isinstance(rms, (float, int)) or rms <= 0.1 or rms > 1.414213562:
-            raise ValueError(
-                "rms argument must be a floating point value between 0.1 and 1.414213562."
-            )
+            raise ValueError("rms argument must be a floating point value between 0.1 and 1.414213562.")
 
         self.write(f"source:signal{ch}:waveform:rms {rms}")
-        exec(
-            f'self.rms{ch} = float(self.query(f"source:signal{ch}:waveform:rms?").strip())'
-        )
+        exec(f'self.rms{ch} = float(self.query(f"source:signal{ch}:waveform:rms?").strip())')
 
     def set_fs(self, fs, ch=1):
         """
@@ -1819,9 +1933,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError("Sample rate must be a positive floating point value.")
 
         self.write(f"signal{ch}:waveform:sclock:rate {fs}")
-        exec(
-            f"self.fs{ch} = float(self.query('signal{ch}:waveform:sclock:rate?').strip())"
-        )
+        exec(f"self.fs{ch} = float(self.query('signal{ch}:waveform:sclock:rate?').strip())")
 
     def set_refSrc(self, refSrc):
         """
@@ -1893,9 +2005,7 @@ class VXG(socketscpi.SocketInstrument):
             raise TypeError("wfmData should be a complex NumPy array.")
 
         if wfmData.dtype != complex:
-            raise TypeError(
-                "Invalid wfm type. IQ waveforms must be an array of complex values."
-            )
+            raise TypeError("Invalid wfm type. IQ waveforms must be an array of complex values.")
         else:
             i = self.check_wfm(np.real(wfmData))
             q = self.check_wfm(np.imag(wfmData))
@@ -1955,13 +2065,9 @@ class VXG(socketscpi.SocketInstrument):
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.VSGError(
-                f"Waveform length: {rl}, must be at least {self.minLen}."
-            )
+            raise error.VSGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl % self.gran != 0:
-            raise error.GranularityError(
-                f"Waveform must have a granularity of {self.gran}."
-            )
+            raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
         return np.array(self.binMult * wfm, dtype=np.int16).byteswap()
 
@@ -1999,9 +2105,7 @@ class VXG(socketscpi.SocketInstrument):
             raise ValueError("Invalid channel selected. Choose 1 or 2.")
 
         # self.write(f'source:signal:waveform "WFM1:{wfmID}"')
-        self.write(
-            f'source:signal{ch}:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"'
-        )
+        self.write(f'source:signal{ch}:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
 
         # Turn on arb, RF output and modulation
         self.set_arbState(1, ch)
@@ -2078,13 +2182,9 @@ class AnalogUXG(socketscpi.SocketInstrument):
         self.host = host
 
         # Set up separate socket for LAN PDW streaming
-        self.lanStream = socketscpi.socket.socket(
-            socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM
-        )
+        self.lanStream = socketscpi.socket.socket(socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM)
         self.lanStream.setblocking(False)
-        self.lanStream.settimeout(
-            timeout
-        )  # Can't connect until LAN streaming is turned on  # self.lanStream.connect((host, 5033))
+        self.lanStream.settimeout(timeout)  # Can't connect until LAN streaming is turned on  # self.lanStream.connect((host, 5033))
 
     # def configure(self, rfState=0, modState=0, cf=1e9, amp=-20):
     def configure(self, **kwargs):
@@ -2111,9 +2211,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
             elif key == "amp":
                 self.set_amp(value)
             else:
-                raise KeyError(
-                    f'Invalid keyword argument: "{key}"'
-                )  # raise KeyError('Invalid keyword argument.')
+                raise KeyError(f'Invalid keyword argument: "{key}"')  # raise KeyError('Invalid keyword argument.')
         self.err_check()
 
     def set_rfState(self, rfState):
@@ -2144,9 +2242,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
         """
 
         if not isinstance(cf, float) or cf <= 0:
-            raise ValueError(
-                "Carrier frequency must be a positive floating point value."
-            )
+            raise ValueError("Carrier frequency must be a positive floating point value.")
         self.write(f"frequency {cf}")
         self.cf = float(self.query("frequency?").strip())
 
@@ -2280,9 +2376,7 @@ class VectorUXG(socketscpi.SocketInstrument):
         Add check to ensure that the correct instrument is connected
     """
 
-    def __init__(
-        self, host, port=5025, timeout=10, reset=False, clearMemory=False, errCheck=True
-    ):
+    def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False, errCheck=True):
         super().__init__(host, port, timeout)
         if reset:
             self.write("*rst")
@@ -2316,13 +2410,9 @@ class VectorUXG(socketscpi.SocketInstrument):
         self.host = host
 
         # Set up separate socket for LAN PDW streaming
-        self.lanStream = socketscpi.socket.socket(
-            socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM
-        )
+        self.lanStream = socketscpi.socket.socket(socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM)
         self.lanStream.setblocking(False)
-        self.lanStream.settimeout(
-            timeout
-        )  # Can't connect until LAN streaming is turned on  # self.lanStream.connect((host, 5033))
+        self.lanStream.settimeout(timeout)  # Can't connect until LAN streaming is turned on  # self.lanStream.connect((host, 5033))
 
     # def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, iqScale=70):
     def configure(self, **kwargs):
@@ -2386,9 +2476,7 @@ class VectorUXG(socketscpi.SocketInstrument):
         """
 
         if not isinstance(cf, float) or cf <= 0:
-            raise ValueError(
-                "Carrier frequency must be a positive floating point value."
-            )
+            raise ValueError("Carrier frequency must be a positive floating point value.")
         self.write(f"frequency {cf}")
         self.cf = float(self.query("frequency?").strip())
 
@@ -2448,22 +2536,16 @@ class VectorUXG(socketscpi.SocketInstrument):
 
         if trigState:
             if trigSource.lower() not in ["key", "bus", "external", "timer"]:
-                raise error.UXGError(
-                    'Invalid trigger source selected. Use "key", "bus", "external", or "timer"'
-                )
+                raise error.UXGError('Invalid trigger source selected. Use "key", "bus", "external", or "timer"')
             if trigInPort == trigOutPort and trigInPort and trigOutPort:
-                raise error.UXGError(
-                    "Conflicting trigger ports. trigInPort and trigOutPort must be unique."
-                )
+                raise error.UXGError("Conflicting trigger ports. trigInPort and trigOutPort must be unique.")
             self.write("stream:trigger:play:file:type:continuous:type trigger")
             self.write(f"stream:trigger:play:source {trigSource}")
 
             if trigSource.lower() == "external":
                 if trigInPort:
                     if trigInPort < 1 or trigInPort > 10:
-                        raise error.UXGError(
-                            "trigInPort must be an integer between 1 and 10."
-                        )
+                        raise error.UXGError("trigInPort must be an integer between 1 and 10.")
                     self.write(f"trigger:play:external:source trigger{trigInPort}")
             elif trigSource.lower() == "timer":
                 if trigPeriod < 48e-9 or trigPeriod > 34:
@@ -2523,9 +2605,7 @@ class VectorUXG(socketscpi.SocketInstrument):
         return pdwFile
 
     # noinspection PyDefaultArgument,PyDefaultArgument
-    def csv_pdw_file_download(
-        self, fileName, fields=["Operation", "Time"], data=[[1, 0], [2, 100e-6]]
-    ):
+    def csv_pdw_file_download(self, fileName, fields=["Operation", "Time"], data=[[1, 0], [2, 100e-6]]):
         """
         Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file.
         Args:
@@ -2575,17 +2655,13 @@ class VectorUXG(socketscpi.SocketInstrument):
         for i in range(len(windex["wfmNames"])):
             windexCsv += f'{i},{windex["wfmNames"][i]}\n'
 
-        self.binblockwrite(
-            f'memory:data "{windex["fileName"]}.csv", ', windexCsv.encode("utf-8")
-        )
+        self.binblockwrite(f'memory:data "{windex["fileName"]}.csv", ', windexCsv.encode("utf-8"))
 
         """Note: memory:import:windex imports/converts csv to waveform
         index file AND assigns the resulting file as the waveform index
         manager. There is no need to send the stream:windex:select
         command because it is sent implicitly by memory:import:windex."""
-        self.write(
-            f'memory:import:windex "{windex["fileName"]}.csv", "{windex["fileName"]}"'
-        )
+        self.write(f'memory:import:windex "{windex["fileName"]}.csv", "{windex["fileName"]}"')
         self.query("*opc?")
         if self.errCheck:
             self.err_check()
@@ -2603,9 +2679,7 @@ class VectorUXG(socketscpi.SocketInstrument):
         """
 
         if wfmData.dtype != np.complex:
-            raise TypeError(
-                "Invalid wfm type. IQ waveforms must be an array of complex values."
-            )
+            raise TypeError("Invalid wfm type. IQ waveforms must be an array of complex values.")
         else:
             i = self.check_wfm(np.real(wfmData))
             q = self.check_wfm(np.imag(wfmData))
@@ -2658,13 +2732,9 @@ class VectorUXG(socketscpi.SocketInstrument):
         rl = len(wfm)
 
         if rl < self.minLen:
-            raise error.VSGError(
-                f"Waveform length: {rl}, must be at least {self.minLen}."
-            )
+            raise error.VSGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl % self.gran != 0:
-            raise error.GranularityError(
-                f"Waveform must have a granularity of {self.gran}."
-            )
+            raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
         if bigEndian:
             return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()
