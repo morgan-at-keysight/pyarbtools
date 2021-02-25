@@ -76,13 +76,9 @@ class WFM:
                     for d in self.data:
                         f.write(f"{d.real}, {d.imag}\n")
                 else:
-                    raise error.WfmBuilderError(
-                        'Invalid type for "data". Must be a NumPy array of complex or float.'
-                    )
+                    raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
         except AttributeError:
-            raise error.WfmBuilderError(
-                'Invalid type for "data". Must be a NumPy array of complex or float.'
-            )
+            raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
 
     def import_mat(self, fileName, targetVariable="data"):
         """
@@ -123,31 +119,21 @@ class WFM:
         else:
             # Eliminate boilerplate Matlab variables and check for valid NumPy arrays
             for key, value in matData.items():
-                if (
-                    (key[:2] != "__" and key[-2:] != "__")
-                    and isinstance(value, np.ndarray)
-                    and value.size > 1
-                ):
+                if (key[:2] != "__" and key[-2:] != "__") and isinstance(value, np.ndarray) and value.size > 1:
                     data_vars.append(key)
         # One array probably means a single complex array or a real array
         if len(data_vars) == 1:
             var = data_vars[0]
             # Numpy arrays in .mat file are sometimes needlessly 2D, so flatten just in case
             self.data = matData[var].flatten()
-            self.wfmFormat = (
-                "iq" if matData[var].dtype == np.dtype("complex") else "real"
-            )
+            self.wfmFormat = "iq" if matData[var].dtype == np.dtype("complex") else "real"
         # 2 arrays probably means i and q have been separated
         elif len(data_vars) == 2:
-            if "i" in [k.lower() for k in matData.keys()] and "q" in [
-                k.lower() for k in matData.keys()
-            ]:
+            if "i" in [k.lower() for k in matData.keys()] and "q" in [k.lower() for k in matData.keys()]:
                 i = matData["i"].flatten()
                 q = matData["q"].flatten()
                 if i.size != q.size:
-                    raise error.WfmBuilderError(
-                        "I and Q must contain same number of elements in mat file"
-                    )
+                    raise error.WfmBuilderError("I and Q must contain same number of elements in mat file")
                 # Combine into single complex array
                 self.data = np.array(i + 1j * q)
                 self.wfmFormat = "iq"
@@ -208,13 +194,9 @@ def export_wfm(data, fileName, vsaCompatible=False, fs=0):
                 for d in data:
                     f.write(f"{d.real}, {d.imag}\n")
             else:
-                raise error.WfmBuilderError(
-                    'Invalid type for "data". Must be a NumPy array of complex or float.'
-                )
+                raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
     except AttributeError:
-        raise error.WfmBuilderError(
-            'Invalid type for "data". Must be a NumPy array of complex or float.'
-        )
+        raise error.WfmBuilderError('Invalid type for "data". Must be a NumPy array of complex or float.')
 
 
 def import_mat(fileName, targetVariable="data"):
@@ -257,11 +239,7 @@ def import_mat(fileName, targetVariable="data"):
     else:
         # Eliminate boilerplate Matlab variables and check for valid NumPy arrays
         for key, value in matData.items():
-            if (
-                (key[:2] != "__" and key[-2:] != "__")
-                and isinstance(value, np.ndarray)
-                and value.size > 1
-            ):
+            if (key[:2] != "__" and key[-2:] != "__") and isinstance(value, np.ndarray) and value.size > 1:
                 data_vars.append(key)
     # One array probably means a single complex array or a real array
     if len(data_vars) == 1:
@@ -271,15 +249,11 @@ def import_mat(fileName, targetVariable="data"):
         wfmFormat = "iq" if matData[var].dtype == np.dtype("complex") else "real"
     # 2 arrays probably means i and q have been separated
     elif len(data_vars) == 2:
-        if "i" in [k.lower() for k in matData.keys()] and "q" in [
-            k.lower() for k in matData.keys()
-        ]:
+        if "i" in [k.lower() for k in matData.keys()] and "q" in [k.lower() for k in matData.keys()]:
             i = matData["i"].flatten()
             q = matData["q"].flatten()
             if i.size != q.size:
-                raise error.WfmBuilderError(
-                    "I and Q must contain same number of elements in mat file"
-                )
+                raise error.WfmBuilderError("I and Q must contain same number of elements in mat file")
             # Combine into single complex array
             data = np.array(i + 1j * q)
             wfmFormat = "iq"
@@ -301,6 +275,30 @@ def import_mat(fileName, targetVariable="data"):
     return {"data": data, "fs": fs, "wfmID": wfmID, "wfmFormat": wfmFormat}
 
 
+def zero_generator(fs=100e6, numSamples=1024, wfmFormat="iq"):
+    """
+    Generates a waveform filled with the value 0.
+    Args:
+        fs (float): Sample rate used to create the signal.
+        numSamples (int): Length of the waveform in samples.
+        wfmFormat (str): Selects waveform format. ("iq", "real")
+    """
+
+    if not isinstance(fs, (int, float)) or fs < 1:
+        raise error.WfmBuilderError("fs must be a positive numerical value.")
+    if not isinstance(numSamples, int) or numSamples < 1:
+        raise error.WfmBuilderError("numSamples must be a positive integer value.")
+    if wfmFormat not in ["iq", "real"]:
+        raise error.WfmBuilderError('wfmFormat must be "iq" or "real".')
+
+    if wfmFormat.lower() == "iq":
+        iq = np.zeros(numSamples, dtype=complex)
+        return iq
+    elif wfmFormat.lower() == "real":
+        real = np.zeros(numSamples)
+        return real
+
+
 def sine_generator(fs=100e6, freq=0, phase=0, wfmFormat="iq", zeroLast=False):
     """
     Generates a sine wave with optional frequency offset and initial
@@ -317,9 +315,7 @@ def sine_generator(fs=100e6, freq=0, phase=0, wfmFormat="iq", zeroLast=False):
     """
 
     if abs(freq) > fs / 2:
-        raise error.WfmBuilderError(
-            "Frequency violates Nyquist. Decrease frequency or increase sample rate"
-        )
+        raise error.WfmBuilderError("Frequency violates Nyquist. Decrease frequency or increase sample rate")
 
     if freq:
         time = 100 / freq
@@ -337,14 +333,10 @@ def sine_generator(fs=100e6, freq=0, phase=0, wfmFormat="iq", zeroLast=False):
             real[-1] = 0
         return real
     else:
-        raise error.WfmBuilderError(
-            'Invalid waveform wfmFormat selected. Choose "iq" or "real".'
-        )
+        raise error.WfmBuilderError('Invalid waveform wfmFormat selected. Choose "iq" or "real".')
 
 
-def am_generator(
-    fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat="iq", zeroLast=False
-):
+def am_generator(fs=100e6, amDepth=50, modRate=100e3, cf=1e9, wfmFormat="iq", zeroLast=False):
     """
     Generates a sinusoidal AM signal at baseband or RF.
     Args:
@@ -362,9 +354,7 @@ def am_generator(
     if amDepth <= 0 or amDepth > 100:
         raise error.WfmBuilderError("AM Depth out of range, must be 0 - 100.")
     if modRate > fs:
-        raise error.WfmBuilderError(
-            "Modulation rate violates Nyquist. Decrease modulation rate or increase sample rate."
-        )
+        raise error.WfmBuilderError("Modulation rate violates Nyquist. Decrease modulation rate or increase sample rate.")
 
     time = 1 / modRate
     t = np.linspace(-time / 2, time / 2, int(time * fs), endpoint=False)
@@ -386,9 +376,7 @@ def am_generator(
             real[-1] = 0
         return real
     else:
-        raise error.WfmBuilderError(
-            'Invalid waveform format selected. Choose "iq" or "real".'
-        )
+        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
 def cw_pulse_generator(
@@ -418,9 +406,7 @@ def cw_pulse_generator(
     """
 
     if freqOffset > fs:
-        raise error.WfmBuilderError(
-            "Frequency offset violates Nyquist. Reduce freqOffset or increase sample rate."
-        )
+        raise error.WfmBuilderError("Frequency offset violates Nyquist. Reduce freqOffset or increase sample rate.")
     rl = int(fs * pWidth)
     t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
 
@@ -442,9 +428,7 @@ def cw_pulse_generator(
 
         return real
     else:
-        raise error.WfmBuilderError(
-            'Invalid waveform format selected. Choose "iq" or "real".'
-        )
+        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
 def chirp_generator(
@@ -515,9 +499,7 @@ def chirp_generator(
 
         return real
     else:
-        raise error.WfmBuilderError(
-            'Invalid waveform format selected. Choose "iq" or "real".'
-        )
+        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
 def barker_generator(
@@ -590,14 +572,10 @@ def barker_generator(
 
         return real
     else:
-        raise error.WfmBuilderError(
-            'Invalid waveform format selected. Choose "iq" or "real".'
-        )
+        raise error.WfmBuilderError('Invalid waveform format selected. Choose "iq" or "real".')
 
 
-def multitone_generator(
-    fs=100e6, spacing=1e6, num=11, phase="random", cf=1e9, wfmFormat="iq"
-):
+def multitone_generator(fs=100e6, spacing=1e6, num=11, phase="random", cf=1e9, wfmFormat="iq"):
     """
     IQTOOLS PLACES THE TONES IN THE FREQUENCY DOMAIN AND THEN IFFTS TO THE TIME DOMAIN
     Generates a multitone_generator signal with given tone spacing, number of
@@ -616,9 +594,7 @@ def multitone_generator(
     """
 
     if spacing * num > fs:
-        raise error.WfmBuilderError(
-            "Multitone spacing and number of tones violates Nyquist."
-        )
+        raise error.WfmBuilderError("Multitone spacing and number of tones violates Nyquist.")
 
     # Determine start frequency based on parity of the number of tones
     if num % 2 != 0:
@@ -644,9 +620,7 @@ def multitone_generator(
     elif phase == "parabolic":
         phaseArray = np.cumsum(np.pi * np.linspace(-1, 1, num, endpoint=False))
     else:
-        raise error.WfmBuilderError(
-            'Invalid phase selected. Use "random", "zero", "increasing", or "parabolic".'
-        )
+        raise error.WfmBuilderError('Invalid phase selected. Use "random", "zero", "increasing", or "parabolic".')
 
     if wfmFormat.lower() == "iq":
         # Freq domain method
@@ -658,9 +632,7 @@ def multitone_generator(
         fdPhase = np.zeros(numSamples)
         fdMag = np.zeros(numSamples)
 
-        tonePlacement = (
-            np.mod(toneFrequencies * freqToIndex + numSamples / 2, numSamples) + 1
-        )
+        tonePlacement = np.mod(toneFrequencies * freqToIndex + numSamples / 2, numSamples) + 1
         tonePlacement = [int(t) for t in tonePlacement]
         fdPhase[tonePlacement] = phaseArray
         fdMag[tonePlacement] = 1
@@ -721,9 +693,7 @@ def multitone_generator(
 
         return real
     else:
-        raise error.WfmBuilderError(
-            'Invalid waveform format selected. Use "iq" or "real".'
-        )
+        raise error.WfmBuilderError('Invalid waveform format selected. Use "iq" or "real".')
 
 
 def rrc_filter(alpha, length, osFactor, plot=False):
@@ -740,9 +710,7 @@ def rrc_filter(alpha, length, osFactor, plot=False):
     """
 
     if alpha < 0 or alpha > 1.0:
-        raise error.WfmBuilderError(
-            "Invalid 'alpha' chosen. Use something between 0.1 and 1."
-        )
+        raise error.WfmBuilderError("Invalid 'alpha' chosen. Use something between 0.1 and 1.")
 
     filterOrder = length * osFactor
     # Make GOOD and sure that filterOrder is an integer value
@@ -761,10 +729,7 @@ def rrc_filter(alpha, length, osFactor, plot=False):
             -4
             * alpha
             / osFactor
-            * (
-                np.cos((1 + alpha) * np.pi * t)
-                + np.sin((1 - alpha) * np.pi * t) / (4 * alpha * t)
-            )
+            * (np.cos((1 + alpha) * np.pi * t) + np.sin((1 - alpha) * np.pi * t) / (4 * alpha * t))
             / (np.pi * ((4 * alpha * t) ** 2 - 1))
         )
 
@@ -913,10 +878,7 @@ def psk8_modulator(data, customMap=None):
     e.g. customMap = {'0101': 0.707 + 0.707j, ...}
     """
 
-    pattern = [
-        str(d0) + str(d1) + str(d2)
-        for d0, d1, d2 in zip(data[0::3], data[1::3], data[2::3])
-    ]
+    pattern = [str(d0) + str(d1) + str(d2) for d0, d1, d2 in zip(data[0::3], data[1::3], data[2::3])]
     if customMap:
         psk8Map = customMap
     else:
@@ -948,10 +910,7 @@ def psk16_modulator(data, customMap=None):
     e.g. customMap = {'0101': 0.707 + 0.707j, ...}
     """
 
-    pattern = [
-        str(d0) + str(d1) + str(d2) + str(d3)
-        for d0, d1, d2, d3 in zip(data[0::4], data[1::4], data[2::4], data[3::4])
-    ]
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) for d0, d1, d2, d3 in zip(data[0::4], data[1::4], data[2::4], data[3::4])]
     if customMap:
         psk16Map = customMap
     else:
@@ -994,10 +953,7 @@ def apsk16_modulator(data, ringRatio=2.53, customMap=None):
     angle = 2 * np.pi / 12
     ao = angle / 2
 
-    pattern = [
-        str(d0) + str(d1) + str(d2) + str(d3)
-        for d0, d1, d2, d3 in zip(data[0::4], data[1::4], data[2::4], data[3::4])
-    ]
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) for d0, d1, d2, d3 in zip(data[0::4], data[1::4], data[2::4], data[3::4])]
 
     if customMap:
         apsk16Map = customMap
@@ -1045,9 +1001,7 @@ def apsk32_modulator(data, ring2Ratio=2.53, ring3Ratio=4.3, customMap=None):
 
     pattern = [
         str(d0) + str(d1) + str(d2) + str(d3) + str(d4)
-        for d0, d1, d2, d3, d4 in zip(
-            data[0::5], data[1::5], data[2::5], data[3::5], data[4::5]
-        )
+        for d0, d1, d2, d3, d4 in zip(data[0::5], data[1::5], data[2::5], data[3::5], data[4::5])
     ]
 
     if customMap:
@@ -1094,9 +1048,7 @@ def apsk32_modulator(data, ring2Ratio=2.53, ring3Ratio=4.3, customMap=None):
         raise ValueError("Invalid 32APSK symbol.")
 
 
-def apsk64_modulator(
-    data, ring2Ratio=2.73, ring3Ratio=4.52, ring4Ratio=6.31, customMap=None
-):
+def apsk64_modulator(data, ring2Ratio=2.73, ring3Ratio=4.52, ring4Ratio=6.31, customMap=None):
     """Converts a list of bits to symbol values as strings, maps each
     symbol value to a position on the complex plane, and returns an
     array of complex values for 64 APSK.
@@ -1118,9 +1070,7 @@ def apsk64_modulator(
 
     pattern = [
         str(d0) + str(d1) + str(d2) + str(d3) + str(d4) + str(d5)
-        for d0, d1, d2, d3, d4, d5 in zip(
-            data[0::6], data[1::6], data[2::6], data[3::6], data[4::6], data[5::6]
-        )
+        for d0, d1, d2, d3, d4, d5 in zip(data[0::6], data[1::6], data[2::6], data[3::6], data[4::6], data[5::6])
     ]
 
     if customMap:
@@ -1214,10 +1164,7 @@ def qam16_modulator(data, customMap=None):
     complex plane.
     e.g. customMap = {'0101': 0.707 + 0.707j, ...}"""
 
-    pattern = [
-        str(d0) + str(d1) + str(d2) + str(d3)
-        for d0, d1, d2, d3 in zip(data[0::4], data[1::4], data[2::4], data[3::4])
-    ]
+    pattern = [str(d0) + str(d1) + str(d2) + str(d3) for d0, d1, d2, d3 in zip(data[0::4], data[1::4], data[2::4], data[3::4])]
     if customMap:
         qamMap = customMap
     else:
@@ -1261,9 +1208,7 @@ def qam32_modulator(data, customMap=None):
 
     pattern = [
         str(d0) + str(d1) + str(d2) + str(d3) + str(d4)
-        for d0, d1, d2, d3, d4 in zip(
-            data[0::5], data[1::5], data[2::5], data[3::5], data[4::5]
-        )
+        for d0, d1, d2, d3, d4 in zip(data[0::5], data[1::5], data[2::5], data[3::5], data[4::5])
     ]
     if customMap:
         qamMap = customMap
@@ -1324,9 +1269,7 @@ def qam64_modulator(data, customMap=None):
 
     pattern = [
         str(d0) + str(d1) + str(d2) + str(d3) + str(d4) + str(d5)
-        for d0, d1, d2, d3, d4, d5 in zip(
-            data[0::6], data[1::6], data[2::6], data[3::6], data[4::6], data[5::6]
-        )
+        for d0, d1, d2, d3, d4, d5 in zip(data[0::6], data[1::6], data[2::6], data[3::6], data[4::6], data[5::6])
     ]
     if customMap:
         qamMap = customMap
@@ -1935,14 +1878,10 @@ def digmod_generator(
     """
 
     if symRate >= fs:
-        raise error.WfmBuilderError(
-            "symRate violates Nyquist. Reduce symbol rate or increase sample rate."
-        )
+        raise error.WfmBuilderError("symRate violates Nyquist. Reduce symbol rate or increase sample rate.")
 
     if wfmFormat.lower() != "iq":
-        raise error.WfmBuilderError(
-            "Digital modulation currently supports IQ waveform format only."
-        )
+        raise error.WfmBuilderError("Digital modulation currently supports IQ waveform format only.")
 
     if not isinstance(numSymbols, int) or numSymbols < 1:
         raise error.WfmBuilderError('"numSymbols" must be a positive integer value.')
@@ -2041,9 +1980,7 @@ def digmod_generator(
     elif filt.lower() == "raisedcosine":
         psFilter = rc_filter(alpha, taps, intermediateOsFactor)
     else:
-        raise error.WfmBuilderError(
-            "Invalid pulse shaping filter chosen. Use 'raisedcosine' or 'rootraisedcosine'"
-        )
+        raise error.WfmBuilderError("Invalid pulse shaping filter chosen. Use 'raisedcosine' or 'rootraisedcosine'")
 
     """There are several considerations here."""
     # At the beginning and the end of convolution, the two arrays don't
@@ -2067,17 +2004,13 @@ def digmod_generator(
         wrapLocation *= 2
 
     # Prepend and append
-    rawSymbols = np.concatenate(
-        [rawSymbols[-wrapLocation:], rawSymbols, rawSymbols[:wrapLocation]]
-    )
+    rawSymbols = np.concatenate([rawSymbols[-wrapLocation:], rawSymbols, rawSymbols[:wrapLocation]])
 
     # Apply pulse shaping filter to symbols via convolution
     filteredSymbols = np.convolve(rawSymbols, psFilter, mode="same")
 
     # Perform the final resampling AND filter out images using a single SciPy function
-    iq = sig.resample_poly(
-        filteredSymbols, finalOsNum, finalOsDenom, window=("kaiser", 11)
-    )
+    iq = sig.resample_poly(filteredSymbols, finalOsNum, finalOsDenom, window=("kaiser", 11))
 
     # Calculate location of final prepended and appended segments
     finalWrapLocation = wrapLocation * finalOsNum / finalOsDenom
@@ -2191,9 +2124,7 @@ def iq_correction(
 
     # Create, load, and play calibration signal
     symRate = fs / osFactor
-    iqCal = digmod_generator(
-        fs=fs, modType="bpsk", symRate=symRate, filt="rootraisedcosine"
-    )
+    iqCal = digmod_generator(fs=fs, modType="bpsk", symRate=symRate, filt="rootraisedcosine")
     wfmId = inst.download_wfm(iqCal)
     inst.play(wfmId)
 
