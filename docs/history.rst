@@ -101,3 +101,8 @@ History
 ----------------------
 
 * Added an ``rms`` keyword argument to ``VXG.play()`` that allows the user to manually override the RMS power calculation made by the VXG. This is an advanced feature primarily developed for waveforms containing pulsed signals with different power levels.
+
+2021.02.3 (2021-02-24)
+----------------------
+
+* Added long-awaited sequencer functionality to ``M8190A``. Added ``create_sequence()``, ``insert_wfm_in_sequence()``, and ``insert_idle_in_sequence()`` methods to ``M8190A``. Added ``zero_generator()`` function to ``wfmBuilder``.

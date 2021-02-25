@@ -34,6 +34,7 @@ Supported waveform building functions include:
 
 * :ref:`export_wfm`
 * :ref:`import_mat`
+* :ref:`zero_generator`
 * :ref:`sine_generator`
 * :ref:`am_generator`
 * :ref:`cw_pulse_generator`
@@ -269,6 +270,69 @@ Turns off analog output and stops playback.
 **Returns**
 
 * None
+
+**create_sequence**
+-------------------
+::
+
+    M8190A.create_sequence(numSteps, ch=1)
+
+Deletes all sequences and creates a new sequence.
+
+**Arguments**
+
+* ``numSteps`` ``(int)``: Number of steps in the sequence. Max is 512k.
+* ``ch`` ``(int)``: Channel for which the sequence is created. Values are ``1`` or ``2``. Default is ``1``.
+
+**Returns**
+
+* None
+
+**insert_wfm_in_sequence**
+--------------------------
+::
+
+    M8190A.insert_wfm_in_sequence(wfmID, seqIndex, seqStart=False, seqEnd=False, markerEnable=False, segAdvance='auto', loopCount=1, startOffset=1, endOffset=0xFFFFFFFF, ch=1)
+
+Inserts a specific waveform segment into a specific index in the sequence. 
+
+**Arguments**
+
+* ``wfmID`` ``(int)``: Identifier/number of the segment to be added to the sequence. Argument should be taken from the return value of ``download_wfm()``.
+* ``seqIndex`` ``(int)``: Index in the sequence where the segment should be added. Argument range is ``0`` to ``numSteps - 1``.
+* ``seqStart`` ``(bool)``: Determines if this segment is the start of the sequence.
+* ``seqEnd`` ``(bool)``: Determines if this segment is the end of the sequence.
+* ``markerEnable`` ``(bool)``: Enables or disables the marker for this segment.
+* ``segAdvance`` ``(str)``: Defines segment advance behavior. ``'auto'``, ``'conditional'``, ``'repeat'``, ``'single'``. Default is ``'auto'``.
+* ``loopCount`` ``(int)``: Determines how many times this segment will be repeated. Argument range is ``1`` to ``4294967295``.
+* ``startOffset`` ``(int)``: Determines the start offset of the waveform in samples if only a part of the waveform is to be used. Default is ``0`` and should likely remain that way.
+* ``endOffset`` ``(int)``: Determines the end offset of the waveform in samples if only a part of the waveform is to be used. Default is the hex value ``0xffffffff`` and should likely remain that way. Note that ``endOffset`` is zero-indexed, so if you want an offset of 1000, use 999.
+* ``ch`` ``(int)``: Channel for which the sequence is created. Values are ``1`` or ``2``. Default is ``1``.
+
+**Returns**
+
+* None
+
+**insert_idle_in_sequence**
+---------------------------
+::
+
+    M8190A.insert_idle_in_sequence(seqIndex, seqStart=False, idleSample=0, idleDelay=640, ch=1)
+
+Inserts an idle segment into a specific index in the sequence. 
+
+**Arguments**
+
+* ``seqIndex`` ``(int)``: Index in the sequence where the segment should be added. Argument range is ``0`` to ``numSteps - 1``.
+* ``seqStart`` ``(bool)``: Determines if this segment is the start of the sequence.
+* ``idleSample`` ``(float)``: Sample value to be used as the DAC output during idle time. Default is ``0``. 
+* ``idleDelay`` ``(int)``: Duration of the idle segment in samples. Argument range is ``10 * granularity`` to ``(2**25 * granularity) + (granularity - 1)`` Default is ``640``. 
+* ``ch`` ``(int)``: Channel for which the sequence is created. Values are ``1`` or ``2``. Default is ``1``.
+
+**Returns**
+
+* None
+
 
 .. _M8195A:
 
@@ -1495,6 +1559,27 @@ Imports waveform data from .mat file. Detects array data type, and accepts data 
     * ``fs`` (float): Sample rate of imported waveform.
     * ``wfmID`` ``(str)``: Waveform name.
     * ``wfmFormat`` ``(str)``: Waveform format (``iq`` or ``real``).
+
+.. _zero_generator:
+
+**zero_generator**
+------------------
+::
+
+    zero_generator(fs=100e6, numSamples=1024, wfmFormat='iq')
+
+Generates a waveform filled with the value ``0``.
+
+**Arguments**
+
+* ``fs`` ``(float)``: Sample rate used to create the signal in Hz. Argument is a float. Default is ``50e6``.
+* ``numSamples`` ``(int)``: Length of the waveform in samples.
+* ``wfmFormat`` ``(str)``: Waveform format. Arguments are ``'iq'`` (default) or ``'real'``.
+
+**Returns**
+
+* ``(NumPy array)``: Array containing the complex or real values of the zero waveform.
+
 
 .. _sine_generator:
 

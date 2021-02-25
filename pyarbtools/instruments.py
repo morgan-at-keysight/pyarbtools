@@ -640,7 +640,7 @@ class M8190A(socketscpi.SocketInstrument):
             raise ValueError("segAdvance must be 'auto', 'conditional', 'repeat', or 'single'.")
 
         if not isinstance(loopCount, int) or loopCount < 1 or loopCount > (4 * 2 ** 30 - 1):
-            raise ValueError("loopCount must be an integer between 1 and 4Gi - 1.")
+            raise ValueError("loopCount must be an integer between 1 and 4294967295.")
 
         if not isinstance(startOffset, int) or startOffset % self.gran != 0:
             raise ValueError(f"startOffset must be an integer and must obey granularity requirements. i.e. must be divisible by {self.gran}.")
