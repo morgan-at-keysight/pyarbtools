@@ -406,12 +406,17 @@ def cw_pulse_generator(
     """
 
     if freqOffset > fs:
-        raise error.WfmBuilderError("Frequency offset violates Nyquist. Reduce freqOffset or increase sample rate.")
+        raise error.WfmBuilderError(
+            "Frequency offset violates Nyquist. Reduce freqOffset or increase sample rate."
+        )
+    if not isinstance(ampScale, int) or ampScale < 1 or ampScale > 100:
+        raise error.WfmBuilderError("ampScale must be an integer between 1 and 100.")
+
     rl = int(fs * pWidth)
     t = np.linspace(-rl / fs / 2, rl / fs / 2, rl, endpoint=False)
 
     if wfmFormat.lower() == "iq":
-        iq = ampScale * np.exp(2 * np.pi * freqOffset * 1j * t)
+        iq = (ampScale / 100) * np.exp(2 * np.pi * freqOffset * 1j * t)
         if zeroLast:
             iq[-1] = 0
         if pri > pWidth:
@@ -421,7 +426,7 @@ def cw_pulse_generator(
         return iq
     elif wfmFormat.lower() == "real":
         if pri <= pWidth:
-            real = ampScale * np.cos(2 * np.pi * cf * t)
+            real = (ampScale / 100) * np.cos(2 * np.pi * cf * t)
         else:
             deadTime = np.zeros(int(fs * pri - rl))
             real = np.append(np.cos(2 * np.pi * (cf + freqOffset) * t), deadTime)
