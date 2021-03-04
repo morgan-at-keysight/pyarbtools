@@ -95,7 +95,7 @@ History
 2021.02.1 (2021-02-22)
 ----------------------
 
-* Added ampScale as an argument to ``cw_pulse_generator()``.
+* Added ``ampScale`` as an argument to ``cw_pulse_generator()``.
 
 2021.02.2 (2021-02-23)
 ----------------------
@@ -106,3 +106,8 @@ History
 ----------------------
 
 * Added long-awaited sequencer functionality to ``M8190A``. Added ``create_sequence()``, ``insert_wfm_in_sequence()``, and ``insert_idle_in_sequence()`` methods to ``M8190A``. Added ``zero_generator()`` function to ``wfmBuilder``.
+
+2021.02.4 (2021-02-26)
+----------------------
+
+* Fixed bug with ``ampScale`` argument in ``cw_pulse_generator()``.
