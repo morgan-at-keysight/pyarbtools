@@ -691,7 +691,7 @@ class M8190A(socketscpi.SocketInstrument):
             idleDelay (int): Duration of delay in samples. Default (and minimum) is waveform granularity * 10. Max is (2^25 * gran) + (gran - 1).
             ch (int): Channel for which sequence is created (values are 1 or 2, default is 1).
         """
-        
+
         # Input checking
         if ch not in [1, 2]:
             raise ValueError("ch argument must be 1 or 2.")
@@ -2691,6 +2691,17 @@ class VectorUXG(socketscpi.SocketInstrument):
         self.binblockwrite(f'memory:data "WFM1:{wfmID}", ', wfm)
 
         return wfmID
+
+    def download_bin_pdw_file(self, pdwFile, pdwName="wfm"):
+        """
+        Downloads binary PDW file to PDW directory in UXG.
+        Args:
+            pdwFile (bytes): Binary data containing PDW file, generally created by the bin_pdw_file_builder() method.
+            pdwName (str): Name of PDW file.
+        """
+
+        self.binblockwrite(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
+        self.err_check()
 
     @staticmethod
     def iq_wfm_combiner(i, q):

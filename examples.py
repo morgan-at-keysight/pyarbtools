@@ -328,7 +328,7 @@ def vector_uxg_dig_mod_example(ipAddress):
     uxg.disconnect()
 
 
-def vector_uxg_pdw_example(ipAddress):
+def vector_uxg_pdw_file_streaming_example(ipAddress):
     """Creates and downloads a chirp waveform, defines a simple pdw csv
     file, and loads that pdw file into the UXG, and plays it out."""
 
@@ -406,14 +406,17 @@ def vector_uxg_lan_streaming_example(ipAddress):
     uxg.clear_all_wfm()
 
     # Waveform definition variables, three chirps of the same bandwidth and different lengths
-    bandwidth = 100e6
-    lengths = [10e-6, 50e-6, 100e-6]
+    #bandwidth = 100e6
+    bandwidth = 1e6
+    #lengths = [100e-6, 500e-6, 1000e-6]
+    lengths = [100e-6, 200e-6, 300e-6]
     wfmNames = []
     fileName = "chirps"
 
     # Create and download waveforms to UXG and save a list of names used for each wfm
     for l in lengths:
-        iq = pyarbtools.wfmBuilder.chirp_generator(fs=uxg.fs, pWidth=l, pri=l, chirpBw=bandwidth, wfmFormat="iq", zeroLast=True)
+        iq = pyarbtools.wfmBuilder.chirp_generator(fs=uxg.fs, pWidth=l, pri=l, chirpBw=bandwidth,
+                                                   wfmFormat="iq", zeroLast=True)
         uxg.download_wfm(iq, f"{l}_100MHz_CHIRP")
         wfmNames.append(f"{l}_100MHz_CHIRP")
 
@@ -425,21 +428,29 @@ def vector_uxg_lan_streaming_example(ipAddress):
     uxg.csv_windex_file_download(windex)
 
     # Create PDWs
-    # operation, freq, phase, startTimeSec, power, markers, phaseControl, rfOff, wIndex, wfmMkrMask
+    # operation, freq, phase, startTimeSec, widthInSec, maxPower,
+    # markers, powerDbm, phaseControl, rfOff, autoBlank, newWaveform,
+    # zeroHold, loLead, wfmMkrMask, wIndex, power2dBm, maxPower2dBm,
+    # dopplerHz
     # See documentation for bin_pdw_file_builder for more info
+
     rawPdw = [
-        [1, 1e9, 0, 0, -10, 1, 0, 0, 0, 0xF],
-        [0, 1e9, 0, 20e-6, -10, 0, 0, 0, 0, 0xF],
-        [0, 1e9, 0, 40e-6, -10, 0, 0, 0, 1, 0xF],
-        [0, 1e9, 0, 100e-6, -10, 0, 0, 0, 1, 0xF],
-        [0, 1e9, 0, 160e-6, -10, 0, 0, 0, 2, 0xF],
-        [2, 1e9, 0, 300e-6, -10, 0, 0, 0, 2, 0xF],
+        [1,  .950e9, 0, 1000e-6,  0, -5, 1, -10, 0, 0, 1, 1, 0, 0, 0xF, 0],
+        [0,  .975e9, 0, 3000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 1],
+        [0,     1e9, 0, 5000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 1],
+        [0, 1.025e9, 0, 7000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 2],
+        [0, 1.050e9, 0, 9000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 2],
+        [2,     1e9, 0,11000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 0]
     ]
 
     # Note: the last PDW starting with a '2' in the 'Operation'
     # field marks the end of the PDW stream and does not play
 
     pdwFile = uxg.bin_pdw_file_builder(rawPdw)
+
+    # Write pdw stream to file for troubleshootingsu
+    uxg.download_bin_pdw_file(pdwFile, pdwName="tempStream")
+    uxg.err_check()
 
     # Separate pdwFile into header and data portions (AUTOMATE THIS)
     header = pdwFile[:4096]
@@ -470,7 +481,8 @@ def vector_uxg_lan_streaming_example(ipAddress):
     # which is uncommon for commands that send binary block data
     uxg.binblockwrite(f"stream:external:header? ", header, esr=False)
     if uxg.read() != "+0":
-        raise pyarbtools.error.VSGError("stream:external:header? response invalid. This should never happen.")
+        raise pyarbtools.error.VSGError("stream:external:header? response invalid."
+                                        " This should never happen.")
 
     # Configure LAN streaming and send PDWs
     # uxg.write('stream:state on')
@@ -606,6 +618,93 @@ def analog_uxg_lan_stream_pdw_example(ipAddress):
     uxg.disconnect()
 
 
+def vector_uxg_lan_stream_pdw_example(ipAddress):
+    """Creates and downloads iq waveforms & a waveform index file,
+    builds a PDW file, configures LAN streaming, and streams the PDWs
+    to the UXG using raw LAN streaming
+
+    This streams five pulses. To capture this, PDW 1 will output a hardware
+    trigger on the N5194A trigger output 2.
+    """
+
+    # Create vector UXG object
+    uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
+
+    # UXG configuration variables
+    amplitude = -5
+    output = 0
+    modulation = 1
+
+    # Configure UXG and clear all waveform memory
+    uxg.configure(amp=amplitude, rfState=output, modState=modulation)
+    uxg.clear_all_wfm()
+
+    # Waveform definition variables, three chirps of the same bandwidth and different lengths
+    bandwidth = 100e6
+    lengths = [10e-6, 50e-6, 100e-6]
+    wfmNames = []
+    fileName = "chirps"
+
+    # Create and download waveforms to UXG and save a list of names used for each wfm
+    for l in lengths:
+        iq = pyarbtools.wfmBuilder.chirp_generator(fs=uxg.fs, pWidth=l, pri=l,
+                                                   chirpBw=bandwidth, wfmFormat="iq",
+                                                   zeroLast=True)
+        uxg.download_wfm(iq, f"{l}_100MHz_CHIRP")
+        wfmNames.append(f"{l}_100MHz_CHIRP")
+
+    # Create waveform index file using the file name and wfm names we saved
+    windex = {"fileName": fileName, "wfmNames": wfmNames}
+
+    # Download waveform index file so the UXG knows what
+    # waveforms correspond to the wIndex field in the PDWs
+    uxg.csv_windex_file_download(windex)
+    #
+    # uxg.open_lan_stream()
+    # uxg.query("*OPC?")
+    #
+    # uxg.write("*TRG")
+    # uxg.query("*OPC?")
+    # # Press local key after this point to view PDW playback stats
+    #
+    # burstStartTimeSec = 1
+    # burstRepetitionSec = 0.5
+    # numberOfBursts = 20
+    #
+    # firstBurst = True
+    #
+    # for dwellNumber in range(numberOfBursts):
+    #     # operation, freq, phase, startTimeSec, width, power, markers,
+    #     # pulseMode, phaseControl, bandAdjust, chirpControl, fpc_code_selection,
+    #     # chirpRate, freqMap
+    #
+    #     if firstBurst:
+    #         mop = 1
+    #     else:
+    #         mop = 0
+    #
+    #     pdwList = [
+    #         [mop, 980e6, 0, burstStartTimeSec + 0, 10e-6, 1, 1, 2, 0, 0, 3, 0, 4000000, 0,],
+    #         [0, 1e9, 0, burstStartTimeSec + 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+    #         [0, 1.01e9, 0, burstStartTimeSec + 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
+    #         [0, 1e9, 0, burstStartTimeSec + 80e-6, 5e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+    #     ]
+    #     binPdwBurst = uxg.bin_raw_pdw_block_builder(pdwList)
+    #
+    #     # Stream pdw block
+    #     uxg.lanStream.send(binPdwBurst)
+    #     burstStartTimeSec += burstRepetitionSec
+    #
+    #     firstBurst = False
+    #
+    #     # Note: the last PDW mode of operations can be set to
+    #     # '2' to reset the stream clock
+    #
+    # # Check for errors and gracefully disconnect
+    # uxg.err_check()
+    # uxg.disconnect()
+
+
 def wfm_to_vsa_example(ipAddress):
     """This function creates a "perfect" digitally modulated waveform, exports it to a csv file,
     recalls it into VSA, and configures VSA to analyze it."""
@@ -735,7 +834,7 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
-    ipAddress = "10.0.0.100"
+    ipAddress = "10.0.0.164"
     matFilePath = "<insert path to .mat file here>"
 
     # m8190a_simple_wfm_example(ipAddress)
@@ -748,15 +847,15 @@ def main():
     # vsg_am_example(ipAddress)
     # vsg_mtone_example(ipAddress)
     # vector_uxg_dig_mod_example(ipAddress)
-    # vector_uxg_pdw_example(ipAddress)
-    # vector_uxg_lan_streaming_example(ipAddress)
+    # vector_uxg_pdw_file_streaming_example(ipAddress)
+    vector_uxg_lan_streaming_example(ipAddress)
     # analog_uxg_file_stream_pdw_example(ipAddress)
     # analog_uxg_lan_stream_pdw_example(ipAddress)
     # wfm_to_vsa_example(ipAddress)
     # vsa_vector_example(ipAddress)
     # vxg_mat_import_example(ipAddress, fileName=matFilePath)
     # m8190a_sequence_example(ipAddress)
-    gui_example()
+    # gui_example()
 
 
 if __name__ == "__main__":
