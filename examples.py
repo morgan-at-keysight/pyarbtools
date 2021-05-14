@@ -556,7 +556,6 @@ def vector_uxg_lan_stream_pdw_example(ipAddress):
     uxg.disconnect()
 
 
-
 def analog_uxg_file_stream_pdw_example(ipAddress):
     """Defines a pdw file for a chirp, and loads the
     pdw file into the UXG, and plays it out."""
@@ -580,10 +579,10 @@ def analog_uxg_file_stream_pdw_example(ipAddress):
     # pulseMode, phaseControl, bandAdjust, chirpControl, fpc_code_selection,
     # chirpRate, freqMap
     pdwList = [
-        [1, 980e6, 0, 0, 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
-        [0, 1e9, 0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
-        [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
-        [2, 1e9, 0, 80e-6, 5e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+        [1, 980e6 , 0, 0    , 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
+        [0, 1e9   , 0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0      , 0],
+        [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0      , 0],
+        [2, 1e9   , 0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0      , 0]
     ]
     pdwFile = uxg.bin_pdw_file_builder(pdwList)
 
@@ -622,6 +621,7 @@ def analog_uxg_lan_stream_pdw_example(ipAddress):
 
     # Set stream-play marker to trigger 2 output
     uxg.write("stream:markers:pdw1:mode begin")
+    # Trigger 2 will not be available when Multi Box Sync is active.
     uxg.write("rout:trigger2:output pmarker1")
     uxg.err_check()
 
@@ -649,10 +649,10 @@ def analog_uxg_lan_stream_pdw_example(ipAddress):
             mop = 0
 
         pdwList = [
-            [mop, 980e6, 0, burstStartTimeSec + 0, 10e-6, 1, 1, 2, 0, 0, 3, 0, 4000000, 0,],
-            [0, 1e9, 0, burstStartTimeSec + 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
-            [0, 1.01e9, 0, burstStartTimeSec + 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
-            [0, 1e9, 0, burstStartTimeSec + 80e-6, 5e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+            [mop, 980e6 , 0, burstStartTimeSec + 0    , 10e-6, 1, 1, 2, 0, 0, 3, 0, 4000000, 0,],
+            [0  , 1e9   , 0, burstStartTimeSec + 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+            [0  , 1.01e9, 0, burstStartTimeSec + 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
+            [0  , 1e9   , 0, burstStartTimeSec + 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0, 0]
         ]
         binPdwBurst = uxg.bin_raw_pdw_block_builder(pdwList)
 
@@ -799,7 +799,7 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
-    ipAddress = "10.0.0.164"
+    ipAddress = "10.0.0.47"
     matFilePath = "<insert path to .mat file here>"
 
     # m8190a_simple_wfm_example(ipAddress)
@@ -811,11 +811,11 @@ def main():
     # vsg_dig_mod_example(ipAddress)
     # vsg_am_example(ipAddress)
     # vsg_mtone_example(ipAddress)
-    vector_uxg_dig_mod_example(ipAddress)
+    # vector_uxg_dig_mod_example(ipAddress)
     # vector_uxg_csv_to_pdw_file_streaming_example(ipAddress)
     # vector_uxg_lan_bin_file_streaming_example(ipAddress)
     # vector_uxg_lan_stream_pdw_example(ipAddress)
-    # analog_uxg_file_stream_pdw_example(ipAddress)
+    analog_uxg_file_stream_pdw_example(ipAddress)
     # analog_uxg_lan_stream_pdw_example(ipAddress)
     # wfm_to_vsa_example(ipAddress)
     # vsa_vector_example(ipAddress)

@@ -366,18 +366,24 @@ def analog_bin_pdw_file_builder(pdwList):
     # PDW block header = 16 bytes
     pdwBlockId = (16).to_bytes(4, byteorder='little')
     res4 = (0).to_bytes(4, byteorder='little')
-    pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
-    pdwBlock = [pdwBlockId, res4, pdwSize]
+
+    sizeOfPdwInBytes = 28
+    pdwDataSizeInBytes = sizeOfPdwInBytes * len(pdwList)
+    pdwSize = (pdwDataSizeInBytes).to_bytes(8, byteorder='little')
+    # This results in null pdws for 8 zero bytes added later
+    #pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
 
     # Build Raw PDW Data from list
     rawPdwData = [analog_bin_pdw_builder(*p) for p in pdwList]
     # Add 8 bytes of zero to make sure PDW block ends on 16 byte boundary.
     rawPdwData += [(0).to_bytes(8, byteorder='little')]
+    rawPdwData = b''.join(rawPdwData)
+    pdwBlock = [pdwBlockId, res4, pdwSize, rawPdwData]
 
     pdwEndBlock = [(0).to_bytes(16, byteorder='little')]
 
     # Build PDW file from header, padBlock, pdwBlock, and PDWs
-    pdwFile = header + fpcBlock + paddingBlock + pdwBlock + rawPdwData + pdwEndBlock
+    pdwFile = header + fpcBlock + paddingBlock + pdwBlock + pdwEndBlock
 
     # Convert arrays of data to a single byte-type variable
     pdwFile = b''.join(pdwFile)
@@ -603,12 +609,23 @@ def vector_bin_pdw_file_builder(pdwList):
     # PDW block
     pdwBlockId = (16).to_bytes(4, byteorder='little')
     res4 = (0).to_bytes(4, byteorder='little')
+
+    # PDW format 3 rev B 12 is 32 bit words
+    sizeOfPdwInBytes = 48
+    pdwDataSizeInBytes = sizeOfPdwInBytes * len(pdwList)
+    # File corrupt with this approach - more testing needed
+    #pdwSize = (pdwDataSizeInBytes).to_bytes(8, byteorder='little')
+
+    # PDWs make up remainder of file.
     pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
+
     pdwBlock = [pdwBlockId, res4, pdwSize]
+    pdwData = [vector_bin_pdw_builder_rev3b(*p) for p in pdwList]
+    pdwBlock += pdwData
 
     # Build PDW file from header, padBlock, pdwBlock, and PDWs
     pdwFile = header + padding + pdwBlock
-    pdwFile += [vector_bin_pdw_builder_rev3b(*p) for p in pdwList]
+
     # Convert arrays of data to a single byte-type variable
     pdwFile = b''.join(pdwFile)
 
