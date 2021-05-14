@@ -815,13 +815,13 @@ def main():
     # vector_uxg_csv_to_pdw_file_streaming_example(ipAddress)
     # vector_uxg_lan_bin_file_streaming_example(ipAddress)
     # vector_uxg_lan_stream_pdw_example(ipAddress)
-    analog_uxg_file_stream_pdw_example(ipAddress)
+    # analog_uxg_file_stream_pdw_example(ipAddress)
     # analog_uxg_lan_stream_pdw_example(ipAddress)
     # wfm_to_vsa_example(ipAddress)
     # vsa_vector_example(ipAddress)
     # vxg_mat_import_example(ipAddress, fileName=matFilePath)
     # m8190a_sequence_example(ipAddress)
-    # gui_example()
+    gui_example()
 
 
 if __name__ == "__main__":
