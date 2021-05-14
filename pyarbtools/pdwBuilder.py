@@ -538,6 +538,29 @@ def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, powerDbm,
     return pdw
 
 
+def vector_build_raw_pdw_block_rev3B(pdwList):
+    """
+    Builds a raw binary pdw block without header
+
+    See User's Guide>Streaming Use>PDW Definitions section of
+    Keysight UXG X-Series Agile Vector Adapter Online Documentation
+    http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm
+    Args:
+        pdwList (list): List of lists. Each inner list contains a single
+    pulse descriptor word.
+
+    Returns:
+        (bytes): Binary data that contains a raw PDW binary block
+                 without header.  This can be streamed directly to UXG
+    """
+    pdwData = []
+    pdwData += [vector_bin_pdw_builder_rev3b(*p) for p in pdwList]
+    # Convert arrays of data to a single byte-type variable
+    pdwData = b''.join(pdwData)
+
+    return pdwData
+
+
 # noinspection PyRedundantParentheses
 def vector_bin_pdw_file_builder(pdwList):
     """
