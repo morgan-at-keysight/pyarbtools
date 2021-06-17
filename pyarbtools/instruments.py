@@ -691,7 +691,7 @@ class M8190A(socketscpi.SocketInstrument):
             idleDelay (int): Duration of delay in samples. Default (and minimum) is waveform granularity * 10. Max is (2^25 * gran) + (gran - 1).
             ch (int): Channel for which sequence is created (values are 1 or 2, default is 1).
         """
-        
+
         # Input checking
         if ch not in [1, 2]:
             raise ValueError("ch argument must be 1 or 2.")
@@ -2363,7 +2363,8 @@ class AnalogUXG(socketscpi.SocketInstrument):
 
 class VectorUXG(socketscpi.SocketInstrument):
     """
-    Generic class for controlling the N5194A + N5193A (Vector + Analog) UXG agile signal generators.
+    Generic class for controlling the N5194A + N5193A
+    (Vector + Analog) UXG agile signal generators.
 
     Attributes:
         rfState (int): Turns the RF output on or off. (1, 0)
@@ -2376,7 +2377,8 @@ class VectorUXG(socketscpi.SocketInstrument):
         Add check to ensure that the correct instrument is connected
     """
 
-    def __init__(self, host, port=5025, timeout=10, reset=False, clearMemory=False, errCheck=True):
+    def __init__(self, host, port=5025, timeout=10, reset=False,
+                 clearMemory=False, errCheck=True):
         super().__init__(host, port, timeout)
         if reset:
             self.write("*rst")
@@ -2410,11 +2412,14 @@ class VectorUXG(socketscpi.SocketInstrument):
         self.host = host
 
         # Set up separate socket for LAN PDW streaming
-        self.lanStream = socketscpi.socket.socket(socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM)
+        self.lanStream = socketscpi.socket.socket(socketscpi.socket.AF_INET,
+                                                  socketscpi.socket.SOCK_STREAM)
         self.lanStream.setblocking(False)
-        self.lanStream.settimeout(timeout)  # Can't connect until LAN streaming is turned on  # self.lanStream.connect((host, 5033))
+        self.lanStream.settimeout(timeout)
+        # Can't connect until LAN streaming is turned on
+        # self.lanStream.connect((host, 5033))
 
-    # def configure(self, rfState=0, modState=0, cf=1e9, amp=-20, iqScale=70):
+
     def configure(self, **kwargs):
         """
         Sets the basic configuration for the UXG and populates class
@@ -2442,9 +2447,11 @@ class VectorUXG(socketscpi.SocketInstrument):
             elif key == "iqScale":
                 self.set_iqScale(value)
             else:
-                raise KeyError(
-                    f'Invalid keyword argument: "{key}"'
-                )  # raise KeyError('Invalid keyword argument.')  # Arb state can only be turned on after a waveform has been loaded/selected  # self.write(f'radio:arb:state {arbState}')  # self.arbState = self.query('radio:arb:state?').strip()
+                raise KeyError( f'Invalid keyword argument: "{key}"')
+                # raise KeyError('Invalid keyword argument.')
+                # Arb state can only be turned on after a waveform has been loaded/selected
+                # self.write(f'radio:arb:state {arbState}')
+                # self.arbState = self.query('radio:arb:state?').strip()
 
         self.err_check()
 
@@ -2460,7 +2467,8 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_modState(self, modState):
         """
-        Sets and reads the state of the internal baseband modulator using SCPI commands.
+        Sets and reads the state of the internal baseband modulator
+           using SCPI commands.
         Args:
             modState (int): Turns the baseband modulator on or off. (1, 0)
         """
@@ -2470,19 +2478,22 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_cf(self, cf):
         """
-        Sets and reads the center frequency of the signal generator using SCPI commands.
+        Sets and reads the center frequency of the signal generator
+           using SCPI commands.
         Args:
             cf (float): Sets the generator's carrier frequency.
         """
 
         if not isinstance(cf, float) or cf <= 0:
-            raise ValueError("Carrier frequency must be a positive floating point value.")
+            raise ValueError("Carrier frequency must be a positive"
+                             " floating point value.")
         self.write(f"frequency {cf}")
         self.cf = float(self.query("frequency?").strip())
 
     def set_amp(self, amp):
         """
-        Sets and reads the output amplitude of signal generator using SCPI commands.
+        Sets and reads the output amplitude of signal generator
+           using SCPI commands.
         Args:
             amp (int/float): Sets the generator's RF output power.
         """
@@ -2494,19 +2505,19 @@ class VectorUXG(socketscpi.SocketInstrument):
 
     def set_iqScale(self, iqScale):
         """
-        Sets and reads the scaling of the baseband IQ waveform using SCPI commands.
-        Should be about 70 percent to avoid clipping.
+        Sets and reads the scaling of the baseband IQ waveform
+           using SCPI commands. Should be about 70 percent to
+           avoid clipping.
         Args:
-            iqScale (int): Scales the IQ modulator in percent. Default/safe value is 70, range is 0 to 100.
+            iqScale (int): Scales the IQ modulator in percent.
+            Default/safe value is 70, range is 0 to 100.
         """
 
         if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
             raise ValueError("iqScale argument must be an integer between 1 and 100.")
 
-        # M9381/3A don't have an IQ scaling command.
-        if "M938" not in self.instId:
-            self.write(f"radio:arb:rscaling {iqScale}")
-            self.iqScale = float(self.query("radio:arb:rscaling?").strip())
+        self.write(f"radio:arb:rscaling {iqScale}")
+        self.iqScale = float(self.query("radio:arb:rscaling?").strip())
 
     def stream_configure(
         self,
@@ -2523,29 +2534,34 @@ class VectorUXG(socketscpi.SocketInstrument):
         Args:
             source (str): Selects the streaming source. ('file', 'lan')
             trigState (bool): Configures trigger state. (True, False)
-            trigSource (str): Selects trigger source. ('key', 'bus', 'external', 'timer')
+            trigSource (str): Selects trigger source. ('key', 'bus',
+                                                       'external', 'timer')
             trigInPort (int): Selects trigger input port. (1-10)
             trigPeriod (float): Sets period for timer trigger.
             trigOutPort (int): Selects trigger output port. (1-10)
         """
 
         if source.lower() not in ["file", "lan"]:
-            raise error.UXGError('Invalid stream source selected. Use "file" or "lan"')
+            raise error.UXGError('Invalid stream source selected.'
+                                 ' Use "file" or "lan"')
 
         self.write(f"stream:source {source}")
 
         if trigState:
             if trigSource.lower() not in ["key", "bus", "external", "timer"]:
-                raise error.UXGError('Invalid trigger source selected. Use "key", "bus", "external", or "timer"')
+                raise error.UXGError('Invalid trigger source selected.'
+                                     ' Use "key", "bus", "external", or "timer"')
             if trigInPort == trigOutPort and trigInPort and trigOutPort:
-                raise error.UXGError("Conflicting trigger ports. trigInPort and trigOutPort must be unique.")
+                raise error.UXGError("Conflicting trigger ports. trigInPort and"
+                                     " trigOutPort must be unique.")
             self.write("stream:trigger:play:file:type:continuous:type trigger")
             self.write(f"stream:trigger:play:source {trigSource}")
 
             if trigSource.lower() == "external":
                 if trigInPort:
                     if trigInPort < 1 or trigInPort > 10:
-                        raise error.UXGError("trigInPort must be an integer between 1 and 10.")
+                        raise error.UXGError("trigInPort must be an integer"
+                                             " between 1 and 10.")
                     self.write(f"trigger:play:external:source trigger{trigInPort}")
             elif trigSource.lower() == "timer":
                 if trigPeriod < 48e-9 or trigPeriod > 34:
@@ -2597,28 +2613,51 @@ class VectorUXG(socketscpi.SocketInstrument):
             (bytes): Binary data that contains a full PDW file that can
                 be downloaded to and played out of the UXG.
         """
-
         pdwFile = pdwBuilder.vector_bin_pdw_file_builder(pdwList)
-
         self.err_check()
-
         return pdwFile
 
-    # noinspection PyDefaultArgument,PyDefaultArgument
-    def csv_pdw_file_download(self, fileName, fields=["Operation", "Time"], data=[[1, 0], [2, 100e-6]]):
+
+    def build_raw_pdw_block(self, pdwList):
         """
-        Builds a CSV PDW file, sends it into the UXG, and converts it to a binary PDW file.
+        Builds a raw binary PDW block without a header
+
+        See User's Guide>Streaming Use>PDW Definitions section of
+        Keysight UXG X-Series Agile Vector Adapter Online Documentation
+        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm
+        Args:
+            pdwList (list): List of lists. Each inner list contains a single
+        pulse descriptor word.
+
+        Returns:
+            (bytes): Binary data that contains a raw PDWs that can be
+                     streamed to UXG without a header
+        """
+        pdwBlock = pdwBuilder.vector_build_raw_pdw_block_rev3B(pdwList)
+
+        self.err_check()
+        return pdwBlock
+
+    # noinspection PyDefaultArgument,PyDefaultArgument
+    def csv_pdw_file_download(self, fileName, fields=["Operation", "Time"],
+                              data=[[1, 0], [2, 100e-6]]):
+        """
+        Builds a CSV PDW file, sends it into the UXG, then the UXG will
+            convert it to a binary PDW file.
         Args:
             fileName (str): Name of the csv file to be downloaded.
             fields (tuple(str)): Names of the fields contained in PDWs.
-            data (tuple(tuple)): Tuple of tuples. The inner tuples each contain the values for the fields for a single PDW.
+            data (tuple(tuple)): Tuple of tuples. The inner tuples each contain
+                                 the values for the fields for a single PDW.
         """
 
         # Write header fields separated by commas and terminated with \n
         pdwCsv = ",".join(fields) + "\n"
         for row in data:
-            # Write subsequent rows with data values separated by commas and terminated with \n
-            # The .join() function requires a list of strings, so convert numbers in row to strings
+            """Write subsequent rows with data values separated by commas
+               and terminated with \n. The .join() function requires a list
+               of strings, so convert numbers in row to strings
+            """
             rowString = ",".join([f"{r}" for r in row]) + "\n"
             pdwCsv += rowString
 
@@ -2648,20 +2687,23 @@ class VectorUXG(socketscpi.SocketInstrument):
         Writes a waveform index file to be used by a PDW file to select
         waveforms.
         Args:
-            windex (dict): {'fileName': '<fileName>', 'wfmNames': ['<name0>', '<name1>',... '<nameN>']}
+            windex (dict): {'fileName': '<fileName>',
+                            'wfmNames': ['<name0>', '<name1>',... '<nameN>']}
         """
 
         windexCsv = "Id,Filename\n"
         for i in range(len(windex["wfmNames"])):
             windexCsv += f'{i},{windex["wfmNames"][i]}\n'
 
-        self.binblockwrite(f'memory:data "{windex["fileName"]}.csv", ', windexCsv.encode("utf-8"))
+        self.binblockwrite(f'memory:data "{windex["fileName"]}.csv",'
+                           f' ', windexCsv.encode("utf-8"))
 
         """Note: memory:import:windex imports/converts csv to waveform
         index file AND assigns the resulting file as the waveform index
         manager. There is no need to send the stream:windex:select
         command because it is sent implicitly by memory:import:windex."""
-        self.write(f'memory:import:windex "{windex["fileName"]}.csv", "{windex["fileName"]}"')
+        self.write(f'memory:import:windex "{windex["fileName"]}.csv",'
+                   f' "{windex["fileName"]}"')
         self.query("*opc?")
         if self.errCheck:
             self.err_check()
@@ -2679,7 +2721,8 @@ class VectorUXG(socketscpi.SocketInstrument):
         """
 
         if wfmData.dtype != np.complex:
-            raise TypeError("Invalid wfm type. IQ waveforms must be an array of complex values.")
+            raise TypeError("Invalid wfm type. IQ waveforms must be"
+                            " an array of complex values.")
         else:
             i = self.check_wfm(np.real(wfmData))
             q = self.check_wfm(np.imag(wfmData))
@@ -2692,10 +2735,23 @@ class VectorUXG(socketscpi.SocketInstrument):
 
         return wfmID
 
+    def upload_bin_pdw_file(self, pdwFile, pdwName="wfm"):
+        """
+        Uploads binary PDW file to PDW directory in UXG.
+        Args:
+            pdwFile (bytes): Binary data containing PDW file, generally
+                             created by the bin_pdw_file_builder() method.
+            pdwName (str): Name of PDW file.
+        """
+
+        self.binblockwrite(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
+        self.err_check()
+
     @staticmethod
     def iq_wfm_combiner(i, q):
         """
-        Combines i and q wfms into a single interleaved wfm for download to generator.
+        Combines i and q wfms into a single interleaved wfm
+           for upload to generator.
         Args:
             i (NumPy array): Array of real waveform samples.
             q (NumPy array): Array of imaginary waveform samples.
@@ -2726,15 +2782,18 @@ class VectorUXG(socketscpi.SocketInstrument):
                 formatted appropriately for download to AWG
         """
 
-        # If waveform length doesn't meet granularity or minimum length requirements, repeat the waveform until it does
+        # If waveform length doesn't meet granularity or minimum
+        # length requirements, repeat the waveform until it does
         repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
 
         if rl < self.minLen:
-            raise error.VSGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
+            raise error.VSGError(f"Waveform length: {rl},"
+                                 f" must be at least {self.minLen}.")
         if rl % self.gran != 0:
-            raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
+            raise error.GranularityError(f"Waveform must have a "
+                                         f"granularity of {self.gran}.")
 
         if bigEndian:
             return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()

@@ -366,18 +366,24 @@ def analog_bin_pdw_file_builder(pdwList):
     # PDW block header = 16 bytes
     pdwBlockId = (16).to_bytes(4, byteorder='little')
     res4 = (0).to_bytes(4, byteorder='little')
-    pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
-    pdwBlock = [pdwBlockId, res4, pdwSize]
+
+    sizeOfPdwInBytes = 28
+    pdwDataSizeInBytes = sizeOfPdwInBytes * len(pdwList)
+    pdwSize = (pdwDataSizeInBytes).to_bytes(8, byteorder='little')
+    # This results in null pdws for 8 zero bytes added later
+    #pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
 
     # Build Raw PDW Data from list
     rawPdwData = [analog_bin_pdw_builder(*p) for p in pdwList]
     # Add 8 bytes of zero to make sure PDW block ends on 16 byte boundary.
     rawPdwData += [(0).to_bytes(8, byteorder='little')]
+    rawPdwData = b''.join(rawPdwData)
+    pdwBlock = [pdwBlockId, res4, pdwSize, rawPdwData]
 
     pdwEndBlock = [(0).to_bytes(16, byteorder='little')]
 
     # Build PDW file from header, padBlock, pdwBlock, and PDWs
-    pdwFile = header + fpcBlock + paddingBlock + pdwBlock + rawPdwData + pdwEndBlock
+    pdwFile = header + fpcBlock + paddingBlock + pdwBlock + pdwEndBlock
 
     # Convert arrays of data to a single byte-type variable
     pdwFile = b''.join(pdwFile)
@@ -385,72 +391,104 @@ def analog_bin_pdw_file_builder(pdwList):
     return pdwFile
 
 
-# noinspection PyPep8
-def vector_bin_pdw_builder_3(operation=0, freq=1e9, phase=0, startTimeSec=0, width=10e-6, maxPower=0, markers=0, powerDbm=0,
-                      phaseControl=0, rfOff=0, autoBlank=0, zeroHold=0, loLead=0, wfmMkrMask=0, wIndex=0):
+def vector_bin_pdw_builder_rev3b(operation=0, freq=1e9, phase=0, startTimeSec=0,
+                                 width=0, maxPower=0, markers=0, powerDbm=0,
+                                 phaseControl=0, rfOff=0, autoBlank=1,
+                                 newWaveform=1, zeroHold=0, loLead=0, wfmMkrMask=0,
+                                 wIndex=0, power2dBm=0, maxPower2dBm=0, dopplerHz = 0):
     """
-    This function builds a single format-3 PDW from a list of parameters.
+    This function builds a single format-3 PDW Rev B (fw A.01.30 and later)
+    from a list of parameters.
 
     See User's Guide>Streaming Use>PDW Definitions section of
     Keysight UXG X-Series Agile Vector Adapter Online Documentation
     http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm
     Args:
-        operation (int): Specifies the operation of the PDW. (0-none, 1-first PDW, 2-last PDW)
+        operation (int): Specifies the operation of the PDW.
+                        (0-none, 1-first PDW, 2-last PDW)
         freq (float): CW frequency of PDW.
         phase (float): Phase of CW frequency of PDW.
         startTimeSec (float): Start time of the 50% rising edge power.
-        width (float): Width of the pulse from 50% rise power to 50% fall power.
+        width (float): Width of the pulse from 50% rise power
+                        to 50% fall power seconds.
         maxPower (float): Max output power in dBm.
-        markers (int): Enables or disables PDW markers via bit masking. (e.g. to activate marker 3, send the number 4, which is 0100 in binary).
+        markers (int): Enables or disables PDW markers via bit masking.
+                        (e.g. to activate marker 3, send the number 4,
+                        which is 0100 in binary).
         powerDbm (float): Sets power for individual PDW in dBm.
-        phaseControl (int): Switches between phase mode. (0-coherent, 1-continuous)
-        rfOff (int): Activates or deactivates RF Off mode. (0-RF on, 1-RF off). I know, the nomenclature here is TRASH.
+        phaseControl (int): Switches between phase mode.
+                        (0-coherent, 1-continuous)
+        rfOff (int): Activates or deactivates RF Off mode.
+                        (0-RF on, 1-RF off).
+                        Note: This nomenclature is not intuitive.
         autoBlank (int): Activates blanking. (0-no blanking, 1-blanking)
-        zeroHold (int): Selects zero/hold behavior. (0-zero, 1-hold last value)
-        loLead (float): Specifies how long before the PDW start time to begin switching LO.
-        wfmMkrMask (int): Enables or disables waveform markers via bit masking. (e.g. to activate marker 3, send the number 4, which is 0100 in binary).
+        newWaveform (int): (0-continue with prior PDW settings,
+                            1-start with all new pdw settings)
+        zeroHold (int): Selects zero/hold behavior.
+                        (0-zero, 1-hold last value)
+        loLead (float): Specifies how long before the PDW start time to
+                        begin switching LO.
+        wfmMkrMask (int): Enables or disables waveform markers via bit
+                            masking. (e.g. to activate marker 3, send the
+                            number 4, which is 0100 in binary).
         wIndex (int): Index of the IQ waveform to be assigned to the PDW.
+        power2dBm (float): Alternate (second) desired output power in dBm - pdw Rev B
+        maxPower2dBm (float): Alternate max power output - pdw Rev B
+        dopplerHz (float): Doppler frequency - pdw Rev B
 
     Returns:
-        (NumPy array): Single PDW that can be used to build a PDW file or streamed directly to the UXG.
+        (NumPy array): Single PDW that can be used to build a PDW file or streamed
+                        directly to the UXG.
     """
     pdwFormat = 3
     _freq = int(freq * 1024 + 0.5)
     _phase = int(phase * 4096 / 360 + 0.5)
     _startTimePs = int(startTimeSec * 1e12)
-    # you multiplied this by 2, it's probably not going to work.
-    _pulseWidthPs = int(width * 1e12 * 2)
+    _pulseWidthInHalfNs = int(width * 1e9 * 2)
     _maxPower = int((maxPower + 140) / 0.005 + 0.5)
     _power = int((powerDbm + 140) / 0.005 + 0.5)
     _loLead = int(loLead / 4e-9)
-    _newWfm = 1
+    _newWfm = newWaveform
     _wfmType = 0
+    _power2 = int((power2dBm + 140) / 0.005 + 0.5)
+    _maxPower2 = int((maxPower2dBm + 140) / 0.005 + 0.5)
+    _doppler = int(dopplerHz + 0.5)
 
     # Build PDW
-    pdw = np.zeros(11, dtype=np.uint32)
-    # Word 0: Mask pdw format (3 bits), operation (2 bits), and the lower 27 bits of freq
+    pdw = np.zeros(12, dtype=np.uint32)
+    # Word 0: Mask pdw format (3 bits), operation (2 bits), freqLower (27 bits)
     pdw[0] = (pdwFormat | operation << 3 | _freq << 5) & 0xFFFFFFFF
-    # Word 1: Mask the upper 20 bits (47 - 27) of freq and phase (12 bits)
+    # Word 1: freqUpper (20 bits 47-27) of freq and phase (12 bits)
     pdw[1] = (_freq >> 27 | _phase << 20) & 0xFFFFFFFF
     # Word 2: Lower 32 bits of startTimePs
     pdw[2] = _startTimePs & 0xFFFFFFFF
     # Word 3: Upper 32 bits of startTimePS
     pdw[3] = (_startTimePs & 0xFFFFFFFF00000000) >> 32
     # Word 4: Lower 32 bits of Pulse width (37 bits)
-    pdw[4] = _pulseWidthPs & 0xFFFFFFFF
+    pdw[4] = _pulseWidthInHalfNs & 0xFFFFFFFF
     # Word 5: Upper 5 bits of Pulse width, max power (15 bits), markers (12 bits)
-    pdw[5] = (_pulseWidthPs & 0x1F00000000) >> 32 | _maxPower << 5 | markers << 20
-    # Word 5: Power (15 bits), phase mode (1), RF off (1), auto blank (1), new wfm (1),
-    # zero/hold (1), lo lead (8), marker mask (4)
-    pdw[
-        6] = _power | phaseControl << 15 | rfOff << 16 | autoBlank << 17 | _newWfm << 18 | zeroHold << 19 | _loLead << 20 | wfmMkrMask << 28
-    # Word 7: Reserved (8), Wfm type (2), index (16) reserved (
-    pdw[7] = _wfmType << 8 | wIndex << 10
+    pdw[5] = (_pulseWidthInHalfNs & 0x1F00000000) >> 32 | \
+             _maxPower << 5 | markers << 20
+    # Word 6: Power (15 bits), phase mode (1), RF off (1), auto blank (1),
+    #           new wfm (1), zero/hold (1), lo lead (8), marker mask (4)
+    pdw[6] = _power | phaseControl << 15 | rfOff << 16 | autoBlank << 17 |\
+             _newWfm << 18 | zeroHold << 19 | _loLead << 20 | wfmMkrMask << 28
+    # Word 7: Reserved (8), Wfm type (2), index (16), power2low (6)
+    pdw[7] = (_wfmType << 8 | wIndex << 10 | _power2 << 26) & 0xFFFFFFFF
+    # Word 8: power2high (9), max power (15), reserved (8)
+    pdw[8] = _power2 >> 6 | _maxPower2 << 9
+    # Word 9: reserved (16), reserved (16)
+    pdw[9] = 0
+    # Word 10: reserved (4), reserved (2), reserved (17), dopplerLow (9)
+    pdw[10] = (_doppler << 23) & 0xFFFFFFFF
+    # Word 11: dopplerHigh (12), reserved (11), reserved (9)
+    pdw[11] = _doppler >> 9
 
     return pdw
 
 
-def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, powerDbm, markers, phaseControl, rfOff, wIndex, wfmMkrMask):
+def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, powerDbm,
+                           markers, phaseControl, rfOff, wIndex, wfmMkrMask):
     """
     This function builds a single format-1 PDW from a list of parameters.
     PDW format-1 is now deprecated.  This format is still supported as legacy
@@ -459,19 +497,26 @@ def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, powerDbm, marke
     Keysight UXG X-Series Agile Vector Adapter Online Documentation
     http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm
     Args:
-        operation (int): Specifies the operation of the PDW. (0-none, 1-first PDW, 2-last PDW)
+        operation (int): Specifies the operation of the PDW.
+                         (0-none, 1-first PDW, 2-last PDW)
         freq (float): CW frequency of PDW.
         phase (float): Phase of CW frequency of PDW.
         startTimeSec (float): Start time of the 50% rising edge power.
         powerDbm (float): Sets power for individual PDW in dBm.
-        markers (int): Enables or disables PDW markers via bit masking. (e.g. to activate marker 3, send the number 4, which is 0100 in binary).
+        markers (int): Enables or disables PDW markers via bit masking.
+                       (e.g. to activate marker 3, send the number 4,
+                       which is 0100 in binary).
         phaseControl (int): Switches between phase mode. (0-coherent, 1-continuous)
-        rfOff (int): Activates or deactivates RF Off mode. (0-RF on, 1-RF off). I know, the nomenclature here is TRASH.
+        rfOff (int): Activates or deactivates RF Off mode. (0-RF on, 1-RF off).
+                     I know, the nomenclature here is TRASH.
         wIndex (int): Index of the IQ waveform to be assigned to the PDW.
-        wfmMkrMask (int): Enables or disables waveform markers via bit masking. (e.g. to activate marker 3, send the number 4, which is 0100 in binary).
+        wfmMkrMask (int): Enables or disables waveform markers via bit masking.
+                          (e.g. to activate marker 3, send the number 4,
+                          which is 0100 in binary).
 
     Returns:
-        (NumPy array): Single PDW that can be used to build a PDW file or streamed directly to the UXG.
+        (NumPy array): Single PDW that can be used to build a PDW file or
+                       streamed directly to the UXG.
     """
 
     # Format 1 PDWs are deprecated
@@ -497,6 +542,29 @@ def vector_bin_pdw_builder(operation, freq, phase, startTimeSec, powerDbm, marke
     pdw[5] = wIndex | 0b000000000000 << 16 | wfmMkrMask << 28
 
     return pdw
+
+
+def vector_build_raw_pdw_block_rev3B(pdwList):
+    """
+    Builds a raw binary pdw block without header
+
+    See User's Guide>Streaming Use>PDW Definitions section of
+    Keysight UXG X-Series Agile Vector Adapter Online Documentation
+    http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm
+    Args:
+        pdwList (list): List of lists. Each inner list contains a single
+    pulse descriptor word.
+
+    Returns:
+        (bytes): Binary data that contains a raw PDW binary block
+                 without header.  This can be streamed directly to UXG
+    """
+    pdwData = []
+    pdwData += [vector_bin_pdw_builder_rev3b(*p) for p in pdwList]
+    # Convert arrays of data to a single byte-type variable
+    pdwData = b''.join(pdwData)
+
+    return pdwData
 
 
 # noinspection PyRedundantParentheses
@@ -541,12 +609,23 @@ def vector_bin_pdw_file_builder(pdwList):
     # PDW block
     pdwBlockId = (16).to_bytes(4, byteorder='little')
     res4 = (0).to_bytes(4, byteorder='little')
+
+    # PDW format 3 rev B 12 is 32 bit words
+    sizeOfPdwInBytes = 48
+    pdwDataSizeInBytes = sizeOfPdwInBytes * len(pdwList)
+    # File corrupt with this approach - more testing needed
+    #pdwSize = (pdwDataSizeInBytes).to_bytes(8, byteorder='little')
+
+    # PDWs make up remainder of file.
     pdwSize = (0xffffffffffffffff).to_bytes(8, byteorder='little')
+
     pdwBlock = [pdwBlockId, res4, pdwSize]
+    pdwData = [vector_bin_pdw_builder_rev3b(*p) for p in pdwList]
+    pdwBlock += pdwData
 
     # Build PDW file from header, padBlock, pdwBlock, and PDWs
     pdwFile = header + padding + pdwBlock
-    pdwFile += [vector_bin_pdw_builder(*p) for p in pdwList]
+
     # Convert arrays of data to a single byte-type variable
     pdwFile = b''.join(pdwFile)
 

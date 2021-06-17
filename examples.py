@@ -328,9 +328,10 @@ def vector_uxg_dig_mod_example(ipAddress):
     uxg.disconnect()
 
 
-def vector_uxg_pdw_example(ipAddress):
-    """Creates and downloads a chirp waveform, defines a simple pdw csv
-    file, and loads that pdw file into the UXG, and plays it out."""
+def vector_uxg_csv_to_pdw_file_streaming_example(ipAddress):
+    """Creates and downloads a chirp waveform, defines a simple csv pdw
+    file, and sends that pdw file into the UXG, the UXG converts the CSV
+    file to a binary pdw file and plays it."""
 
     uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
 
@@ -341,9 +342,10 @@ def vector_uxg_pdw_example(ipAddress):
 
     uxg.configure(amp=amplitude, rfState=output, cf=freq)
 
-    """Configure pdw markers. These commands will assign a TTL pulse
-    at the beginning of each PDW. The trigger 2 output will only be
-    active if the Marker field for a given PDW is specified as '0x1'"""
+    """Configure pdw markers.  These commands will assign PDW marker 1
+    to the vector UXG trigger out 2 port, so a TTL trigger will be sent
+    when marker 1 is active on a PDW.  Marker field '0x1'
+    """
     uxg.write("stream:markers:pdw1:mode stime")
     uxg.write("route:trigger2:output pmarker1")
 
@@ -359,21 +361,20 @@ def vector_uxg_pdw_example(ipAddress):
     # Define and generate csv pdw file
     pdwName = "basic_chirp"
 
-    # 'fields' list define the PDW fields positionally
+    # 'fields' list define the CSV PDW fields positionally
     fields = ["Operation", "Time", "Frequency", "Zero/Hold", "Markers", "Name"]
 
     # 'data' is a list of lists, where each inner list defines
     # the PDW using positional values for the fields defined above
-    data = [
-        [1, 0, 975e6, "Hold", "0x1", wfmName],
-        [0, 30e-6, 1025e6, "Hold", "0x0", wfmName],
-        [2, 60e-6, 1e9, "Hold", "0x0", wfmName],
-    ]
+    data = [[1, 0    , 975e6 , "Hold", "0x1", wfmName],
+            [0, 30e-6, 1025e6, "Hold", "0x0", wfmName],
+            [2, 60e-6, 1e9   , "Hold", "0x0", wfmName]]
 
     # Note: the last PDW starting with a '2' in the 'Operation'
     # field marks the end of the PDW stream and does not play
 
-    # Download PDW file using an intermediate csv file
+    # Upload CSV PDW file using an intermediate csv file.  The
+    # uxg will convert the CSV file to a binary pdw file
     uxg.csv_pdw_file_download(pdwName, fields, data)
 
     # Begin PDW streaming
@@ -384,56 +385,32 @@ def vector_uxg_pdw_example(ipAddress):
     uxg.disconnect()
 
 
-def vector_uxg_lan_streaming_example(ipAddress):
+def vector_uxg_lan_bin_file_streaming_example(ipAddress):
     """Creates and downloads iq waveforms & a waveform index file,
     builds a PDW file, configures LAN streaming, and streams the PDWs
     to the UXG.
 
-    This streams five pulses. To capture this, PDW 1 will output a hardware
-    trigger on the N5194A trigger output 2.
+    This streams pulses. To capture this, PDW marker 1 will output
+    a hardware trigger on the N5194A trigger output 2.
     """
 
-    # Create vector UXG object
-    uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
+    # Call shared lan setup routine
+    uxg = vector_uxg_lan_streaming_setup(ipAddress)
 
-    # UXG configuration variables
-    amplitude = -5
-    output = 0
-    modulation = 1
-
-    # Configure UXG and clear all waveform memory
-    uxg.configure(amp=amplitude, rfState=output, modState=modulation)
-    uxg.clear_all_wfm()
-
-    # Waveform definition variables, three chirps of the same bandwidth and different lengths
-    bandwidth = 100e6
-    lengths = [10e-6, 50e-6, 100e-6]
-    wfmNames = []
-    fileName = "chirps"
-
-    # Create and download waveforms to UXG and save a list of names used for each wfm
-    for l in lengths:
-        iq = pyarbtools.wfmBuilder.chirp_generator(fs=uxg.fs, pWidth=l, pri=l, chirpBw=bandwidth, wfmFormat="iq", zeroLast=True)
-        uxg.download_wfm(iq, f"{l}_100MHz_CHIRP")
-        wfmNames.append(f"{l}_100MHz_CHIRP")
-
-    # Create waveform index file using the file name and wfm names we saved
-    windex = {"fileName": fileName, "wfmNames": wfmNames}
-
-    # Download waveform index file so the UXG knows what
-    # waveforms correspond to the wIndex field in the PDWs
-    uxg.csv_windex_file_download(windex)
-
-    # Create PDWs
-    # operation, freq, phase, startTimeSec, power, markers, phaseControl, rfOff, wIndex, wfmMkrMask
+    # Create PDWs - format 3 rev B
+    # operation, freq, phase, startTimeSec, widthInSec, maxPower,
+    # markers, powerDbm, phaseControl, rfOff, autoBlank, newWaveform,
+    # zeroHold, loLead, wfmMkrMask, wIndex, power2dBm, maxPower2dBm,
+    # dopplerHz
     # See documentation for bin_pdw_file_builder for more info
+
     rawPdw = [
-        [1, 1e9, 0, 0, -10, 1, 0, 0, 0, 0xF],
-        [0, 1e9, 0, 20e-6, -10, 0, 0, 0, 0, 0xF],
-        [0, 1e9, 0, 40e-6, -10, 0, 0, 0, 1, 0xF],
-        [0, 1e9, 0, 100e-6, -10, 0, 0, 0, 1, 0xF],
-        [0, 1e9, 0, 160e-6, -10, 0, 0, 0, 2, 0xF],
-        [2, 1e9, 0, 300e-6, -10, 0, 0, 0, 2, 0xF],
+        [1,  .950e9, 0, 1000e-6,  0, -5, 1, -10, 0, 0, 1, 1, 0, 0, 0xF, 0],
+        [0,  .975e9, 0, 3000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 1],
+        [0,     1e9, 0, 5000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 1],
+        [0, 1.025e9, 0, 7000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 2],
+        [0, 1.050e9, 0, 9000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 2],
+        [2,     1e9, 0,11000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 0]
     ]
 
     # Note: the last PDW starting with a '2' in the 'Operation'
@@ -441,25 +418,13 @@ def vector_uxg_lan_streaming_example(ipAddress):
 
     pdwFile = uxg.bin_pdw_file_builder(rawPdw)
 
-    # Separate pdwFile into header and data portions (AUTOMATE THIS)
+    # Write pdw stream to unused file for troubleshooting
+    uxg.upload_bin_pdw_file(pdwFile, pdwName="tempStream")
+    uxg.err_check()
+
+    # Separate pdwFile into header and data portions
     header = pdwFile[:4096]
     data = pdwFile[4096:]
-
-    # Configure LAN streaming using SCPI commands (AUTOMATE THIS)
-    uxg.write("stream:source lan")
-    uxg.write("stream:trigger:play:file:type continuous")
-    uxg.write("stream:trigger:play:file:type:continuous:type trigger")
-    uxg.write("stream:trigger:play:source bus")
-
-    # Route PDW Marker 1 to N5194A trigger 2 output using SCPI commands
-    uxg.write("route:connectors:trigger2:output pmarker1")
-
-    # Load waveform index file and select it as the reference file for streaming
-    uxg.write(f'memory:import:windex "{windex["fileName"]}.csv","{windex["fileName"]}"')
-    uxg.write(f'stream:windex:select "{windex["fileName"]}"')
-
-    # Clear the stream header to prepare for a new stream
-    uxg.write("stream:external:header:clear")
 
     """ADVANCED"""
     # The esr=False argument in binblockwrite() allows you to send your own
@@ -470,10 +435,10 @@ def vector_uxg_lan_streaming_example(ipAddress):
     # which is uncommon for commands that send binary block data
     uxg.binblockwrite(f"stream:external:header? ", header, esr=False)
     if uxg.read() != "+0":
-        raise pyarbtools.error.VSGError("stream:external:header? response invalid. This should never happen.")
+        raise pyarbtools.error.VSGError("stream:external:header? response invalid."
+                                        " This should never happen.")
 
     # Configure LAN streaming and send PDWs
-    # uxg.write('stream:state on')
     uxg.open_lan_stream()
 
     # If RF is turned on before this point a CW tone will appear before pulses
@@ -485,7 +450,105 @@ def vector_uxg_lan_streaming_example(ipAddress):
     # Ensure everything is synchronized
     uxg.query("*opc?")
 
-    # Begin streaming
+    # Begin streaming clock
+    uxg.write("stream:trigger:play:immediate")
+
+    # Check for errors and gracefully disconnect.
+    uxg.err_check()
+    uxg.disconnect()
+
+
+def vector_uxg_lan_streaming_setup(ipAddress):
+    # Shared lan streaming setup method
+    # Create vector UXG object
+    uxg = pyarbtools.instruments.VectorUXG(ipAddress, port=5025, timeout=10, reset=True)
+    # UXG configuration variables
+    amplitude = -5
+    output = 0
+    modulation = 1
+    # Configure UXG and clear all waveform memory
+    uxg.configure(amp=amplitude, rfState=output, modState=modulation)
+    uxg.clear_all_wfm()
+    # Waveform definition variables, three chirps of the same bandwidth and different lengths
+    bandwidthMhz = 10
+    lengths = [100e-6, 200e-6, 300e-6]
+    wfmNames = []
+    fileName = "chirps"
+    # Create and download waveforms to UXG and save a list of names used for each wfm
+    for l in lengths:
+        iq = pyarbtools.wfmBuilder.chirp_generator(
+            fs=uxg.fs, pWidth=l, pri=l, chirpBw=bandwidthMhz * 1e6,
+            wfmFormat="iq", zeroLast=True)
+
+        uxg.download_wfm(iq, f"{l}_{bandwidthMhz}MHz_CHIRP")
+        wfmNames.append(f"{l}_{bandwidthMhz}MHz_CHIRP")
+    # Create waveform index file using the file name and wfm names we saved
+    windex = {"fileName": fileName, "wfmNames": wfmNames}
+    # Download waveform index file so the UXG knows what
+    # waveforms correspond to the wIndex field in the PDWs
+    uxg.csv_windex_file_download(windex)
+    # Configure LAN streaming using SCPI commands
+    uxg.write("stream:source lan")
+    uxg.write("stream:trigger:play:file:type continuous")
+    uxg.write("stream:trigger:play:file:type:continuous:type trigger")
+    uxg.write("stream:trigger:play:source bus")
+    # Route PDW Marker 1 to N5194A trigger 2 output using SCPI commands
+    uxg.write("route:connectors:trigger2:output pmarker1")
+    # Load waveform index file and select it as the reference file for streaming
+    uxg.write(f'memory:import:windex "{windex["fileName"]}.csv",'
+              f'"{windex["fileName"]}"')
+    uxg.write(f'stream:windex:select "{windex["fileName"]}"')
+    # Clear the stream header to prepare for a new stream
+    uxg.write("stream:external:header:clear")
+    return uxg
+
+
+def vector_uxg_lan_stream_pdw_example(ipAddress):
+    """Creates and downloads iq waveforms & a waveform index file,
+    builds a binary PDW block, configures LAN streaming, and streams
+    the raw PDWs to the UXG using raw LAN streaming WITHOUT A HEADER.
+
+    This streams pulses. To capture this, PDW marker 1 will output a
+    hardware trigger on the N5194A trigger output 2.
+    """
+
+    # Call shared lan setup routine
+    uxg = vector_uxg_lan_streaming_setup(ipAddress)
+
+    # Create PDWs - format 3 rev B
+    # operation, freq, phase, startTimeSec, widthInSec, maxPower,
+    # markers, powerDbm, phaseControl, rfOff, autoBlank, newWaveform,
+    # zeroHold, loLead, wfmMkrMask, wIndex, power2dBm, maxPower2dBm,
+    # dopplerHz
+    # See documentation for bin_pdw_file_builder for more info
+
+    rawPdw = [
+        [1,  .950e9, 0, 1000e-6,  0, -5, 1, -10, 0, 0, 1, 1, 0, 0, 0xF, 0],
+        [0,  .975e9, 0, 3000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 1],
+        [0,     1e9, 0, 5000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 1],
+        [0, 1.025e9, 0, 7000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 2],
+        [0, 1.050e9, 0, 9000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 2],
+        [2,     1e9, 0,11000e-6,  0, -5, 0, -10, 0, 0, 1, 1, 0, 0, 0xF, 0]
+    ]
+
+    # Note: the last PDW starting with a '2' in the 'Operation'
+    # field marks the end of the PDW stream and does not play
+
+    pdwData = uxg.build_raw_pdw_block(rawPdw)
+
+    # Configure LAN streaming and send PDWs
+    uxg.open_lan_stream()
+
+    # If RF is turned on before this point a CW tone will appear before pulses
+    uxg.configure(rfState=1, modState=1)
+
+    # Use the separate LAN socket specifically opened for PDW streaming
+    uxg.lanStream.send(pdwData)
+
+    # Ensure everything is synchronized
+    uxg.query("*opc?")
+
+    # Begin streaming clock
     uxg.write("stream:trigger:play:immediate")
 
     # Check for errors and gracefully disconnect.
@@ -516,10 +579,10 @@ def analog_uxg_file_stream_pdw_example(ipAddress):
     # pulseMode, phaseControl, bandAdjust, chirpControl, fpc_code_selection,
     # chirpRate, freqMap
     pdwList = [
-        [1, 980e6, 0, 0, 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
-        [0, 1e9, 0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
-        [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
-        [2, 1e9, 0, 80e-6, 5e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+        [1, 980e6 , 0, 0    , 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
+        [0, 1e9   , 0, 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0      , 0],
+        [0, 1.01e9, 0, 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0      , 0],
+        [2, 1e9   , 0, 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0      , 0]
     ]
     pdwFile = uxg.bin_pdw_file_builder(pdwList)
 
@@ -558,6 +621,7 @@ def analog_uxg_lan_stream_pdw_example(ipAddress):
 
     # Set stream-play marker to trigger 2 output
     uxg.write("stream:markers:pdw1:mode begin")
+    # Trigger 2 will not be available when Multi Box Sync is active.
     uxg.write("rout:trigger2:output pmarker1")
     uxg.err_check()
 
@@ -585,10 +649,10 @@ def analog_uxg_lan_stream_pdw_example(ipAddress):
             mop = 0
 
         pdwList = [
-            [mop, 980e6, 0, burstStartTimeSec + 0, 10e-6, 1, 1, 2, 0, 0, 3, 0, 4000000, 0,],
-            [0, 1e9, 0, burstStartTimeSec + 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
-            [0, 1.01e9, 0, burstStartTimeSec + 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
-            [0, 1e9, 0, burstStartTimeSec + 80e-6, 5e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+            [mop, 980e6 , 0, burstStartTimeSec + 0    , 10e-6, 1, 1, 2, 0, 0, 3, 0, 4000000, 0,],
+            [0  , 1e9   , 0, burstStartTimeSec + 20e-6, 15e-6, 1, 0, 2, 0, 0, 0, 1, 0, 0],
+            [0  , 1.01e9, 0, burstStartTimeSec + 40e-6, 20e-6, 1, 0, 2, 0, 0, 0, 2, 0, 0],
+            [0  , 1e9   , 0, burstStartTimeSec + 80e-6, 5e-6 , 1, 0, 2, 0, 0, 0, 1, 0, 0]
         ]
         binPdwBurst = uxg.bin_raw_pdw_block_builder(pdwList)
 
@@ -735,7 +799,7 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
-    ipAddress = "10.0.0.100"
+    ipAddress = "10.0.0.47"
     matFilePath = "<insert path to .mat file here>"
 
     # m8190a_simple_wfm_example(ipAddress)
@@ -748,8 +812,9 @@ def main():
     # vsg_am_example(ipAddress)
     # vsg_mtone_example(ipAddress)
     # vector_uxg_dig_mod_example(ipAddress)
-    # vector_uxg_pdw_example(ipAddress)
-    # vector_uxg_lan_streaming_example(ipAddress)
+    # vector_uxg_csv_to_pdw_file_streaming_example(ipAddress)
+    # vector_uxg_lan_bin_file_streaming_example(ipAddress)
+    # vector_uxg_lan_stream_pdw_example(ipAddress)
     # analog_uxg_file_stream_pdw_example(ipAddress)
     # analog_uxg_lan_stream_pdw_example(ipAddress)
     # wfm_to_vsa_example(ipAddress)
