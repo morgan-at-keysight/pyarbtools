@@ -92,7 +92,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-pat-venv
+pyarbtools-venv
 
 # Spyder project settings
 .spyderproject
