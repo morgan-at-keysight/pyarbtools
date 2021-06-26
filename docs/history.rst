@@ -117,6 +117,9 @@ History
 ----------------------
 
 * Added N5194A Vector UXG support for PDW format 3 rev B that was introduced in firmware A.01.30.  Updated vector uxg example names to better reflect what the examples do.
-* Refined N5193A file streaming to define size of PDW block
+* Refined N5193A file streaming to define size of PDW block.
 * Reformatted comments related to analog and vector PDW sections to be more easy to read.
 
+2021.06.2 (2021-06-26)
+----------------------
+* Fixed marker generation functionality in M8190A.
