@@ -428,10 +428,6 @@ class M8190A(socketscpi.SocketInstrument):
             # Combine sample and sync markers into single binary value and add to waveform data
             markerData = sampleMkrData + syncMkrData
             wfm += markerData
-            import matplotlib.pyplot as plt
-            plt.plot(markerData)
-            plt.plot(wfm)
-            plt.show()
         else:
             raise socketscpi.SockInstError('Invalid wfmFormat chosen. Use "iq" or "real".')
 

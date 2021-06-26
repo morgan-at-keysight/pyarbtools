@@ -188,7 +188,7 @@ keyword argument(s) sent by the user.
 ----------------
 ::
 
-    M8190A.download_wfm(wfmData, ch=1, name='wfm', wfmFormat='iq', sampleMkr=0, syncMkr=0)
+    M8190A.download_wfm(wfmData, ch=1, name='wfm', wfmFormat='iq', sampleMkr=0, sampleMkrLength=240, syncMkr=0, syncMkrLength=240)
 
 Defines and downloads a waveform into the lowest available segment slot.
 
@@ -198,8 +198,11 @@ Defines and downloads a waveform into the lowest available segment slot.
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
 * ``name`` ``(str)``: Name for downloaded waveform segment.
 * ``wfmFormat`` ``(str)``: Format of the waveform being downloaded. Arguments are ``'iq'`` (default) or ``'real'``.
-* ``sampleMkr`` ``(int)``: Index of the beginning of the sample marker. Currently, marker width is 240 samples.
+* ``sampleMkr`` ``(int)``: Index of the beginning of the sample marker.
+* ``sampleMkrLength`` ``(int)``: Length in samples of the sample marker. Default is 240.
 * ``syncMkr`` ``(int)``: Index of the beginning of the sync marker. Currently, marker width is 240 samples.
+* ``syncMkrLength`` ``(int)``: Length in samples of the sync marker. Default is 240.
+
 
 **Returns**
 
