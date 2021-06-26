@@ -2,7 +2,7 @@
 PyArbTools: Keysight Signal Generator Control & Waveform Creation
 =================================================================
 
-*Current version: 2021.06.1*
+*Current version: 2021.06.2*
 
 Frustrated after looking through hundreds of pages of user manuals to find out how to download a waveform to a signal generator?
 
