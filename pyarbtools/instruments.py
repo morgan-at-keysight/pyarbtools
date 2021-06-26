@@ -356,7 +356,7 @@ class M8190A(socketscpi.SocketInstrument):
         else:
             raise ValueError("res argument must be 'wsp', 'wpr', 'intx3', 'intx12', 'intx24', or 'intx48'.")
 
-    def download_wfm(self, wfmData, ch=1, name="wfm", wfmFormat="iq", sampleMkr=0, syncMkr=0):
+    def download_wfm(self, wfmData, ch=1, name="wfm", wfmFormat="iq", sampleMkr=0, sampleMkrLength=240, syncMkr=0, syncMkrLength=240):
         """
         Defines and downloads a waveform into the segment memory.
         Assigns a waveform name to the segment. Returns segment number.
@@ -366,7 +366,9 @@ class M8190A(socketscpi.SocketInstrument):
             name (str): Optional name for waveform.
             wfmFormat (str): Format of waveform. ('real', 'iq')
             sampleMkr (int): Index of the beginning of the sample marker.
+            sampleMkrLength (int): Length in samples of the sample marker
             syncMkr (int): Index of the beginning of the sync marker.
+            syncMkrLength (int): Length in samples of the sync marker.
 
         Returns:
             (int): Segment number of the downloaded waveform. Use this as the waveform identifier for the .play() method.
@@ -377,6 +379,10 @@ class M8190A(socketscpi.SocketInstrument):
             raise TypeError("sampleMkr must be an int.")
         if not isinstance(syncMkr, int):
             raise TypeError("syncMkr must be an int.")
+        if not isinstance(sampleMkrLength, int):
+            raise TypeError("sampleMkrLength must be an int.")
+        if not isinstance(syncMkrLength, int):
+            raise TypeError("syncMkrLength must be an int.")
 
         # Stop output before doing anything else
         self.write("abort")
@@ -389,16 +395,17 @@ class M8190A(socketscpi.SocketInstrument):
                 i = self.check_wfm(np.real(wfmData))
                 q = self.check_wfm(np.imag(wfmData))
 
-                # Create a 240-sample pulse in the sample marker waveform starting at the selected index
-                if sampleMkr:
-                    markerData = np.zeros(len(i), dtype=np.int16)
-                    markerData[sampleMkr : sampleMkr + 240] = 1
-                    i += sampleMkr
-                # Create a 240-sample pulse in the sync marker waveform starting at the selected index
-                if syncMkr:
-                    markerData = np.zeros(len(q), dtype=np.int16)
-                    markerData[syncMkr : syncMkr + 240] = 1
-                    q += syncMkr
+                # Create a pulse in the sample marker waveform starting at the selected index
+                sampleMkrData = np.zeros(len(i), dtype=np.int16)
+                # Sync marker occupies the least significant bit of each sample of I
+                sampleMkrData[sampleMkr : sampleMkr + sampleMkrLength] = 1
+                i += sampleMkrData
+
+                # Create a pulse in the sync marker waveform starting at the selected index
+                syncMkrData = np.zeros(len(q), dtype=np.int16)
+                # Sync marker occupies the least significant bit of each sample of Q
+                syncMkrData[syncMkr : syncMkr + syncMkrLength] = 1
+                q += syncMkrData
 
                 # Interleave the I and Q arrays and adjust the length to compensate
                 wfm = self.iq_wfm_combiner(i, q)
@@ -407,6 +414,24 @@ class M8190A(socketscpi.SocketInstrument):
         elif wfmFormat.lower() == "real":
             wfm = self.check_wfm(wfmData)
             length = len(wfm)
+
+            # Create a pulse in the sample marker waveform starting at the selected index
+            sampleMkrData = np.zeros(length, dtype=np.int16)
+            # Sync marker occupies the least significant bit in the waveform data
+            sampleMkrData[sampleMkr : sampleMkr + sampleMkrLength] = 1
+            
+            # Create a pulse in the sync marker waveform starting at the selected index
+            syncMkrData = np.zeros(length, dtype=np.int16)
+            # Sync marker occupies the second least significant bit in the waveform data
+            syncMkrData[syncMkr : syncMkr + syncMkrLength] = 1 << 1
+
+            # Combine sample and sync markers into single binary value and add to waveform data
+            markerData = sampleMkrData + syncMkrData
+            wfm += markerData
+            import matplotlib.pyplot as plt
+            plt.plot(markerData)
+            plt.plot(wfm)
+            plt.show()
         else:
             raise socketscpi.SockInstError('Invalid wfmFormat chosen. Use "iq" or "real".')
 
