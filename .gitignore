@@ -114,3 +114,4 @@ pyarbtools/playground.py
 .vscode
 testing.py
 Tests/
+pyarbtools-venv/
