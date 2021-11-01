@@ -1683,8 +1683,9 @@ class VXG(socketscpi.SocketInstrument):
         if reset:
             self.write("*rst")
             self.query("*opc?")
-            optionString = self.query("*opt?")
-            print(optionString)
+
+        # Query the options on the VXG to see how many channels it has
+        optionString = self.query("*opt?")
 
         # Query all settings from VXG and store them as class attributes
         self.rfState1 = self.query("rf1:output?").strip()
@@ -1697,6 +1698,7 @@ class VXG(socketscpi.SocketInstrument):
         self.rms1 = float(self.query("source:signal1:waveform:rms?").strip())
         self.fs1 = float(self.query("signal1:waveform:sclock:rate?").strip())
 
+        # If there are two channels, repeat the queries above for the second channel
         if "002" in optionString:
             self.numCh = 2
             self.rfState2 = self.query("rf2:output?").strip()
@@ -1711,6 +1713,7 @@ class VXG(socketscpi.SocketInstrument):
         else:
             self.numCh = 1
 
+        # Reference source settings are independent of channel number.
         self.refSrc = self.query("roscillator:source?").strip()
 
         if "int" in self.refSrc.lower():
@@ -1750,7 +1753,7 @@ class VXG(socketscpi.SocketInstrument):
                 self.set_modState(value, ch=1)
             elif key == "modState2" and self.numCh == 2:
                 self.set_modState(value, ch=2)
-            elif key == "arbdState1" or key == "arbState":
+            elif key == "arbState1" or key == "arbState":
                 self.set_arbState(value, ch=1)
             elif key == "arbState2" and self.numCh == 2:
                 self.set_modState(value, ch=2)
@@ -2000,7 +2003,7 @@ class VXG(socketscpi.SocketInstrument):
         print("Internal Arb1 Sample Rate:", self.fs1)
 
         if self.numCh == 2:
-            print("RF State 2:", self.rfState2)
+            print("\nRF State 2:", self.rfState2)
             print("Modulation State 2:", self.modState2)
             print("Center Frequency 2:", self.cf2)
             print("Output Amplitude 2:", self.amp2)
