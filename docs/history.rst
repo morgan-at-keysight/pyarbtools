@@ -123,3 +123,9 @@ History
 2021.06.2 (2021-06-26)
 ----------------------
 * Fixed marker generation functionality in M8190A.
+
+2021.11.1 (2021-11-01)
+----------------------
+* Fixed broken links in ReadMe
+* Fixed timeout issue with single-channel VXGs
+* Relaxed VXG.configure() type checking
