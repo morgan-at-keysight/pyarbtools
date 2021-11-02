@@ -674,9 +674,9 @@ class M8190A(socketscpi.SocketInstrument):
             segAdvanceBin = 0 << 16
         elif segAdvance.lower() == "conditional":
             segAdvanceBin = 1 << 16
-        elif segAdvanceBin.lower() == "repeat":
+        elif segAdvance.lower() == "repeat":
             segAdvanceBin = 2 << 16
-        elif segAdvanceBin.lower() == "single":
+        elif segAdvance.lower() == "single":
             segAdvanceBin = 3 << 16
 
         if seqStart:
@@ -1766,7 +1766,9 @@ class VXG(socketscpi.SocketInstrument):
 
         # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
-            if key == "rfState1" or key == "rfState":
+            if "2" in key and self.numCh != 2:
+                raise KeyError(f'Channel 2 not present in this VXG. Invalid keyword argument: "{key}"')
+            elif key == "rfState1" or key == "rfState":
                 self.set_rfState(value, ch=1)
             elif key == "rfState2" and self.numCh == 2:
                 self.set_rfState(value, ch=2)
@@ -1794,7 +1796,7 @@ class VXG(socketscpi.SocketInstrument):
                 self.set_iqScale(value, ch=1)
             elif key == "iqScale2" and self.numCh == 2:
                 self.set_iqScale(value, ch=2)
-            elif key == "rms1":
+            elif key == "rms1" or key == "rms":
                 self.set_rms(value, ch=1)
             elif key == "rms2" and self.numCh == 2:
                 self.set_rms(value, ch=2)
@@ -1813,6 +1815,18 @@ class VXG(socketscpi.SocketInstrument):
 
         self.err_check()
 
+    def channel_checker(self, ch):
+        """
+        Helper function to check how many channels the VXG has.
+        Args:
+            ch (int): Channel number
+        """
+        
+        if ch not in [1, 2]:
+            raise ValueError("Invalid channel selected. Choose 1 or 2.")
+        if ch == 2 and self.numCh != 2:
+            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
+
     def set_rfState(self, rfState, ch=1):
         """
         Sets and reads the state of the RF output using SCPI commands.
@@ -1821,11 +1835,7 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
-
+        self.channel_checker(ch)
         if rfState not in [1, 0, "on", "off", "ON", "OFF", "On", "Off"]:
             raise ValueError('"rfState" should be 1, 0, "on", or "off"')
 
@@ -1840,11 +1850,7 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
-
+        self.channel_checker(ch)
         if modState not in [1, 0, "on", "off", "ON", "OFF", "On", "Off"]:
             raise ValueError('"modState" should be 1, 0, "on", or "off"')
 
@@ -1859,11 +1865,7 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
-
+        self.channel_checker(ch)
         if arbState not in [1, 0, "on", "off", "ON", "OFF", "On", "Off"]:
             raise ValueError('"arbState" should be 1, 0, "on", or "off"')
 
@@ -1878,12 +1880,14 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
+        self.channel_checker(ch)
 
-        if not isinstance(cf, float) or cf <= 0:
+        # Type checking with a useful error message
+        try:
+            float(cf)
+        except ValueError:
+            raise ValueError("Carrier frequency must be a positive floating point value.")
+        if cf <= 0:
             raise ValueError("Carrier frequency must be a positive floating point value.")
 
         self.write(f"source:rf{ch}:frequency {cf}")
@@ -1897,13 +1901,14 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
+        self.channel_checker(ch)
 
-        if not isinstance(amp, (float, int)):
-            raise ValueError("Amp argument must be a numerical value.")
+        # Type checking with a useful error message
+        try:
+            float(amp)
+            int(amp)
+        except ValueError:
+            raise ValueError('"amp" should be a numerical value.')
 
         self.write(f"source:rf{ch}:power {amp}")
         exec(f'self.amp{ch} = float(self.query(f"source:rf{ch}:power?").strip())')
@@ -1917,11 +1922,7 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
-
+        self.channel_checker(ch)
         if alcState not in [1, 0, "on", "off", "ON", "OFF", "On", "Off"]:
             raise ValueError('"alcState" should be 1, 0, "on", or "off"')
 
@@ -1937,12 +1938,14 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
+        self.channel_checker(ch)
 
-        if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
+        # Type checking with a useful error message
+        try:
+            int(iqScale)
+        except ValueError:
+            raise ValueError("iqScale argument must be an integer between 1 and 100.")
+        if iqScale <= 0 or iqScale > 100:
             raise ValueError("iqScale argument must be an integer between 1 and 100.")
 
         self.write(f"source:signal{ch}:waveform:scale {iqScale}")
@@ -1957,13 +1960,16 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if ch not in [1, 2]:
-            raise ValueError("Invalid channel selected. Choose 1 or 2.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
-
-        if not isinstance(rms, (float, int)) or rms <= 0.1 or rms > 1.414213562:
-            raise ValueError("rms argument must be a floating point value between 0.1 and 1.414213562.")
+        self.channel_checker(ch)
+        
+        # Type checking with a useful error message
+        try:
+            int(rms)
+            float(rms)
+        except ValueError:
+            raise ValueError('"rms" must be a floating point value between 0.1 and 1.414213562.')
+        if rms <= 0.1 or rms > 1.414213562:
+            raise ValueError('"rms" must be a floating point value between 0.1 and 1.414213562.')
 
         self.write(f"source:signal{ch}:waveform:rms {rms}")
         exec(f'self.rms{ch} = float(self.query(f"source:signal{ch}:waveform:rms?").strip())')
@@ -1976,10 +1982,16 @@ class VXG(socketscpi.SocketInstrument):
             ch (int): Specified channel being adjusted.
         """
 
-        if not isinstance(fs, (int, float)) or fs <= 0:
+        self.channel_checker(ch)
+
+        # Type checking with a useful error message
+        try:
+            int(fs)
+            float(fs)
+        except ValueError:
             raise ValueError("Sample rate must be a positive floating point value.")
-        if ch == 2 and self.numCh != 2:
-            raise ValueError("You have selected channel 2. This is a single channel VXG. Try channel 1 instead.")
+        if fs <= 0:
+            raise ValueError("Sample rate must be a positive floating point value.")
 
         self.write(f"signal{ch}:waveform:sclock:rate {fs}")
         exec(f"self.fs{ch} = float(self.query('signal{ch}:waveform:sclock:rate?').strip())")
@@ -1991,12 +2003,7 @@ class VXG(socketscpi.SocketInstrument):
             refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
         """
 
-        if not isinstance(refSrc, str) or refSrc.lower() not in [
-            "int",
-            "ext",
-            "internal",
-            "external",
-        ]:
+        if not isinstance(refSrc, str) or refSrc.lower() not in ["int", "ext", "internal", "external"]:
             raise ValueError('"refSrc" must be "internal" or "external".')
 
         self.write(f"roscillator:source {refSrc}")
