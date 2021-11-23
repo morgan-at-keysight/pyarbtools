@@ -8,8 +8,12 @@ checks, etc. per instrument.
 Tested on M8190A, M8195A, M8196A, N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
+import ipaddress
+from socket import socket
+from typing import Protocol
 import numpy as np
 import socketscpi
+import pyvisa
 
 from pyarbtools import error
 from pyarbtools import pdwBuilder
@@ -49,6 +53,55 @@ def wraparound_calc(length, gran, minLen):
         print(f"Information: Waveform repeated {repeats} times.")
     return repeats
 
+
+class SignalGeneratorBase:
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, **kwargs):
+            """
+            Args:
+            ipAddress (string): Instrument host IP address. Argument is a string containing a valid IP address.
+            apiType (string): Chooses whether to use PyVISA or socketscpi ["pyvisa", "socketscpi"].
+            timeout (int): Timeout in seconds.
+            
+            Keyword Args:
+            protocol (string): LAN protocol used to communicate with the instrument ("vxi11", "hislip", "socket"). Note this is only usable with PyVISA.
+            port (int): Port used by the instrument to facilitate communication (socket default is 5025, vxi11 and hislip defaults are 0).
+            """
+
+            self.apiType = apiType
+
+            for key, value in kwargs.items():
+                if key == "protocol":
+                    protocol = value
+                elif key == "port":
+                    port = value
+                # No good reason to use delay behavior in an instrument control scenario
+                # elif key == "noDelay":
+                    # noDelay = value
+                else:
+                    raise KeyError(f'{key} is not a valid keyword argument.')
+
+            if self.apiType == "socketscpi":
+                try:
+                    self.instance = socketscpi.SocketInstrument(ipAddress, port=port, timeout=timeout, noDelay=True)
+                except NameError:
+                    self.instance = socketscpi.SocketInstrument(ipAddress, port=5025, timeout=timeout, noDelay=True)
+            elif self.apiType == "pyvisa":
+                if protocol.lower() == "vxi11":
+                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::inst{port}::instr")
+                elif protocol.lower() == "hislip":
+                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::hislip{port}::instr")
+                elif protocol.lower() == "socket":
+                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::{port}::socket")
+                else:
+                    raise ValueError('Invalid protocol selection. Use "vxi11", "hislip", or "socket".')
+            else:
+                raise ValueError(f'"{self.apiType}" is not a valid apiType, use "socketscpi" or "pyvisa".')
+
+    def __getattr__(self, __name: str):
+        """This is a passthrough method that allows the base class to access attributes from the parent class.
+        See the accepted answer at
+        https://stackoverflow.com/questions/65754399/conditional-inheritance-based-on-arguments-in-python"""
+        return self.instance.__getattribute__(__name)
 
 class M8190A(socketscpi.SocketInstrument):
     """Generic class for controlling a Keysight M8190A AWG.
