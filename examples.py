@@ -6,7 +6,55 @@ instrument classes from PyArbTools.
 """
 
 import pyarbtools
+import numpy as np
 
+def vxg_arbitrary_wfm_load(ipAddress):
+    """Creates and downloads an arbitrary waveform into the VXG."""
+
+    # Create random complex samples 
+    recordLength = 4096
+    wfmData = np.random.random(size=recordLength) + 1j*np.random.random(size=recordLength)
+    wfmName = "random data"
+
+    # Create VXG object
+    vxg = pyarbtools.instruments.VXG(ipAddress, port=5025, reset=True)
+    cf = 1e9
+    amp = -20
+    fs = 1e9
+    vxg.configure(rfState=1, modState=1, cf=cf, amp=amp, fs=fs)
+
+    # Download and play waveform
+    wfmID = vxg.download_wfm(wfmData, wfmID=wfmName)
+    vxg.play(wfmID=wfmID)
+    
+    # Check for errors and gracefully disconnect
+    vxg.err_check()
+    vxg.disconnect()
+
+def vsa_get_iq_data(ipAddress):
+    """Sets up VSA in vector analysis mode, makes a new acquisition, and grabs IQ data."""
+
+    # Set up variables
+    cf = 1e9
+    span = 40e6
+    acqTime = 10e-6
+    amp = 0
+
+    # Create VSA object and configure measurement
+    vsa = pyarbtools.vsaControl.VSA(ipAddress)
+    vsa.set_measurement('vector')
+    vsa.configure_vector(cf=cf, span=span, amp=amp, time=acqTime)
+
+    # Capture IQ data
+    iq = vsa.get_iq(newAcquisition=True)
+    import matplotlib.pyplot as plt
+    plt.plot(iq.real)
+    plt.plot(iq.imag)
+    plt.show()
+
+    # Check for errors and gracefully disconnect
+    vsa.err_check()
+    vsa.disconnect()
 
 def vsg_chirp_example(ipAddress):
     """Creates downloads, assigns, and plays out a chirp waveform with
@@ -821,7 +869,10 @@ def main():
     # vsa_vector_example(ipAddress)
     # vxg_mat_import_example(ipAddress, fileName=matFilePath)
     # m8190a_sequence_example(ipAddress)
-    gui_example()
+    vxg_arbitrary_wfm_load(ipAddress)
+    # vsa_get_iq_data(ipAddress)
+    
+    # gui_example()
 
 
 if __name__ == "__main__":

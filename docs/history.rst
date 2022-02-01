@@ -128,4 +128,9 @@ History
 ----------------------
 * Fixed broken links in ReadMe
 * Fixed timeout issue with single-channel VXGs
-* Relaxed VXG.configure() type checking
+* Relaxed ``VXG.configure()`` type checking
+
+2022.02.1 (2022-02-01)
+----------------------
+* Added ``get_iq_data()`` method to ``VSA`` object
+* Added two new functions in ``examples.py``
