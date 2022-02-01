@@ -2,7 +2,7 @@
 PyArbTools: Keysight Signal Generator Control & Waveform Creation
 =================================================================
 
-*Current version: 2021.11.1*
+*Current version: 2022.02.1*
 
 Frustrated after looking through hundreds of pages of user manuals to find out how to download a waveform to a signal generator?
 
@@ -12,7 +12,7 @@ Tired of troubleshooting VISA connections, conflicts, and incompatibilities?
 
 Can't get a Matlab license or the correct toolbox(es) for your work?
 
-**Try PyArbTools: a fast, free, and flexible way to create waveforms and control Keysight signal generators.**
+**Try PyArbTools: a fast, free, and flexible way to create waveforms and control Keysight signal generators** *(and VSA software!).*
 
 PyArbTools is a collection of Python classes and functions that provide basic signal creation, instrument configuration, and waveform download capabilities for Keysight signal sources.
 
@@ -21,9 +21,13 @@ PyArbTools was built to satisfy the needs of signal generator users who can't/do
 
 **Features**
 
-* Supports M8190A, M8195A, and M8196A arbitrary waveform generators, N5182B MXG/N5172B EXG/E8267D PSG vector signal generators, the M9384B VXG vector signal generator, and N5193/4A UXG agile waveform generators.
+* Supported signal generators:
+    * M9384B VXG vector signal generator
+    * N5182B MXG, N5172B EXG, and E8267D PSG vector signal generators
+    * M8190A, M8195A, and M8196A arbitrary waveform generators
+    * N5193A and N5194A UXG agile waveform generators.
 * Connect to and configure instruments, download waveforms, control playback, and load or stream PDWs (for UXG), all using easy-to-use functions rather than a list of SCPI commands.
-* *New as of 2021.02.3*: Create sequences on the M8190A.
+* Create sequences on the M8190A.
 * Calibrate waveforms using Keysight's 89600 VSA software.
 * For custom applications, communicate with instruments using SCPI commands.
 * All instrument control uses socket communication, no VISA required.
@@ -33,5 +37,3 @@ PyArbTools was built to satisfy the needs of signal generator users who can't/do
 Take a look at `pyarbtools/examples.py <https://github.com/morgan-at-keysight/pyarbtools/blob/master/examples.py>`_ for sample code.
 
 *PyArbTools was written for Python and is not currently compatible with legacy Python 2.x*
-
-License: GPL 3

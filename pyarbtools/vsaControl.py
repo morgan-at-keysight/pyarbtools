@@ -465,13 +465,13 @@ class VSA(socketscpi.SocketInstrument):
 
     def get_iq(self, newAcquisition=False):
         """
-        Grabs IQ data using current acquisition settings.
+        Gets IQ data using current acquisition settings.
         
         Args:
             newAcquisition (bool): Determines if a new acquisition is made prior to getting IQ data.
 
         Returns:
-            (NumPy ndarray): array of complex IQ values
+            (NumPy ndarray): Array of complex IQ values
         """
 
         # if 'vect' not in self.meas.lower():

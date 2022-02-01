@@ -55,6 +55,7 @@ Supported VSA control functions include:
 * :ref:`set_measurement`
 * :ref:`configure_ddemod`
 * :ref:`configure_vector`
+* :ref:`get_iq_data`
 * :ref:`recall_recording`
 * :ref:`sanity_check`
 
@@ -194,7 +195,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy array)``: Array of waveform samples (either real or IQ).
+* ``wfmData`` ``(NumPy ndarray)``: Array of waveform samples (either real or IQ).
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
 * ``name`` ``(str)``: Name for downloaded waveform segment.
 * ``wfmFormat`` ``(str)``: Format of the waveform being downloaded. Arguments are ``'iq'`` (default) or ``'real'``.
@@ -405,7 +406,7 @@ Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy array)``: Array containing real waveform samples (not IQ).
+* ``wfmData`` ``(NumPy ndarray)``: Array containing real waveform samples (not IQ).
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
 * ``name`` ``(str)``: String providing a name for downloaded waveform segment.
 
@@ -541,7 +542,7 @@ Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy array)``: Array containing real waveform samples (not IQ).
+* ``wfmData`` ``(NumPy ndarray)``: Array containing real waveform samples (not IQ).
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
 * ``name`` ``(str)``: Name for downloaded waveform segment.
 
@@ -700,7 +701,7 @@ requirements. Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmData`` ``(NumPy ndarray)``: Array of values containing the complex sample pairs in an IQ waveform.
 * ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
@@ -847,7 +848,7 @@ granularity requirements. Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmData`` ``(NumPy ndarray)``: Array of values containing the complex sample pairs in an IQ waveform.
 * ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
@@ -1070,7 +1071,7 @@ See User's Guide>Streaming Use>PDW Definitions section of Keysight `Analog UXG O
     * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
 
 **Returns**
-    * ``(NumPy array)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
+    * ``(NumPy ndarray)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
 
 Example::
 
@@ -1216,7 +1217,7 @@ requirements. Returns a useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmData`` ``(NumPy ndarray)``: Array of values containing the complex sample pairs in an IQ waveform.
 * ``wfmID`` ``(str)``: String specifying the name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
@@ -1344,7 +1345,7 @@ See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG O
     * ``wfmMkrMask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
 
 **Returns**
-    * ``(NumPy Array)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
+    * ``(NumPy ndarray)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
 
 **bin_pdw_file_builder**
 ------------------------
@@ -1530,7 +1531,7 @@ Takes in waveform data and exports it to a csv file as plain text.
 
 **Arguments**
 
-* ``data`` ``(NumPy array)``: Waveform data to be exported.
+* ``data`` ``(NumPy ndarray)``: Waveform data to be exported.
 * ``fileName`` ``(str)``: Full absolute file name where the waveform will be saved. (should end in ``".csv"``)
 * ``vsaCompatible`` ``(bool)``: Determines VSA compatibility. If ``True``, adds the ``XDelta`` field to the beginning of the file and allows VSA to recall it as a recording.
 * ``fs`` ``(float)``: Sample rate originally used to create the waveform. Default is ``0``, so this should be entered manually.
@@ -1558,8 +1559,8 @@ Imports waveform data from .mat file. Detects array data type, and accepts data 
 **Returns**
 
 * ``(dict)``:
-    * ``data`` (NumPy ndarray): Array of waveform samples.
-    * ``fs`` (float): Sample rate of imported waveform.
+    * ``data`` ``(NumPy ndarray)``: Array of waveform samples.
+    * ``fs`` ``(float)``: Sample rate of imported waveform.
     * ``wfmID`` ``(str)``: Waveform name.
     * ``wfmFormat`` ``(str)``: Waveform format (``iq`` or ``real``).
 
@@ -1581,7 +1582,7 @@ Generates a waveform filled with the value ``0``.
 
 **Returns**
 
-* ``(NumPy array)``: Array containing the complex or real values of the zero waveform.
+* ``(NumPy ndarray)``: Array containing the complex or real values of the zero waveform.
 
 
 .. _sine_generator:
@@ -1604,7 +1605,7 @@ Generates a sine wave with configurable frequency and initial phase at baseband 
 
 **Returns**
 
-* ``(NumPy array)``: Array containing the complex or real values of the sine wave.
+* ``(NumPy ndarray)``: Array containing the complex or real values of the sine wave.
 
 .. _am_generator:
 
@@ -1627,7 +1628,7 @@ Generates a linear sinusoidal AM signal of specified depth and modulation rate a
 
 **Returns**
 
-* ``(NumPy array)``: Array containing the complex or real values of the AM waveform.
+* ``(NumPy ndarray)``: Array containing the complex or real values of the AM waveform.
 
 .. _cw_pulse_generator:
 
@@ -1652,7 +1653,7 @@ Generates an unmodulated CW (continuous wave) pulse at baseband or RF.
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the CW pulse.
+* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the CW pulse.
 
 .. _chirp_generator:
 
@@ -1677,7 +1678,7 @@ Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction 
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the chirped pulse.
+* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the chirped pulse.
 
 .. _barker_generator:
 
@@ -1704,7 +1705,7 @@ more information on Barker coding.
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the barker pulse.
+* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the barker pulse.
 
 .. _multitone_generator:
 
@@ -1727,7 +1728,7 @@ Generates a multitone_generator signal with given tone spacing, number of tones,
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the multitone_generator signal.
+* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the multitone_generator signal.
 
 .. _digmod_generator:
 
@@ -1759,7 +1760,7 @@ NOTE - The ring ratios for APSK modulations are as follows:
 
 **Returns**
 
-* ``(NumPy array)``: Array containing the complex values of the digitally modulated signal.
+* ``(NumPy ndarray)``: Array containing the complex values of the digitally modulated signal.
 
 **iq_correction**
 -----------------
@@ -1777,7 +1778,7 @@ waveform.
 
 **Arguments**
 
-* ``iq`` ``(NumPy array)``: Array contianing the complex values of the signal to be corrected.
+* ``iq`` ``(NumPy ndarray)``: Array contianing the complex values of the signal to be corrected.
 * ``inst`` ``(pyarbtools.instrument.XXX)``: Instrument class of the generator to be used in the calibration. Must already be connected and configured. ``inst.fs`` is used as the basis for the calibration and ``inst.play()`` method is used.
 * ``vsaIPAddress`` ``(str)``: IP address of the VSA instance to be used in calibration. Default is ``'127.0.0.1'``.
 * ``vsaHardware`` ``(str)``: Name of the hardware to be used by VSA. Name must be surrounded by double quotes (``"``). Default is ``'"Analyzer1"'``.
@@ -1788,7 +1789,7 @@ waveform.
 
 **Returns**
 
-* ``(NumPy array)``: Array containing the complex values of corrected signal.
+* ``(NumPy ndarray)``: Array containing the complex values of corrected signal.
 
 
 .. _vsaControl:
@@ -1841,7 +1842,13 @@ code without having to send a SCPI query to determine values::
     print(f'Modulation type is {vsa.modType}.')
     print(f'Symbol rate is {vsa.symRate} symbols/sec.')
 
+``VSA`` also supports exporting IQ data from the current measurement. The ``get_iq_data()``
+method uses the current acquisition settings and gets the raw IQ samples and
+returns them as a complex NumPy array. The ``newAcquisition`` keyword argument
+allows the user to specify if they want to take a new acquisition prior to 
+getting the iq data (this is set to ``False`` by default::
 
+    iq = vsa.get_iq_data(newAccquisition=True)
 
 =======
 **VSA**
@@ -1863,7 +1870,7 @@ the keyword arguments for the ``.configure_***()`` methods.
 * ``amp`` ``(float)``: Reference level/vertical range in dBm.
 * ``span`` ``(float)``: Analyzer span in Hz.
 * ``hw`` ``(str)``: Identifier string for acquisition hardware used by VSA.
-* ``meas`` ``(str)``: Measurement type ('vector', 'ddemod' currently supported).
+* ``meas`` ``(str)``: Measurement type ('vector', 'ddemod' currently supported with limited support for 'customofdm').
 * ``modType`` ``(str)``: String defining digital modulation format.
 * ``symRate`` ``(float)``: Symbol rate in symbols/sec.
 * ``measFilter`` ``(str)``: Sets the measurement filter type.
@@ -2112,6 +2119,24 @@ Recalls a data file as a recording in VSA using SCPI commands.
 **Returns**
 
 * None
+
+.. _get_iq_data:
+
+**get_iq_data**
+---------------
+::
+
+    VSA.get_iq_data(newAqcuisition=False)
+
+Gets IQ data using current acquisition settings.
+
+**Arguments**
+
+* ``newAcquisition`` ``(bool)``: Determines if a new acquisition is made prior to getting IQ data.
+
+**Returns**
+
+* ``NumPy`` ``ndarray``: Array of complex IQ values.
 
 .. _sanity_check:
 
