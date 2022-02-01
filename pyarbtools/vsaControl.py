@@ -467,6 +467,9 @@ class VSA(socketscpi.SocketInstrument):
         """
         Grabs IQ data using current acquisition settings.
         
+        Args:
+            newAcquisition (bool): Determines if a new acquisition is made prior to getting IQ data.
+
         Returns:
             (NumPy ndarray): array of complex IQ values
         """
@@ -483,6 +486,8 @@ class VSA(socketscpi.SocketInstrument):
         # Add new trace in IQ format
         iqTraceNum = int(self.query("trace:count?")) + 1
         self.write("trace:add")
+
+        # For whatever reason, the name of the time trace is different in different measurement modes.
         if 'vect' in self.meas.lower():
             self.write(f"trace{iqTraceNum}:data:name 'Main Time1'")
         elif 'cust' in self.meas.lower() or 'ddem' in self.meas.lower():
