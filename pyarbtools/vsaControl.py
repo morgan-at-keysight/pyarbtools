@@ -4,9 +4,11 @@ Author: Morgan Allison, Keysight RF/uW Application Engineer
 Generic VSA control object for PyArbTools.
 """
 
+from ctypes import ArgumentError
 import socketscpi
 import os
 import warnings
+import numpy as np
 from pyarbtools import error
 
 
@@ -171,18 +173,25 @@ class VSA(socketscpi.SocketInstrument):
         Selects a measurement type in VSA using SCPI commands.
 
         Args:
-            meas (str): Selects measurement type ('vector', 'ddemod' currently supported)
+            meas (str): Selects measurement type ('vector', 'ddemod' currently supported, limited support for Custom OFDM)
         """
 
-        if meas.lower() not in ['vector', 'vect', 'ddemod', 'ddem']:
-            raise ValueError('Invalid measurement selected. Choose \'vector\' or \'ddemod\'.')
+        if meas.lower() not in ['vector', 'vect', 'ddemod', 'ddem', 'customofdm', 'cust']:
+            raise ValueError("Invalid measurement selected. Choose 'vector', 'ddemod', or 'customofdm.")
 
         self.write('measure:nselect 1')
         self.write(f'measure:configure {meas}')
-        self.meas = self.query('measure:configure?')
+        self.get_measurement()
 
         if 'vect' in self.meas.lower():
             self.write('sense:rbw:points:auto 1')
+
+    def get_measurement(self):
+        """
+        Queries and populates the self.meas property with the currently selected measurement type.
+        """
+
+        self.meas = self.query('measure:configure?')
 
     def configure_ddemod(self, **kwargs):
         """
@@ -378,7 +387,7 @@ class VSA(socketscpi.SocketInstrument):
         """
 
         if 'vect' not in self.meas.lower():
-            raise error.VSAError(f'Measurement type is currently "{self.meas}". Measurement type must be "vect" to configure digital demod.')
+            raise error.VSAError(f'Measurement type is currently "{self.meas}". Measurement type must be "vect" to configure vector mode.')
 
         # Check to see which keyword arguments the user sent and call the appropriate function
         for key, value in kwargs.items():
@@ -453,6 +462,49 @@ class VSA(socketscpi.SocketInstrument):
 
         # VSA helpfully reports an error if the file and the selected file format don't match. Check this here.
         self.err_check()
+
+    def get_iq(self, newAcquisition=False):
+        """
+        Grabs IQ data using current acquisition settings.
+        
+        Returns:
+            (NumPy ndarray): array of complex IQ values
+        """
+
+        # if 'vect' not in self.meas.lower():
+            # raise error.VSAError(f'Measurement type is currently "{self.meas}". Measurement type must be "vect" to capture IQ data.')
+
+        # Get the measurement to determine the correct data to use for the IQ trace
+        self.get_measurement()
+
+        if newAcquisition:
+            self.acquire_single()
+
+        # Add new trace in IQ format
+        iqTraceNum = int(self.query("trace:count?")) + 1
+        self.write("trace:add")
+        if 'vect' in self.meas.lower():
+            self.write(f"trace{iqTraceNum}:data:name 'Main Time1'")
+        elif 'cust' in self.meas.lower() or 'ddem' in self.meas.lower():
+            self.write(f"trace{iqTraceNum}:data:name 'Time1'")
+        else:
+            raise AttributeError("Invalid 'meas' value.")
+        self.write(f"trace{iqTraceNum}:format 'IQ'")
+
+        # Format the trace and grab trace data
+        self.write('format:trace:data real64')
+        i = self.binblockread(f'trace{iqTraceNum}:data:x?', datatype='d').byteswap()
+        q = self.binblockread(f'trace{iqTraceNum}:data:y?', datatype='d').byteswap()
+        
+        # Convert individual I and Q arrays into complex array
+        iq = np.array(i + 1j*q)
+
+        # Clean up trace used for acquisition
+        self.write("trace:remove")
+
+        self.err_check()
+
+        return iq
 
     def sanity_check(self):
         """Prints out measurement context-sensitive user-accessible class attributes."""
