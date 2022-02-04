@@ -511,6 +511,98 @@ class VSA(socketscpi.SocketInstrument):
 
         return iq
 
+    def custom_ofdm_load_setx(self, setxFile):
+        """Loads a setx file for a Custom OFDM measurement. This must always be done when setting up 
+        a custom OFDM measurement for the first time.
+        
+        Args:
+            setxFile (str): Path to a .setx file that configures the OFDM frame structure and resource mapping.
+        """
+        self.write(f"mmemory:load:setup {setxFile}")
+        self.query("*opc?")
+
+    def custom_ofdm_time_setup(self, measInterval=256, measOffset=0, resultLen=256, resultLenAuto=True, searchLen=300e-6):
+        """Configures the settings in the Time tab under Custom OFDM demod properties.
+        
+        Args:
+            measInterval (int): Number of symbols to be included in the measurement.
+            measOffset (int): Number of symbols to be omitted prior to beginning the measurement.
+            resultLen (int): Number of symbols available for the measurement. 
+            resultLenSelect (bool): Determines whether to automatically limits the results length to the number of symbols contained in a single burst.
+            searchLen (float): Determines total amount of time VSA will acquire for analysis.
+        """
+
+        self.write(f"sense:customofdm:time:interval {measInterval}")
+        self.write(f"sense:customofdm:time:offset {measOffset}")
+        self.write(f"sense:customofdm:time:rlength {resultLen}")
+        if resultLenAuto:
+            selection = "Automatic"
+        else:
+            selection = "Manual"
+        self.write(f"sense:customofdm:time:rlength:selection {selection}")
+        self.write(f"sense:customofdm:time:slength {searchLen}")
+
+    def custom_ofdm_equalizer_setup(self, useData=False, useDCPilot=False, usePilot=True, usePreamble=True):
+        """Configures the equalizer settings for Custom OFDM.
+        
+        Args:
+            useData (bool): Determines if the equalizer will use Data resource blocks for training.
+            useDCPilot (bool): Determines if the equalizer will use DC Pilot for training.
+            usePilot (bool): Determines if the equalizer will use Pilot resource blocks for training.
+            usePreamble (bool): Determines if the equalizer will use Preamble resource blocks for training.
+        """
+
+        if useData:
+            data = 1
+        else:
+            data = 0
+        self.write(f"sense:customofdm:equalizer:data {data}")
+        if useDCPilot:
+            dcpilot = 1
+        else:
+            dcpilot = 0
+        self.write(f"sense:customofdm:equalizer:dcpilot:enable {dcpilot}")
+        if usePilot:
+            pilot = 1
+        else:
+            pilot = 0
+        self.write(f"sense:customofdm:equalizer:pilot {pilot}")
+        if usePreamble:
+            preamble = 1
+        else:
+            preamble = 0
+        self.write(f"sense:customofdm:equalizer:preamble {preamble}")
+
+    def custom_ofdm_tracking_setup(self, useData=False, amplitude=False, phase=True, timing=False):
+        """Configures the tracking settings for Custom OFDM.
+        
+        Args:
+            useData (bool): Determines if tracking includes data subcarriers.
+            amplitude (bool): Determines if tracking includes amplitude.
+            phase (bool): Determines if tracking includes phase.
+            timing (bool): Determines if tracking includes timing.
+        """
+        if useData:
+            data = 1
+        else:
+            data = 0
+        self.write(f"sense:customofdm:trck:data:subcarriers {data}")
+        if amplitude:
+            amp = 1
+        else:
+            amp = 0
+        self.write(f"sense:customofdm:trck:amplitude {amp}")
+        if phase:
+            ph = 1
+        else:
+            ph = 0
+        self.write(f"sense:customofdm:trck:phase {ph}")
+        if timing:
+            t = 1
+        else:
+            t = 0
+        self.write(f"sense:customofdm:trck:timing {t}")
+
     def sanity_check(self):
         """Prints out measurement context-sensitive user-accessible class attributes."""
 
