@@ -5,6 +5,7 @@ Generic VSA control object for PyArbTools.
 """
 
 from ctypes import ArgumentError
+from weakref import KeyedRef
 import socketscpi
 import os
 import warnings
@@ -62,6 +63,7 @@ class VSA(socketscpi.SocketInstrument):
         self.amp = float(self.query('input:analog:range:dbm?'))
         self.span = float(self.query('sense:frequency:span?'))
         self.meas = self.query('measure:configure?')
+        self.dataSource = self.query('input:data:feed?')
 
         # Initialize measurement-specific attributes.
         # Digital Demod
@@ -125,6 +127,20 @@ class VSA(socketscpi.SocketInstrument):
         self.write(f'system:vsa:hardware:configuration:select "{hw}"')
         self.query('*opc?')
         self.hw = self.query('system:vsa:hardware:configuration:select?')
+
+    def set_data_source(self, fromHardware=True):
+        """
+        Sets the data source VSA uses for its IQ data.
+
+        Args:
+            fromHardware (bool): True uses data from hardware, False uses data from a recording.
+        """
+
+        if fromHardware:
+            self.write("input:data:feed hw")
+        else:
+            self.write("input:data:feed rec")
+        self.dataSource = self.query("input:data:feed?")
 
     def set_cf(self, cf):
         """
@@ -437,6 +453,21 @@ class VSA(socketscpi.SocketInstrument):
         self.time = float(self.query('sense:time:length?'))
         self.rbw = float(self.query('sense:rbw?'))
 
+    def recall_setup(self, setupFile):
+        """
+        Loads a .setx file to set up VSA.
+
+        Args:
+            setupFile (str): Absolute path to a .setx file.
+        """
+        if not os.path.exists(setupFile):
+            raise error.VSAError('Path or file name does not exist.')
+        
+        self.write(f'mmemory:load:setup "{setupFile}"')
+
+        # VSA helpfully reports an error if the file and the selected file format don't match. Check this here.
+        self.err_check()
+
     def recall_recording(self, fileName, fileFormat='csv'):
         """
         Recalls a data file as a recording in VSA using SCPI commands.
@@ -511,38 +542,45 @@ class VSA(socketscpi.SocketInstrument):
 
         return iq
 
-    def custom_ofdm_load_setx(self, setxFile):
-        """Loads a setx file for a Custom OFDM measurement. This must always be done when setting up 
+    def custom_ofdm_format_setup(self, setupFile):
+        """Loads a setx file for a Custom OFDM measurement. This **must always be done when setting up 
         a custom OFDM measurement for the first time.
         
         Args:
-            setxFile (str): Path to a .setx file that configures the OFDM frame structure and resource mapping.
+            setupFile (str): Path to a .setx file that configures the OFDM frame structure and resource mapping.
         """
-        self.write(f"mmemory:load:setup {setxFile}")
-        self.query("*opc?")
+        self.recall_setup(setupFile)
 
-    def custom_ofdm_time_setup(self, measInterval=256, measOffset=0, resultLen=256, resultLenAuto=True, searchLen=300e-6):
+    def custom_ofdm_time_setup(self, **kwargs):
         """Configures the settings in the Time tab under Custom OFDM demod properties.
         
-        Args:
+        Keyword Args:
             measInterval (int): Number of symbols to be included in the measurement.
             measOffset (int): Number of symbols to be omitted prior to beginning the measurement.
             resultLen (int): Number of symbols available for the measurement. 
-            resultLenSelect (bool): Determines whether to automatically limits the results length to the number of symbols contained in a single burst.
+            resultLenSelect (int): Determines whether to automatically limits the results length to the number of symbols contained in a single burst.
             searchLen (float): Determines total amount of time VSA will acquire for analysis.
         """
 
-        self.write(f"sense:customofdm:time:interval {measInterval}")
-        self.write(f"sense:customofdm:time:offset {measOffset}")
-        self.write(f"sense:customofdm:time:rlength {resultLen}")
-        if resultLenAuto:
-            selection = "Automatic"
-        else:
-            selection = "Manual"
-        self.write(f"sense:customofdm:time:rlength:selection {selection}")
-        self.write(f"sense:customofdm:time:slength {searchLen}")
+        # measInterval=256, measOffset=0, resultLen=256, resultLenAuto=True, searchLen=300e-6
+        for key, value in kwargs.items():
+            if key == "measInterval":
+                self.write(f"sense:customofdm:time:interval {value}")
+            elif key == "measOffset":
+                self.write(f"sense:customofdm:time:offset {value}")
+            elif key == "resultLen":
+                self.write(f"sense:customofdm:time:rlength {value}")
+            elif key == "resultLenAuto":
+                if value:
+                    self.write(f"sense:customofdm:time:rlength:selection 'Automatic'")
+                else:
+                    self.write(f"sense:customofdm:time:rlength:selection 'Manual'")
+            elif key == "searchLen":
+                self.write(f"sense:customofdm:time:slength {value}")
+            else:
+                raise KeyError("Invalid keyword argument. Muse be 'measInterval', 'measOffset', 'resultLen', 'resultLenAuto', or 'searchLen'.")
 
-    def custom_ofdm_equalizer_setup(self, useData=False, useDCPilot=False, usePilot=True, usePreamble=True):
+    def custom_ofdm_equalizer_setup(self, **kwargs):
         """Configures the equalizer settings for Custom OFDM.
         
         Args:
@@ -551,29 +589,33 @@ class VSA(socketscpi.SocketInstrument):
             usePilot (bool): Determines if the equalizer will use Pilot resource blocks for training.
             usePreamble (bool): Determines if the equalizer will use Preamble resource blocks for training.
         """
+ 
+        # useData=False, useDCPilot=False, usePilot=True, usePreamble=True
+        for key, value in kwargs.items():
+            if key == "useData":
+                if value:
+                    self.write(f"sense:customofdm:equalizer:data 1")
+                else:
+                    self.write(f"sense:customofdm:equalizer:data 0")
+            elif key == "useDCPilot":
+                if value:
+                    self.write(f"sense:customofdm:equalizer:dcpilot:enabled 1")
+                else:
+                    self.write(f"sense:customofdm:equalizer:dcpilot:enabled 0")
+            elif key == "usePilot":
+                if value:
+                    self.write(f"sense:customofdm:equalizer:pilot 1")
+                else:
+                    self.write(f"sense:customofdm:equalizer:pilot 0")
+            elif key == "usePreamble":
+                if value:
+                    self.write(f"sense:customofdm:equalizer:preamble 1")
+                else:
+                    self.write(f"sense:customofdm:equalizer:preamble 0")
+            else:
+                raise KeyError("Invalid keyword argument. Muse be 'useData', 'useDCPilot', 'usePilot', or 'usePreamble'.")
 
-        if useData:
-            data = 1
-        else:
-            data = 0
-        self.write(f"sense:customofdm:equalizer:data {data}")
-        if useDCPilot:
-            dcpilot = 1
-        else:
-            dcpilot = 0
-        self.write(f"sense:customofdm:equalizer:dcpilot:enable {dcpilot}")
-        if usePilot:
-            pilot = 1
-        else:
-            pilot = 0
-        self.write(f"sense:customofdm:equalizer:pilot {pilot}")
-        if usePreamble:
-            preamble = 1
-        else:
-            preamble = 0
-        self.write(f"sense:customofdm:equalizer:preamble {preamble}")
-
-    def custom_ofdm_tracking_setup(self, useData=False, amplitude=False, phase=True, timing=False):
+    def custom_ofdm_tracking_setup(self, **kwargs):
         """Configures the tracking settings for Custom OFDM.
         
         Args:
@@ -582,26 +624,30 @@ class VSA(socketscpi.SocketInstrument):
             phase (bool): Determines if tracking includes phase.
             timing (bool): Determines if tracking includes timing.
         """
-        if useData:
-            data = 1
-        else:
-            data = 0
-        self.write(f"sense:customofdm:trck:data:subcarriers {data}")
-        if amplitude:
-            amp = 1
-        else:
-            amp = 0
-        self.write(f"sense:customofdm:trck:amplitude {amp}")
-        if phase:
-            ph = 1
-        else:
-            ph = 0
-        self.write(f"sense:customofdm:trck:phase {ph}")
-        if timing:
-            t = 1
-        else:
-            t = 0
-        self.write(f"sense:customofdm:trck:timing {t}")
+
+        for key, value in kwargs.items():
+            if key == "useData":
+                if value:
+                    self.write(f"sense:customofdm:trck:data:subcarriers 1")
+                else:
+                    self.write(f"sense:customofdm:trck:data:subcarriers 0")
+            elif key == "amplitude":
+                if value:
+                    self.write(f"sense:customofdm:trck:amplitude 1")
+                else:
+                    self.write(f"sense:customofdm:trck:amplitude 0")
+            elif key == "phase":
+                if value:    
+                    self.write(f"sense:customofdm:trck:phase 1")
+                else:
+                    self.write(f"sense:customofdm:trck:phase 0")
+            elif key == "timing":
+                if value:
+                    self.write(f"sense:customofdm:trck:timing 1")
+                else:
+                    self.write(f"sense:customofdm:trck:timing 0")
+            else:
+                raise KeyError("Invalid keyword argument. Must be 'useData', 'amplitude', 'phase', or 'timing'.")
 
     def sanity_check(self):
         """Prints out measurement context-sensitive user-accessible class attributes."""
