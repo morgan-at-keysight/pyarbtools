@@ -13,7 +13,7 @@ YOU NEED TO UPDATE THE VERSION IN THE FOLLOWING FILES
 
 __author__ = """Morgan Allison"""
 __email__ = "morgan.allison@keysight.com"
-__version__ = "2022.03.1"
+__version__ = "2022.03.2"
 
 from pyarbtools import instruments
 from pyarbtools import wfmBuilder

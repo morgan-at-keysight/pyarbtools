@@ -135,6 +135,6 @@ History
 * Added ``get_iq_data()`` method to ``VSA`` object
 * Added two new functions in ``examples.py``
 
-2022.03.1 (2022-03-23)
+2022.03.2 (2022-03-23)
 ----------------------
 * Added ``VMA`` class to ``vsaControl``. Currently only supports custom OFDM demod using .xml import.
