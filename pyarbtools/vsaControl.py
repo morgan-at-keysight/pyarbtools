@@ -5,6 +5,7 @@ Generic VSA control object for PyArbTools.
 """
 
 from ctypes import ArgumentError
+from multiprocessing.sharedctypes import Value
 from weakref import KeyedRef
 import socketscpi
 import os
@@ -183,6 +184,60 @@ class VSA(socketscpi.SocketInstrument):
 
         self.write(f'sense:frequency:span {span}')
         self.span = float(self.query('sense:frequency:span?'))
+
+    def set_attenuation(self, atten):
+        """
+        Sets mechanical attenuator.
+
+        Args:
+            atten (int): Attenuator value in dB.
+        """
+
+        if not isinstance(atten, float) and not isinstance(atten, int):
+            raise ValueError('"atten" must be a positive numerical value.')
+
+        # Set range control method to "attenuation"
+        self.write('input:extension:parameters:set "RangeInformationRangeControl", 1')
+        
+        # Set mechanical attenuator value
+        self.write(f'input:extension:parameters:set "RangeInformationMechAtten", {atten}')
+        self.err_check()
+
+    def set_if_gain(self, ifGain):
+        """
+        Sets IF Gain value.
+
+        Args:
+            ifGain (int): IF Gain value in dB (range from -32 to +32).
+        """
+
+        if not isinstance(ifGain, float) and not isinstance(ifGain, int):
+            raise ValueError('"ifGain" must be a numerical value.')
+
+        # Set range control method to "attenuation"
+        self.write('input:extension:parameters:set "RangeInformationRangeControl", 1')
+        
+        # Set IF Gain value
+        self.write(f'input:extension:parameters:set "RangeInformationIFGain", {ifGain}')
+        self.err_check()
+    
+    def set_amplifier(self, amplifier):
+        """
+        Sets IF Gain value.
+
+        Args:
+            amplifier (int): Amplifier setting (0=none, 1=preamp, 2=LNA, 3=LNA+preamp).
+        """
+
+        if amplifier not in [0, 1, 2, 3]:
+            raise ValueError('"amplifier" must be 0 (none), 1 (preamp), 2 (LNA), or 3 (LNA+preamp).')
+
+        # Set range control method to "attenuation"
+        self.write('input:extension:parameters:set "RangeInformationRangeControl", 1')
+        
+        # Set IF Gain value
+        self.write(f'input:extension:parameters:set "RangeInformationPreamplifier", {amplifier}')
+        self.err_check()
 
     def set_measurement(self, meas):
         """
@@ -672,3 +727,349 @@ class VSA(socketscpi.SocketInstrument):
             print(f'Acquisition time: {self.time} sec')
         else:
             pass
+class VMA(socketscpi.SocketInstrument):
+    """
+    Generic class for controlling Keysight 89600 Vector Signal Analysis Software
+
+    Attributes:
+        cf (float): Analyzer center frequency in Hz
+        atten (int): Attenuator value in dB
+        ifGain (int): IF gain value in dB (-32 dB to +32 dB)
+        amplifier (str): Amplifier state ('none', 'preamp', 'lna', 'lna+preamp')
+        span (float): Analyzer span/info bandwidth in Hz
+        meas (str): Measurement type ('VMA' currently supported)
+    """
+
+    def __init__(self, host, port=5025, timeout=10, reset=False, vsaHardware=None):
+        super().__init__(host, port, timeout)
+
+        # Set up hardware
+        if not isinstance(vsaHardware, str) and vsaHardware is not None:
+            raise error.VSAError('vsaHardware must be a string indicating which hardware platform to use.')
+
+        self.hw = vsaHardware
+        if vsaHardware is not None:
+            self.set_hw(vsaHardware)
+
+        if reset:
+            # Reset and wait for reset to finish
+            self.write('*rst')
+            self.query('*opc?')
+
+        self.write("instrument:select vma")
+        self.write("configure:ofdm")
+        self.write("configure:ofdm:ndefault")
+        self.query('*opc?')
+
+        # Pause measurement before doing anything
+        self.write('initiate:pause')
+
+        # Initialize global attributes
+        self.cf = float(self.query('sense:ofdm:ccarrier0:reference?'))
+        self.span = float(self.query('sense:ofdm:ccarrier0:bandwidth?'))
+        
+        self.meas = self.query('instrument:select?')
+
+        # attenuation
+        self.atten = int(self.query("sense:power:rf:attenuation?"))
+        # if gain
+        self.write("sense:ofdm:if:gain:auto:state off")
+        self.write("sense:ofdm:if:gain:select other")
+        self.ifGain = int(self.query("sense:ofdm:if:gain:level?"))
+        # preamp
+        self.preampBand = self.query('sense:power:rf:gain:band?').strip()
+        self.preampState = self.query('sense:power:rf:gain:state?').strip()
+        # uw path
+        self.uwPath = self.query('sense:power:rf:mw:path?')
+
+        # Initialize measurement-specific attributes.
+        # OFDM
+        self.time = 0
+
+    def send_file_to_analyzer(self, sourcePath, destinationPath):
+        """
+        Sends a file from the controlling computer (remote) to the hard drive on the analyzer (local).
+
+        Args:
+            sourcePath (str): Absolute file path on local computer.
+            destinationPath (str): Absolute destination file path on analyzer hard drive.
+        """
+
+        with open(sourcePath, mode="rb") as f:
+            raw = f.read()
+        try:
+            self.binblockwrite(f"mmemory:data '{destinationPath}', ", raw)
+            self.err_check()
+        except socketscpi.SockInstError as e:
+            if 'already exists' not in str(e):
+                raise socketscpi.SockInstError(str(e))
+
+    def acquire_continuous(self):
+        """Begins continuous acquisition in VMA using SCPI commands."""
+        self.write('initiate:continuous on')
+        self.write('initiate:immediate')
+
+    def acquire_single(self):
+        """Sets single acquisition mode and takes a single acquisition in VMA using SCPI commands."""
+        self.write('initiate:continuous off')
+        self.write('initiate:immediate')
+        self.query('*opc?')
+
+    def stop(self):
+        """Stops acquisition in VMA using SCPI commands."""
+        self.write('initiate:pause')
+
+    def set_cf(self, cf):
+        """
+        Sets and reads center frequency for VMA using SCPI commands.
+
+        Args:
+            cf (float): Analyzer center frequency in Hz.
+        """
+
+        if not isinstance(cf, float) or cf <= 0:
+            raise ValueError('Center frequency must be a positive floating point value.')
+
+        self.write(f'sense:ofdm:carrier:reference {cf}')
+        self.cf = float(self.query('sense:ofdm:carrier:reference?'))
+
+        self.err_check()
+
+    def set_span(self, span):
+        """
+        Sets and reads span for VMA using SCPI commands
+
+        Args:
+            span (float): Frequency span in Hz.
+        """
+
+        if not isinstance(span, float) and not isinstance(span, int):
+            raise ValueError('Span must be a positive numerical value.')
+
+        self.write(f'sense:frequency:span {span}')
+        self.span = float(self.query('sense:frequency:span?'))
+
+        self.err_check()
+
+    def set_attenuation(self, atten):
+        """
+        Sets mechanical attenuator.
+
+        Args:
+            atten (int): Attenuator value in dB.
+        """
+
+        if not isinstance(atten, float) and not isinstance(atten, int):
+            raise ValueError('"atten" must be a positive numerical value.')
+        
+        # Set mechanical attenuator value
+        self.write(f"sense:power:rf:attenuation {atten}")
+        self.atten = int(self.query("sense:power:rf:attenuation?"))
+
+        self.err_check()
+
+    def set_if_gain(self, ifGain):
+        """
+        Sets IF Gain value.
+
+        Args:
+            ifGain (int): IF Gain value in dB (range from -32 to +32).
+        """
+
+        if not isinstance(ifGain, float) and not isinstance(ifGain, int):
+            raise ValueError('"ifGain" must be a numerical value.')
+
+        self.write("sense:ofdm:if:gain:auto:state off")
+        self.write("sense:ofdm:if:gain:select other")
+        self.write(f"sense:ofdm:if:gain:level {ifGain}")
+        self.ifGain = int(self.query("sense:ofdm:if:gain:level?"))
+
+        self.err_check()
+    
+    def set_preamp_band(self, band):
+        """
+        Sets and gets preamp band.
+
+        Args:
+            band (str): Preamp band ('low'==<3.6 GHz, 'full'==>3.6 GHz).
+        """
+
+        if band.lower() not in ['low', 'full']:
+            raise ValueError('"band" must be "low" or "full".')
+
+        # Set preamp band and state
+        self.write(f'sense:power:rf:gain:band {band}')
+        self.preampBand = self.query('sense:power:rf:gain:band?')
+        
+        self.err_check()
+        
+    def set_preamp_state(self, state):
+        """
+        Sets and gets preamp state.
+
+        Args:
+            state (bool): Preamp state.
+        """
+
+        if not isinstance(state, bool):
+            raise TypeError('"state" must be True or False.')
+
+        # Sets preamp state
+        if state:
+            self.write(f'sense:power:rf:gain:state 1')
+        else:
+            self.write(f'sense:power:rf:gain:state 0')
+        self.preampState = self.query('sense:power:rf:gain:state?')
+        self.err_check()
+
+    def set_uw_path(self, uwPath):
+        """
+        Sets and gets microwave path.
+        
+        Args:
+            uwPath (str): Specifies microwave signal path ('std', 'lnp', 'mpb', 'full')
+        """
+
+        if uwPath.lower() not in ['std', 'lnp', 'mpb', 'full']:
+            raise ValueError("'uwPath' must be 'std', 'lnp', 'mpb', or 'full'.")
+
+        self.write(f'sense:power:rf:mw:path {uwPath}')
+        self.uwPath = self.query('sense:power:rf:mw:path?')
+        self.err_check()
+
+    def set_signal_path(self, **kwargs):
+        """
+        Sets and reads attenuator, if gain, and amplifiers for VMA using SCPI commands.
+
+        Args:
+            preampBand (str): Preamp band ('low', 'full').
+            preampState (bool): Preamp state (True, False).
+            atten (int): Attenuator value in dB.
+            ifGain (int): IF gain in dB.
+            uwPath (str): Microwave path descriptor.
+        """
+
+        for key, value in kwargs.items():
+            if key == 'preampBand':
+                self.set_preamp_band(value)
+            elif key == 'preampState':
+                self.set_preamp_state(value)
+            elif key == 'atten':
+                self.set_attenuation(value)
+            elif key == 'ifGain':
+                self.set_if_gain(value)
+            elif key == 'uwPath':
+                self.set_uw_path(value)
+        
+        self.err_check()
+
+    def evm_opt(self):
+        """Executes an EVM optimization in VMA and waits for it to complete using SCPI commands."""
+
+        # Gotta make sure measurement is running while doing this
+        self.write('initiate:continuous on')
+        self.write('initiate:immediate')
+
+        self.write('sense:ofdm:optimize')
+        self.query('*opc?')
+
+        # Turn it back off when we're done
+        self.write('initiate:continuous off')
+        self.err_check()
+
+    def load_demod_definition(self, definitionFile):
+        """
+        Loads an xml file generated from SignalStudio to configure the custom OFDM demod.
+        
+        Args:
+            definitionFile (str): Absolute path to OFDM definition xml file.
+        """
+
+        self.write(f"mmemory:load:ofdm:setup CC0, '{definitionFile}'")
+        self.query("*opc?")
+        self.err_check()
+
+    def ofdm_equalizer_setup(self, **kwargs):
+        """Configures the equalizer settings for Custom OFDM.
+        
+        Args:
+            useData (bool): Determines if the equalizer will use Data resource blocks for training.
+            useDCPilot (bool): Determines if the equalizer will use DC Pilot for training.
+            usePilot (bool): Determines if the equalizer will use Pilot resource blocks for training.
+            usePreamble (bool): Determines if the equalizer will use Preamble resource blocks for training.
+        """
+ 
+        # useData=False, useDCPilot=False, usePilot=True, usePreamble=True
+        for key, value in kwargs.items():
+            if not isinstance(value, bool):
+                raise TypeError(f'"{key}" must be True or False.')
+            if key == "useData":
+                if value:
+                    self.write("sense:ofdm:ccarrier0:equalizer:use:data 1")
+                else:
+                    self.write("sense:ofdm:ccarrier0:equalizer:use:data 0")
+            elif key == "useDCPilot":
+                if value:
+                    self.write(f"sense:ofdm:ccarrier0:equalizer:use:dcp 1")
+                else:
+                    self.write(f"sense:ofdm:ccarrier0:equalizer:use:dcp 0")
+            elif key == "usePilot":
+                if value:
+                    self.write(f"sense:ofdm:ccarrier0:equalizer:use:pilot 1")
+                else:
+                    self.write(f"sense:ofdm:ccarrier0:equalizer:use:pilot 0")
+            elif key == "usePreamble":
+                if value:
+                    self.write(f"sense:ofdm:ccarrier0:equalizer:use:preamble 1")
+                else:
+                    self.write(f"sense:ofdm:ccarrier0:equalizer:use:preamble 0")
+            else:
+                raise KeyError("Invalid keyword argument. Muse be 'useData', 'useDCPilot', 'usePilot', or 'usePreamble'.")
+
+    def ofdm_tracking_setup(self, **kwargs):
+        """Configures the tracking settings for Custom OFDM.
+        
+        Args:
+            useData (bool): Determines if tracking includes data subcarriers.
+            amplitude (bool): Determines if tracking includes amplitude.
+            phase (bool): Determines if tracking includes phase.
+            timing (bool): Determines if tracking includes timing.
+        """
+
+        for key, value in kwargs.items():
+            if not isinstance(value, bool):
+                raise TypeError(f'"{key}" must be True or False.')
+            if key == "useData":
+                if value:
+                    self.write(f"sense:ofdm:ccarrier0:track:data 1")
+                else:
+                    self.write(f"sense:ofdm:ccarrier0:track:data 0")
+            elif key == "amplitude":
+                if value:
+                    self.write(f"sense:ofdm:ccarrier0:track:amplitude 1")
+                else:
+                    self.write(f"sense:ofdm:ccarrier0:track:amplitude 0")
+            elif key == "phase":
+                if value:    
+                    self.write(f"sense:ofdm:ccarrier0:track:phase 1")
+                else:
+                    self.write(f"sense:ofdm:ccarrier0:track:phase 0")
+            elif key == "timing":
+                if value:
+                    self.write(f"sense:ofdm:ccarrier0:track:timing 1")
+                else:
+                    self.write(f"sense:ofdm:ccarrier0:track:timing 0")
+            else:
+                raise KeyError("Invalid keyword argument. Must be 'useData', 'amplitude', 'phase', or 'timing'.")
+
+    def get_ofdm_results(self):
+        """
+        Reads OFDM results.
+        """
+
+        self.acquire_single()
+
+        raw = [float(r) for r in self.query("fetch:ofdm?").split(',')]
+        results = {'rmsEvm': raw[0], 'pkEvm': raw[1], 'pilotEvm': raw[2], 'dataEvm': raw[3], 'preambleEvm': raw[4], 'freqErr': raw[5], 'symClkErr': raw[6], 'rmsCpe': raw[7], 'syncCorr': raw[8], 'iqOffset': raw[9], 'iqQuadErr': raw[10], 'iqImb': raw[11], 'txPower': raw[12], 'allTxPower': raw[13], 'mer': raw[14]}
+        
+        return results
