@@ -798,6 +798,7 @@ class VMA(socketscpi.SocketInstrument):
         with open(sourcePath, mode="rb") as f:
             raw = f.read()
         try:
+            self.write(f"mmemory:delete '{destinationPath}'")
             self.binblockwrite(f"mmemory:data '{destinationPath}', ", raw)
             self.err_check()
         except socketscpi.SockInstError as e:
