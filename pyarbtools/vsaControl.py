@@ -110,6 +110,32 @@ class VSA(socketscpi.SocketInstrument):
         # Turn it back off when we're done
         self.write('initiate:continuous off')
 
+    def evm_opt(self, timeout):
+        """Executes an amplitude autorange using EVM optimization criteria.
+        
+        Args:
+            timeout (int): Temporary timeout in seconds.
+        """
+
+        if not isinstance(timeout, (int, float)) or timeout < 0:
+            raise TypeError('"timeout" must be positive integer.')
+
+        # Gotta make sure measurement is running while doing this
+        self.write('initiate:continuous on')
+        self.write('initiate:immediate')
+
+        # Save the original timeout so it can be reset after the optimization
+        originalTimeout = self.socket.timeout
+        
+        self.socket.settimeout(timeout)
+        self.write(f"input:analog:criteria:range:auto 'EvmAlgorithm', {timeout*1000}")
+        self.query('*opc?')
+        
+        self.socket.settimeout(originalTimeout)
+
+        # Turn it back off when we're done
+        self.write('initiate:continuous off')
+
     def set_hw(self, hw):
         """
         Sets and reads hardware configuration for VSA. Checks to see if selected hardware is valid.
@@ -142,6 +168,95 @@ class VSA(socketscpi.SocketInstrument):
         else:
             self.write("input:data:feed rec")
         self.dataSource = self.query("input:data:feed?")
+
+    def recall_setup(self, setupFile):
+        """
+        Loads a .setx file to set up VSA.
+
+        Args:
+            setupFile (str): Absolute path to a .setx file.
+        """
+        # if not os.path.exists(setupFile):
+            # raise error.VSAError('Path or file name does not exist.')
+        
+        self.write(f'mmemory:load:setup "{setupFile}"')
+
+        # VSA helpfully reports an error if the file and the selected file format don't match. Check this here.
+        self.err_check()
+
+    def recall_recording(self, fileName, fileFormat='csv'):
+        """
+        Recalls a data file as a recording in VSA using SCPI commands.
+        Args:
+            fileName (str): Full absolute file name of the recording to be loaded.
+            fileFormat (str): Format of recording file. ('CSV', 'E3238S', 'MAT', 'MAT7', 'N5110A', 'N5106A', 'SDF', 'TEXT')
+        """
+
+        # if not os.path.exists(fileName):
+        #     raise error.VSAError('Path or file name does not exist.')
+
+        # Ensure fileName is a valid file type
+        validExtensions = ['csv', 'cap', 'mat', 'hdf', 'h5', 'bin', 'sdf', 'dat', 'txt']
+        if fileName.split('.')[-1].lower() not in validExtensions:
+            raise error.VSAError(f'Invalid file format. Extension must be in {validExtensions}')
+
+        # Ensure fileFormat is a valid choice
+        if fileFormat.lower() not in ['csv', 'e3238s', 'mat', 'mat7', 'n5110a', 'n5106a', 'sdf', 'text']:
+            raise error.VSAError('Incorrect file format. Must be "csv", "e3238s", "mat", "mat7", "n5110a", "n5106a", "sdf", or "text".')
+
+        # Load the recording
+        self.write(f'mmemory:load:recording "{fileName}", "{fileFormat}"')
+
+        # VSA helpfully reports an error if the file and the selected file format don't match. Check this here.
+        self.err_check()
+
+    def get_iq(self, newAcquisition=False):
+        """
+        Gets IQ data using current acquisition settings.
+        
+        Args:
+            newAcquisition (bool): Determines if a new acquisition is made prior to getting IQ data.
+
+        Returns:
+            (NumPy ndarray): Array of complex IQ values
+        """
+
+        # if 'vect' not in self.meas.lower():
+            # raise error.VSAError(f'Measurement type is currently "{self.meas}". Measurement type must be "vect" to capture IQ data.')
+
+        # Get the measurement to determine the correct data to use for the IQ trace
+        self.get_measurement()
+
+        if newAcquisition:
+            self.acquire_single()
+
+        # Add new trace in IQ format
+        iqTraceNum = int(self.query("trace:count?")) + 1
+        self.write("trace:add")
+
+        # For whatever reason, the name of the time trace is different in different measurement modes.
+        if 'vect' in self.meas.lower():
+            self.write(f"trace{iqTraceNum}:data:name 'Main Time1'")
+        elif 'cust' in self.meas.lower() or 'ddem' in self.meas.lower():
+            self.write(f"trace{iqTraceNum}:data:name 'Time1'")
+        else:
+            raise AttributeError("Invalid 'meas' value.")
+        self.write(f"trace{iqTraceNum}:format 'IQ'")
+
+        # Format the trace and grab trace data
+        self.write('format:trace:data real64')
+        i = self.binblockread(f'trace{iqTraceNum}:data:x?', datatype='d').byteswap()
+        q = self.binblockread(f'trace{iqTraceNum}:data:y?', datatype='d').byteswap()
+        
+        # Convert individual I and Q arrays into complex array
+        iq = np.array(i + 1j*q)
+
+        # Clean up trace used for acquisition
+        self.write("trace:remove")
+
+        self.err_check()
+
+        return iq
 
     def set_cf(self, cf):
         """
@@ -508,95 +623,6 @@ class VSA(socketscpi.SocketInstrument):
         self.time = float(self.query('sense:time:length?'))
         self.rbw = float(self.query('sense:rbw?'))
 
-    def recall_setup(self, setupFile):
-        """
-        Loads a .setx file to set up VSA.
-
-        Args:
-            setupFile (str): Absolute path to a .setx file.
-        """
-        if not os.path.exists(setupFile):
-            raise error.VSAError('Path or file name does not exist.')
-        
-        self.write(f'mmemory:load:setup "{setupFile}"')
-
-        # VSA helpfully reports an error if the file and the selected file format don't match. Check this here.
-        self.err_check()
-
-    def recall_recording(self, fileName, fileFormat='csv'):
-        """
-        Recalls a data file as a recording in VSA using SCPI commands.
-        Args:
-            fileName (str): Full absolute file name of the recording to be loaded.
-            fileFormat (str): Format of recording file. ('CSV', 'E3238S', 'MAT', 'MAT7', 'N5110A', 'N5106A', 'SDF', 'TEXT')
-        """
-
-        if not os.path.exists(fileName):
-            raise error.VSAError('Path or file name does not exist.')
-
-        # Ensure fileName is a valid file type
-        validExtensions = ['csv', 'cap', 'mat', 'hdf', 'h5', 'bin', 'sdf', 'dat', 'txt']
-        if fileName.split('.')[-1].lower() not in validExtensions:
-            raise error.VSAError(f'Invalid file format. Extension must be in {validExtensions}')
-
-        # Ensure fileFormat is a valid choice
-        if fileFormat.lower() not in ['csv', 'e3238s', 'mat', 'mat7', 'n5110a', 'n5106a', 'sdf', 'text']:
-            raise error.VSAError('Incorrect file format. Must be "csv", "e3238s", "mat", "mat7", "n5110a", "n5106a", "sdf", or "text".')
-
-        # Load the recording
-        self.write(f'mmemory:load:recording "{fileName}", "{fileFormat}"')
-
-        # VSA helpfully reports an error if the file and the selected file format don't match. Check this here.
-        self.err_check()
-
-    def get_iq(self, newAcquisition=False):
-        """
-        Gets IQ data using current acquisition settings.
-        
-        Args:
-            newAcquisition (bool): Determines if a new acquisition is made prior to getting IQ data.
-
-        Returns:
-            (NumPy ndarray): Array of complex IQ values
-        """
-
-        # if 'vect' not in self.meas.lower():
-            # raise error.VSAError(f'Measurement type is currently "{self.meas}". Measurement type must be "vect" to capture IQ data.')
-
-        # Get the measurement to determine the correct data to use for the IQ trace
-        self.get_measurement()
-
-        if newAcquisition:
-            self.acquire_single()
-
-        # Add new trace in IQ format
-        iqTraceNum = int(self.query("trace:count?")) + 1
-        self.write("trace:add")
-
-        # For whatever reason, the name of the time trace is different in different measurement modes.
-        if 'vect' in self.meas.lower():
-            self.write(f"trace{iqTraceNum}:data:name 'Main Time1'")
-        elif 'cust' in self.meas.lower() or 'ddem' in self.meas.lower():
-            self.write(f"trace{iqTraceNum}:data:name 'Time1'")
-        else:
-            raise AttributeError("Invalid 'meas' value.")
-        self.write(f"trace{iqTraceNum}:format 'IQ'")
-
-        # Format the trace and grab trace data
-        self.write('format:trace:data real64')
-        i = self.binblockread(f'trace{iqTraceNum}:data:x?', datatype='d').byteswap()
-        q = self.binblockread(f'trace{iqTraceNum}:data:y?', datatype='d').byteswap()
-        
-        # Convert individual I and Q arrays into complex array
-        iq = np.array(i + 1j*q)
-
-        # Clean up trace used for acquisition
-        self.write("trace:remove")
-
-        self.err_check()
-
-        return iq
-
     def custom_ofdm_format_setup(self, setupFile):
         """Loads a setx file for a Custom OFDM measurement. This **must always be done when setting up 
         a custom OFDM measurement for the first time.
@@ -613,7 +639,7 @@ class VSA(socketscpi.SocketInstrument):
             measInterval (int): Number of symbols to be included in the measurement.
             measOffset (int): Number of symbols to be omitted prior to beginning the measurement.
             resultLen (int): Number of symbols available for the measurement. 
-            resultLenSelect (int): Determines whether to automatically limits the results length to the number of symbols contained in a single burst.
+            resultLenSelect (int): Determines whether to automatically limit the results length to the number of symbols contained in a single burst.
             searchLen (float): Determines total amount of time VSA will acquire for analysis.
         """
 

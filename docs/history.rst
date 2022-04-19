@@ -138,3 +138,7 @@ History
 2022.03.2 (2022-03-23)
 ----------------------
 * Added ``VMA`` class to ``vsaControl``. Currently only supports custom OFDM demod using .xml import.
+
+2022.04.1 (2022-04-19)
+----------------------
+* Cleaned up documentation for ``vsaControl``.

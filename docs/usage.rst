@@ -50,13 +50,22 @@ Supported VSA control functions include:
 * :ref:`stop`
 * :ref:`autorange`
 * :ref:`set_hw`
+* :ref:`set_data_source`
+* :ref:`recall_setup`
+* :ref:`recall_recording`
+* :ref:`get_iq`
 * :ref:`set_cf`
 * :ref:`set_span`
+* :ref:`set_attenuation`
+* :ref:`set_if_gain`
+* :ref:`set_amplifier`
 * :ref:`set_measurement`
 * :ref:`configure_ddemod`
 * :ref:`configure_vector`
-* :ref:`get_iq_data`
-* :ref:`recall_recording`
+* :ref:`custom_ofdm_format_setup`
+* :ref:`custom_ofdm_time_setup`
+* :ref:`custom_ofdm_equalizer_setup`
+* :ref:`custom_ofdm_tracking_setup`
 * :ref:`sanity_check`
 
 .. _instruments:
@@ -1973,6 +1982,79 @@ Sets and reads hardware configuration for VSA. Checks to see if selected hardwar
 
 * None
 
+.. _set_data_source:
+
+**set_data_source**
+-------------------
+::
+
+    VSA.set_data_source(fromHardware=True)
+
+Sets the data source used by VSA.
+
+**Arguments**
+
+* ``fromHardware`` ``(bool)``: Tells VSA to use hardware (``True``) or recording (``False``) for its data source.
+
+**Returns**
+
+* None
+
+.. _recall_setup:
+
+**recall_setup**
+----------------
+::
+
+    VSA.recall_setup(fileName)
+
+Recalls a .setx file into VSA.
+
+**Arguments**
+
+* ``fileName`` ``(str)``: Full absolute file name of the setup file to be loaded.
+
+**Returns**
+
+* None
+
+.. _recall_recording:
+
+**recall_recording**
+--------------------
+::
+
+    VSA.recall_recording(fileName, fileFormat='csv')
+
+Recalls a data file as a recording in VSA using SCPI commands.
+
+**Arguments**
+
+* ``fileName`` ``(str)``: Full absolute file name of the recording to be loaded.
+* ``fileFormat`` ``(str)``: Format of recording file. (``'CSV'``, ``'E3238S'``, ``'MAT'``, ``'MAT7'``, ``'N5110A'`, ``'N5106A'``, ``'SDF'``, ``'TEXT'``)
+
+**Returns**
+
+* None
+
+.. _get_iq:
+
+**get_iq**
+----------
+::
+
+    VSA.get_iq(newAqcuisition=False)
+
+Gets IQ data using current acquisition settings.
+
+**Arguments**
+
+* ``newAcquisition`` ``(bool)``: Determines if a new acquisition is made prior to getting IQ data.
+
+**Returns**
+
+* ``NumPy`` ``ndarray``: Array of complex IQ values.
+
 .. _set_cf:
 
 **set_cf**
@@ -2033,13 +2115,67 @@ Sets and reads span for VSA using SCPI commands.
 -------------------
 ::
 
-    VSA.set_amp(meas)
+    VSA.set_measurement(meas)
 
 Sets and reads measurement type in VSA using SCPI commands.
 
 **Arguments**
 
-* ``meas`` ``(srt)``: Selects measurement type ('vector', 'ddemod' currently supported).
+* ``meas`` ``(str)``: Selects measurement type (``'vector'``, ``'ddemod'``, and ``'customofdm'`` currently supported).
+
+**Returns**
+
+* None
+
+.. _set_attenuation:
+
+**set_attenuation**
+-------------------
+::
+
+    VSA.set_attenuation(atten)
+
+Sets the attenuator value used in the analyzer.
+
+**Arguments**
+
+* ``atten`` ``(int)``: Attenuator value in dB (``0`` to ``70``).
+
+**Returns**
+
+* None
+
+.. _set_if_gain:
+
+**set_if_gain**
+---------------
+::
+
+    VSA.set_if_gain(ifGain)
+
+Sets the IF gain used by the analyzer.
+
+**Arguments**
+
+* ``ifGain`` ``(int)``: IF gain value in dB (``-32`` to ``32``).
+
+**Returns**
+
+* None
+
+.. _set_amplifier:
+
+**set_amplifier**
+-----------------
+::
+
+    VSA.set_amplifier(amplifier)
+
+Sets the amplifier setting used in the signal path of the analyzer.
+
+**Arguments**
+
+* ``amplifier`` ``(int)``: Identifier for amplifier in signal path (``0`` = none, ``1`` = preamp, ``2`` = LNA, ``3`` = LNA+preamp).
 
 **Returns**
 
@@ -2101,42 +2237,93 @@ settings are interconnected. If you set both, the latter setting will override t
 
 * None
 
-.. _recall_recording:
+.. _custom_ofdm_format_setup:
 
-**recall_recording**
---------------------
+**custom_ofdm_format_setup**
+----------------------------
 ::
 
-    VSA.recall_recording(fileName, fileFormat='csv')
+    VSA.custom_ofdm_format_setup(setupFile)
 
-Recalls a data file as a recording in VSA using SCPI commands.
+Loads a .setx file for a Custom OFDM measurement. This **must always be done when setting up a custom OFDM measurement for the first time.**
 
 **Arguments**
 
-* ``fileName`` ``(str)``: Full absolute file name of the recording to be loaded.
-* ``fileFormat`` ``(str)``: Format of recording file. ('CSV', 'E3238S', 'MAT', 'MAT7', 'N5110A', 'N5106A', 'SDF', 'TEXT')
+* ``fileName`` ``(str)``: Full absolute file name of the .setx file that configures the frame structure and resource mapping.
 
 **Returns**
 
 * None
 
-.. _get_iq_data:
+.. _custom_ofdm_time_setup:
 
-**get_iq_data**
----------------
+**custom_ofdm_time_setup**
+--------------------------
 ::
 
-    VSA.get_iq_data(newAqcuisition=False)
+    VSA.custom_ofdm_time_setup(**kwargs)
+    # Example
+    VSA.custom_ofdm_time_setup(measInterval=128, resultLenSelect=1)
 
-Gets IQ data using current acquisition settings.
+Configures the settings in the Time tab unde Custom OFDM Demod Properties.
 
-**Arguments**
+**Keyword Arguments**
 
-* ``newAcquisition`` ``(bool)``: Determines if a new acquisition is made prior to getting IQ data.
+* ``measInterval`` ``(int)``: Number of symbols to be included in the measurement.
+* ``measOffset`` ``(int)``: Number of symbols to be omitted prior to the beginning of the measurement.
+* ``resultLen`` ``(int)``: Number of symbols available for the measurement.
+* ``resultLenSelect`` ``(int)``: Determines whether to automatically limit the result length to the number of symbols contained in a single burst (``1`` = autolimit, ``0`` = no autolimit).
+* ``searchLen`` ``(float)``: Determines total amount of time VSA will acquire for analysis.
 
 **Returns**
 
-* ``NumPy`` ``ndarray``: Array of complex IQ values.
+* None
+
+.. _custom_ofdm_equalizer_setup:
+
+**custom_ofdm_equalizer_setup**
+-------------------------------
+::
+
+    VSA.custom_ofdm_equalizer_setup(**kwargs)
+    # Example
+    VSA.custom_ofdm_equalizer_setup(useData=False, usePilot=True)
+
+Configures the equalizer settings for Custom OFDM.
+
+**Keyword Arguments**
+
+* ``useData`` ``(bool)``: Determines if the equalizer will use Data resource blocks for training.
+* ``useDCPilot`` ``(bool)``: Determines if the equalizer will use DC Pilot for training.
+* ``usePilot`` ``(bool)``: Determines if the equalizer will use Pilot resource blocks for training.
+* ``usePreamble`` ``(bool)``: Determines if the equalizer will use Preamble resource blocks for training.
+
+**Returns**
+
+* None
+
+.. _custom_ofdm_tracking_setup:
+
+**custom_ofdm_tracking_setup**
+------------------------------
+::
+
+    VSA.custom_ofdm_tracking_setup(**kwargs)
+    # Example
+    VSA.custom_ofdm_tracking_setup(amplitude=False, phase=True, timing=False)
+
+Configures the tracking settings for Custom OFDM.
+
+**Keyword Arguments**
+
+* ``useData`` ``(bool)``: Determines if tracking includes data subcarriers.
+* ``amplitude`` ``(bool)``: Determines if tracking includes amplitude.
+* ``phase`` ``(bool)``: Determines if tracking includes phase.
+* ``timing`` ``(bool)``: Determines if tracking includes timing.
+
+**Returns**
+
+* None
 
 .. _sanity_check:
 
@@ -2166,7 +2353,7 @@ Prints out measurement-context-sensitive user-accessible class attributes
     pyarbtools.gui.main()
 
 
-The PyArbTools GUI is experimental. Please provide `feedback and feature requests <https://github.com/morgan-at-keysight/pyarbtools/issues>`_.
+**The PyArbTools GUI is experimental.** Please provide `feedback and feature requests <https://github.com/morgan-at-keysight/pyarbtools/issues>`_.
 
 **Quick Guide**
 
