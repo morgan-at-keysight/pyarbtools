@@ -2,7 +2,7 @@
 PyArbTools: Keysight Signal Generator Control & Waveform Creation
 =================================================================
 
-*Current version: 2022.02.1*
+*Current version: 2022.04.1*
 
 Frustrated after looking through hundreds of pages of user manuals to find out how to download a waveform to a signal generator?
 
@@ -28,7 +28,7 @@ PyArbTools was built to satisfy the needs of signal generator users who can't/do
     * N5193A and N5194A UXG agile waveform generators.
 * Connect to and configure instruments, download waveforms, control playback, and load or stream PDWs (for UXG), all using easy-to-use functions rather than a list of SCPI commands.
 * Create sequences on the M8190A.
-* Calibrate waveforms using Keysight's 89600 VSA software.
+* Automate waveform analysis using Keysight's 89600 VSA software.
 * For custom applications, communicate with instruments using SCPI commands.
 * All instrument control uses socket communication, no VISA required.
 
