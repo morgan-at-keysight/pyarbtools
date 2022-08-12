@@ -39,6 +39,11 @@ class VSAError(Exception):
     """VSA Exception class"""
     pass
 
+
+class InstrumentError(Exception):
+    """General Instrument Exception class"""
+    pass
+
 # class BinblockError(Exception):
 #     """Binary Block Exception class"""
 #     pass

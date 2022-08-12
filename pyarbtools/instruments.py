@@ -8,7 +8,6 @@ checks, etc. per instrument.
 Tested on M8190A, M8195A, M8196A, N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
-import ipaddress
 from socket import socket
 from typing import Protocol
 import numpy as np
@@ -94,6 +93,7 @@ class SignalGeneratorBase:
                     self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::{port}::socket")
                 else:
                     raise ValueError('Invalid protocol selection. Use "vxi11", "hislip", or "socket".')
+                self.instId = self.query("*idn?")
             else:
                 raise ValueError(f'"{self.apiType}" is not a valid apiType, use "socketscpi" or "pyvisa".')
 
@@ -102,8 +102,24 @@ class SignalGeneratorBase:
         See the accepted answer at
         https://stackoverflow.com/questions/65754399/conditional-inheritance-based-on-arguments-in-python"""
         return self.instance.__getattribute__(__name)
+        
+    def err_check(self):
+        """Prints out all errors and clears error queue. Raises InstrumentError with the info of the error encountered."""
 
-class M8190A(socketscpi.SocketInstrument):
+        err = []
+        cmd = 'SYST:ERR?'
+
+        # Strip out extra characters
+        temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+        # Read all errors until none are left
+        while temp != '0,"No error"':
+            # Build list of errors
+            err.append(temp)
+            temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+        if err:
+            raise error.InstrumentError(err)
+
+class M8190A(SignalGeneratorBase):
     """Generic class for controlling a Keysight M8190A AWG.
 
     Attributes:
@@ -125,12 +141,13 @@ class M8190A(socketscpi.SocketInstrument):
         Add check to ensure that the correct instrument is connected
     """
 
-    def __init__(self, host, port=5025, timeout=10, reset=False):
-        super().__init__(host, port, timeout)
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
         if reset:
             self.write("*rst")
             self.query("*opc?")
             self.write("abort")
+        
         # Query all settings from AWG and store them as class attributes
         self.res = self.query("trace1:dwidth?").strip().lower()
         self.func1 = self.query("func1:mode?").strip()
@@ -487,7 +504,7 @@ class M8190A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.binblockwrite(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm, datatype='h')
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -508,7 +525,7 @@ class M8190A(socketscpi.SocketInstrument):
     #
     #     segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
     #     self.write(f'trace{ch}:def {segment}, {length}')
-    #     self.binblockwrite(f'trace{ch}:data {segment}, 0, ', iq)
+    #     self.write_binary_values(f'trace{ch}:data {segment}, 0, ', iq)
     #     self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
     #
     #     return segment
@@ -1017,7 +1034,7 @@ class M8195A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.binblockwrite(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1265,7 +1282,7 @@ class M8196A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.binblockwrite(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1334,8 +1351,8 @@ class M8196A(socketscpi.SocketInstrument):
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
-class VSG(socketscpi.SocketInstrument):
-    def __init__(self, host, port=5025, timeout=10, reset=False):
+class VSG(SignalGeneratorBase):
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
         """
         Generic class for controlling the EXG, MXG, PSG, and M938X
         family signal generators.
@@ -1354,7 +1371,7 @@ class VSG(socketscpi.SocketInstrument):
             Add check to ensure that the correct instrument is connected
         """
 
-        super().__init__(host, port, timeout)
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
         if reset:
             self.write("*rst")
             self.query("*opc?")
@@ -1622,12 +1639,12 @@ class VSG(socketscpi.SocketInstrument):
             except socketscpi.SockInstError:
                 # print('Waveform doesn\'t exist, skipping delete operation.')
                 pass
-            self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
             self.write(f'memory:copy "C:\\Temp\\{wfmID}","{wfmID}"')
 
         # EXG/MXG/PSG download procedure
         else:
-            self.binblockwrite(f'mmemory:data "WFM1:{wfmID}", ', wfm)
+            self.write_binary_values(f'mmemory:data "WFM1:{wfmID}", ', wfm)
             self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
         # Use 'wfmID' as the waveform identifier for the .play() method.
@@ -2133,16 +2150,16 @@ class VXG(socketscpi.SocketInstrument):
 
         # self.write(f'source:signal:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
         
-        # self.binblockwrite(
+        # self.write_binary_values(
         #     f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",',
         #     wfm,
         # )
 
         # Save waveform to specified location on hard drive.
         if sim:
-            self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm)
         else:
-            self.binblockwrite(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm)
             
         return wfmID
 
@@ -2484,7 +2501,7 @@ class AnalogUXG(socketscpi.SocketInstrument):
             pdwName (str): Name of PDW file.
         """
 
-        self.binblockwrite(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
+        self.write_binary_values(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
         self.err_check()
 
 
@@ -2796,7 +2813,7 @@ class VectorUXG(socketscpi.SocketInstrument):
                 self.err_check()
         except socketscpi.SockInstError:
             pass
-        self.binblockwrite(f'memory:data "{fileName}.csv", ', pdwCsv.encode("utf-8"))
+        self.write_binary_values(f'memory:data "{fileName}.csv", ', pdwCsv.encode("utf-8"))
 
         """Note: memory:import:stream imports/converts csv to pdw AND
         assigns the resulting pdw and waveform index files as the stream
@@ -2822,7 +2839,7 @@ class VectorUXG(socketscpi.SocketInstrument):
         for i in range(len(windex["wfmNames"])):
             windexCsv += f'{i},{windex["wfmNames"][i]}\n'
 
-        self.binblockwrite(f'memory:data "{windex["fileName"]}.csv",'
+        self.write_binary_values(f'memory:data "{windex["fileName"]}.csv",'
                            f' ', windexCsv.encode("utf-8"))
 
         """Note: memory:import:windex imports/converts csv to waveform
@@ -2858,7 +2875,7 @@ class VectorUXG(socketscpi.SocketInstrument):
         self.write("radio:arb:state off")
 
         self.arbState = self.query("radio:arb:state?").strip()
-        self.binblockwrite(f'memory:data "WFM1:{wfmID}", ', wfm)
+        self.write_binary_values(f'memory:data "WFM1:{wfmID}", ', wfm)
 
         return wfmID
 
@@ -2871,7 +2888,7 @@ class VectorUXG(socketscpi.SocketInstrument):
             pdwName (str): Name of PDW file.
         """
 
-        self.binblockwrite(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
+        self.write_binary_values(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
         self.err_check()
 
     @staticmethod
