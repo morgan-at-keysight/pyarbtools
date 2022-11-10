@@ -128,3 +128,7 @@ History
 2022.11.1 (2022-11-10)
 ----------------------
 * Removed all features for the UXG.
+
+2022.11.2 (2022-11-10)
+----------------------
+* Fixed issues with documentation.
