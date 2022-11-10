@@ -9,7 +9,6 @@ Tested on M8190A, M8195A, M8196A, N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
 from socket import socket
-from typing import Protocol
 import numpy as np
 import socketscpi
 import pyvisa
