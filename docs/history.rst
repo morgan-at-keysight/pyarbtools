@@ -110,4 +110,21 @@ History
 ----------------------
 * Fixed broken links in ReadMe
 * Fixed timeout issue with single-channel VXGs
-* Relaxed VXG.configure() type checking
+* Relaxed ``VXG.configure()`` type checking
+
+2022.02.1 (2022-02-01)
+----------------------
+* Added ``get_iq_data()`` method to ``VSA`` object
+* Added two new functions in ``examples.py``
+
+2022.03.2 (2022-03-23)
+----------------------
+* Added ``VMA`` class to ``vsaControl``. Currently only supports custom OFDM demod using .xml import.
+
+2022.04.1 (2022-04-19)
+----------------------
+* Cleaned up documentation for ``vsaControl``.
+
+2022.11.1 (2022-11-10)
+----------------------
+* Removed all features for the UXG.
