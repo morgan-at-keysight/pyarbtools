@@ -25,10 +25,6 @@ Supported instruments include:
     * N5172B EXG
     * M9381A/M9383A
 * :ref:`VXG`
-* :ref:`VectorUXG`
-    * N5194A
-* :ref:`AnalogUXG`
-    * N5193A
 
 Supported waveform building functions include:
 
@@ -50,22 +46,12 @@ Supported VSA control functions include:
 * :ref:`stop`
 * :ref:`autorange`
 * :ref:`set_hw`
-* :ref:`set_data_source`
-* :ref:`recall_setup`
-* :ref:`recall_recording`
-* :ref:`get_iq`
 * :ref:`set_cf`
 * :ref:`set_span`
-* :ref:`set_attenuation`
-* :ref:`set_if_gain`
-* :ref:`set_amplifier`
 * :ref:`set_measurement`
 * :ref:`configure_ddemod`
 * :ref:`configure_vector`
-* :ref:`custom_ofdm_format_setup`
-* :ref:`custom_ofdm_time_setup`
-* :ref:`custom_ofdm_equalizer_setup`
-* :ref:`custom_ofdm_tracking_setup`
+* :ref:`recall_recording`
 * :ref:`sanity_check`
 
 .. _instruments:
@@ -204,7 +190,7 @@ Defines and downloads a waveform into the lowest available segment slot.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy ndarray)``: Array of waveform samples (either real or IQ).
+* ``wfmData`` ``(NumPy array)``: Array of waveform samples (either real or IQ).
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default) or ``2``.
 * ``name`` ``(str)``: Name for downloaded waveform segment.
 * ``wfmFormat`` ``(str)``: Format of the waveform being downloaded. Arguments are ``'iq'`` (default) or ``'real'``.
@@ -415,7 +401,7 @@ Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy ndarray)``: Array containing real waveform samples (not IQ).
+* ``wfmData`` ``(NumPy array)``: Array containing real waveform samples (not IQ).
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
 * ``name`` ``(str)``: String providing a name for downloaded waveform segment.
 
@@ -551,7 +537,7 @@ Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy ndarray)``: Array containing real waveform samples (not IQ).
+* ``wfmData`` ``(NumPy array)``: Array containing real waveform samples (not IQ).
 * ``ch`` ``(int)``: Channel to which waveform will be assigned. Arguments are ``1`` (default), ``2``, ``3``, or ``4``.
 * ``name`` ``(str)``: Name for downloaded waveform segment.
 
@@ -710,7 +696,7 @@ requirements. Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy ndarray)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
 * ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
@@ -857,7 +843,7 @@ granularity requirements. Returns useful waveform identifier.
 
 **Arguments**
 
-* ``wfmData`` ``(NumPy ndarray)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
 * ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
 
 **Returns**
@@ -934,574 +920,6 @@ Deactivates arb mode, RF output, and modulation.
 * None
 
 
-.. _AnalogUXG:
-
-=============
-**AnalogUXG**
-=============
-
-::
-
-    auxg = pyarbtools.instruments.AnalogUXG(host, port=5025, timeout=10, reset=False)
-
-**attributes**
---------------
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
-
-* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
-* ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
-* ``modState`` ``(int)``: Modulation state. Values are ``0`` (default) or ``1``.
-* ``cf`` ``(float)``: Output carrier frequency in Hz. Values range from ``10e6`` to ``40e9``. Default is ``1e9``.
-* ``amp`` ``(float)``: Output power in dBm. Values range from ``-130`` to ``+10``. Default is ``-130``.
-
-::
-
-    print(f'UXG Carrier Frequency: {uxg.cf} Hz.')
-    >>> UXG Carrier Frequency: 1000000000 Hz.
-
-**configure**
--------------
-::
-
-    AnalogUXG.configure(**kwargs)
-    # Example
-    AnalogUXG.configure(rfState=1, cf=20e9)
-
-
-Sets the basic configuration for the UXG and populates class attributes
-accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
-
-**Arguments**
-
-* ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
-* ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
-* ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is ``10e6`` to ``40e9``. Default is ``1e9``.
-* ``amp`` ``(float)``: Output power in dBm. Argument range is ``-130`` to ``+10``. Default is ``-130``.
-
-**Returns**
-
-* None
-
-**open_lan_stream**
--------------------
-::
-
-    AnalogUXG.open_lan_stream()
-
-Open connection to port 5033 for LAN streaming to the UXG. Use this
-directly prior to starting streaming control.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-
-**close_lan_stream**
---------------------
-::
-
-    AnalogUXG.close_lan_stream()
-
-Close connection to port 5033 for LAN streaming on the UXG. Use this
-after streaming is complete.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-**stream_play**
----------------
-::
-
-    AnalogUXG.stream_play(pdwID='pdw')
-
-Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
-
-**Arguments**
-
-* ``pdwID`` ``(str)``: Name of the PDW file to be played. Default is ``'pdw'``.
-
-**Returns**
-
-* None
-
-**stream_stop**
----------------
-::
-
-    AnalogUXG.stream_stop()
-
-Dectivates RF output, modulation, and streaming mode.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-**bin_pdw_builder**
--------------------
-::
-
-    AnalogUXG.bin_pdw_builder(self, operation=0, freq=1e9, phase=0, startTimeSec=0, width=0, power=1, markers=0,
-                        pulseMode=2, phaseControl=0, bandAdjust=0, chirpControl=0, code=0,
-                        chirpRate=0, freqMap=0)
-
-Builds a single format-1 PDW from a set of input parameters.
-See User's Guide>Streaming Use>PDW Definitions section of Keysight `Analog UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
-
-**Arguments**
-    * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-    * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``10e6`` to ``40e9``.
-    * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
-    * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
-    * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
-    * ``power`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
-    * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
-    * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
-    * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-    * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
-    * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
-    * ``code`` ``(int)``: Selects hard-coded frequency/phase coding table index.
-    * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
-    * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
-
-**Returns**
-    * ``(NumPy ndarray)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
-
-Example::
-
-    # PDW parameters
-    numPdws = 1000
-    pri = 100e-6
-    width = 1e-6
-    cf = 1e9
-    pdw = []
-
-    # Build PDWs as an array
-    for i in range(numPdws):
-        if i == 0:
-            op = 1
-        else:
-            op = 0
-        # Use PyArbTools function to create PDWs
-        pdw.append(uxg.bin_pdw_builder(op, cf, 0, startTime, width, 1, 3, 2, 0, 0, 3, 0, 40000, 0))
-        startTime += pri
-
-**bin_pdw_file_builder**
-------------------------
-::
-
-    AnalogUXG.bin_pdw_file_builder(pdwList)
-
-Builds a binary PDW file with a padding block to ensure the PDW section
-begins at an offset of 4096 bytes (required by UXG).
-
-See User's Guide>Streaming Mode Use>PDW Definitions section of Keysight `Analog UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm>`_.
-
-**Arguments**
-
-* ``pdwList`` ``(list(list))``: A list of PDWs. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
-    * PDW Fields:
-        * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-        * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``10e6`` to ``40e9``.
-        * ``phase`` ``(int)``: Phase of carrier in degrees. Argument range is ``0`` to ``360``.
-        * ``startTimeSec`` ``(float)``: Start time of the 50% rising edge power in seconds. Argument range is``0 ps`` to ``213.504 days`` with a resolution of ``1 ps``.
-        * ``width`` ``(float)``: Width of the pulse from 50% rise power to 50% fall power in seconds. Argument range is ``4 ns`` to ``4.295 sec``.
-        * ``power`` ``(float)``: Linear scaling of output power in Vrms. Honestly just leave this as ``1``.
-        * ``markers`` ``(int)``: 12-bit bit mask input of active markers (e.g. to activate marker 3, send the number 4, which is 0b000000000100 in binary).
-        * ``pulseMode`` ``(int)``: Configures pulse mode. Arguments are ``0`` (CW), ``1`` (RF off), or ``2`` (Pulse enabled).
-        * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-        * ``bandAdjust`` ``(int)``: Controls how the frequency bands are selected. Arguments are ``0`` (CW switch points), ``1`` (upper band switch points), ``2`` (lower band switch points).
-        * ``chirpControl`` ``(int)``: Controls the shape of the chirp. Arguments are ``0`` (stitched ramp chirp [don't use this]), ``1`` (triangle chirp), ``2`` (ramp chirp).
-        * ``code`` ``(int)``: Selects hard-coded frequency/phase coding table index.
-        * ``chirpRate`` ``(float)``: Chirp rate in Hz/us. Argument is an int.
-        * ``freqMap`` ``(int)``: Selects frequency band map. Arguments are ``0`` (band map A), ``6`` (band map B).
-
-
-::
-
-    pdwName = 'pdw'
-    pdwList = [[1, 980e6, 0, 0, 10e-6, 1, 0, 2, 0, 0, 3, 0, 4000000, 0],
-               [2, 1e9, 0, 20e-6, 1e-6, 1, 0, 2, 0, 0, 0, 0, 0, 0]]
-    pdwFile = uxg.bin_pdw_file_builder(pdwList)
-    uxg.download_bin_pdw_file(pdwFile, pdwName=pdwName)
-
-**Returns**
-
-* ``(bytes)``: A binary file that can be sent directly to the UXG memory using ``AnalogUXG.bin_pdw_file_builder()`` method or sent to the LAN streaming port using ``AnalogUXG.lanStream.send()``
-
-**download_bin_pdw_file**
--------------------------
-::
-
-    AnalogUXG.download_bin_pdw_file(pdwFile, pdwName='wfm')
-
-
-Downloads binary PDW file to PDW directory in UXG.
-
-**Arguments**
-
-* ``pdwFile`` ``(bytes)``: A binary PDW file, ideally generated and returned by ``AnalogUXG.bin_pdw_file_builder()``.
-* ``pdwName`` ``(str)``: The name of the PDW file.
-
-**Returns**
-
-* None
-
-.. _VectorUXG:
-
-=============
-**VectorUXG**
-=============
-
-::
-
-    vuxg = pyarbtools.instruments.VectorUXG(host, port=5025, timeout=10, reset=False)
-
-**attributes**
---------------
-These attributes are automatically populated when connecting to the
-instrument and when calling the ``.configure()`` method. Generally
-speaking, they are also the keyword arguments for ``.configure()``.
-
-* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
-* ``rfState`` ``(int)``: RF output state. Values are ``0`` (default) or ``1``.
-* ``modState`` ``(int)``: Modulation state. Values are ``0`` (default) or ``1``.
-* ``cf`` ``(float)``: Output carrier frequency in Hz. Values range from ``50e6`` to ``20e9``. Default is ``1e9``.
-* ``amp`` ``(float)``: Output power in dBm. Values range from ``-120`` to ``+3``. Default is ``-120``.
-* ``iqScale`` ``(int)``: IQ scale factor in %. Values range from ``1`` to ``100``. Default is ``70``.
-
-::
-
-    print(f'UXG Output Power: {uxg.amp} dBm.')
-    >>> UXG Output Power: -20 dBm.
-
-**configure**
--------------
-::
-
-    VectorUXG.configure(**kwargs)
-    # Example
-    VectorUXG.configure(rfState=1, cf=6e9, amp=-20)
-
-Sets the basic configuration for the UXG and populates class attributes
-accordingly. It *only* changes the setting(s) for the
-keyword argument(s) sent by the user.
-
-**Arguments**
-
-* ``rfState`` ``(int)``: Turns the RF output state on or off. Arguments are ``0`` (default) or ``1``.
-* ``modState`` ``(int)``: Turns the modulation state on or off. Arguments are ``0`` (default) or ``1``.
-* ``cf`` ``(float)``: Output carrier frequency in Hz. Argument range is ``50e6`` to ``20e9``. Default is ``1e9``.
-* ``amp`` ``(float)``: Output power in dBm. Argument range is ``-120`` to ``+3``. Default is ``-120``.
-* ``iqScale`` ``(int)``: IQ scale factor in %. Argument range is ``1`` to ``100``. Default is ``70``.
-
-**Returns**
-
-* None
-
-**download_wfm**
-----------------
-::
-
-    VectorUXG.download_wfm(wfmData, wfmID='wfm')
-
-Defines and downloads a waveform into WFM1: memory directory and checks
-that the waveform meets minimum waveform length and granularity
-requirements. Returns a useful waveform identifier.
-
-**Arguments**
-
-* ``wfmData`` ``(NumPy ndarray)``: Array of values containing the complex sample pairs in an IQ waveform.
-* ``wfmID`` ``(str)``: String specifying the name of the waveform to be downloaded. Default is ``'wfm'``.
-
-**Returns**
-
-* ``(str)``: Name of waveform that has been downloaded. This should be used to specify which waveform is played using ``.play()`` or when building a waveform index file.
-
-**delete_wfm**
---------------
-::
-
-    VectorUXG.delete_wfm(wfmID)
-
-Deletes a waveform from the waveform memory.
-
-**Arguments**
-
-* ``wfmID`` ``(str)``: Name of the waveform to be deleted.
-
-**Returns**
-
-* None
-
-**clear_all_wfm**
------------------
-::
-
-    VectorUXG.clear_all_wfm()
-
-Stops playback and deletes all waveforms from the waveform memory.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-**arb_play**
-------------
-::
-
-    VectorUXG.arb_play(wfmID='wfm')
-
-Selects waveform and activates RF output, modulation, and arb mode.
-
-**Arguments**
-
-* ``wfmID`` ``(str)``: Name of waveform to be played. Default is ``'wfm'``.
-
-**Returns**
-
-* None
-
-**arb_stop**
-------------
-::
-
-    VectorUXG.arb_stop()
-
-Dectivates RF output, modulation, and arb mode.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-**open_lan_stream**
--------------------
-::
-
-    VectorUXG.open_lan_stream()
-
-Open connection to port 5033 for LAN streaming to the UXG. Use this
-directly prior to starting streaming control.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-
-**close_lan_stream**
---------------------
-::
-
-    VectorUXG.close_lan_stream()
-
-Close connection to port 5033 for LAN streaming on the UXG. Use this
-after streaming is complete.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-**bin_pdw_builder**
--------------------
-::
-
-    VectorUXG.bin_pdw_builder(operation, freq, phase, startTimeSec, power, markers, phaseControl, rfOff, wIndex, wfmMkrMask)
-
-Builds a single format-1 PDW from a set of parameters.
-See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
-
-**Arguments**
-    * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-    * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``50e6`` to ``20e9``.
-    * ``phase`` ``(float)``: Phase of carrier in degrees. Argument range is ``0`` and ``360``.
-    * ``startTimeSec`` ``(float)``: Pulse start time in seconds. Argument range is ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
-    * ``power`` ``(float)``: Power in dBm. Argument range is ``-140`` and ``+23.835``.
-    * ``markers`` ``(int)``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
-    * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-    * ``rfOff`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
-    * ``wIndex`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
-    * ``wfmMkrMask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
-
-**Returns**
-    * ``(NumPy ndarray)``: Single PDW that can be used to build a PDW file or streamed directly to the UXG.
-
-**bin_pdw_file_builder**
-------------------------
-::
-
-    VectorUXG.bin_pdw_file_builder(pdwList)
-
-Builds a binary PDW file with a padding block to ensure the PDW section
-begins at an offset of 4096 bytes (required by UXG).
-
-See User's Guide>Streaming Use>PDW File Format section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
-
-**Arguments**
-
-* ``pdwList`` ``(list(list))``: A list of PDWs. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
-* PDW Fields:
-    * ``operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-    * ``freq`` ``(float)``: CW frequency/chirp start frequency in Hz. Argument range is ``50e6`` to ``20e9``.
-    * ``phase`` ``(float)``: Phase of carrier in degrees. Argument range is ``0`` and ``360``.
-    * ``startTimeSec`` ``(float)``: Pulse start time in seconds. Argument range is ``0 ps`` and ``213.504 days`` with a resolution of ``1 ps``.
-    * ``power`` ``(float)``: Power in dBm. Argument range is ``-140`` and ``+23.835``.
-    * ``markers`` ``(int)``: Marker enable. Argument is a 12 bit binary value where each bit represents marker state. e.g. to activate marker 5 is ``0b000000100000``.
-    * ``phaseControl`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-    * ``rfOff`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
-    * ``wIndex`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment. Argument is an integer.
-    * ``wfmMkrMask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
-
-::
-
-    rawPdw = ([1, 1e9, 0, 0,      0, 1, 0, 0, 0, 0xF],
-              [0, 1e9, 0, 20e-6,  0, 0, 0, 0, 1, 0xF],
-              [0, 1e9, 0, 120e-6, 0, 0, 0, 0, 2, 0xF],
-              [2, 1e9, 0, 300e-6, 0, 0, 0, 0, 2, 0xF])
-
-**Returns**
-
-* ``(bytes)``: A binary file that can be sent directly to the UXG memory using the ``MEMORY:DATA`` SCPI command or sent to the LAN streaming port using ``VectorUXG.lanStream.send()``
-
-
-**csv_windex_file_download**
-----------------------------
-::
-
-    VectorUXG.csv_windex_file_download(windex)
-
-Write header fields separated by commas and terminated with ``\n``
-
-**Arguments**
-
-* ``windex`` ``(str)``: Specifies waveform index file name and waveform names contained inside. Argument is a dict with 'fileName' and 'wfmNames' as keys. e.g. {'fileName': '<fileName>', 'wfmNames': ['name0', 'name1',... 'nameN']}
-
-**Returns**
-
-* None
-
-
-**csv_pdw_file_download**
--------------------------
-::
-
-    VectorUXG.csv_pdw_file_download(fileName, fields=['Operation', 'Time'], data=[[1, 0], [2, 100e-6]])
-
-Builds a CSV PDW file, sends it into the UXG, and converts it to a
-binary PDW file. There are *a lot* of fields to choose from, but *you
-do not need to specify all of them.* It really is easier than it looks.
-See User's Guide>Streaming Use>CSV File Use>Streaming CSV File Creation
-section of Keysight `Vector UXG Online Documentation <http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm>`_.
-
-**Arguments**
-
-* ``fileName`` ``(str)``: Name of the csv file without the extension.
-* ``fields`` ``(list(str))``: Fields contained in the PDWs.
-* ``values`` ``(list(list))``: Values for each PDW. Argument is a list of lists where each inner list contains the values for a single pulse descriptor word.
-    * ``PDW Format`` ``(str)``: Sets the PDW Format. Arguments are ``'Auto'`` (automatic type selected), ``'Indexed'`` (Format 1, waveform description only), ``'Control'`` (Format 2, change markers and execute Marked Operations), or ``'Full'`` (Format 3, which specifies all possible values).
-    * ``Operation`` ``(int)``: Type of PDW. Arguments are ``0`` (no operation), ``1`` (first PDW after reset), or ``2`` (reset, must be followed by PDW with operation ``1``).
-    * ``Time`` ``(float)``: The start (50% of rise power) of the pulse with respect to Scenario Time. For Arb waveforms, the beginning of the waveform. Argument range is ``0 ps`` to ``213.504 days`` in seconds with a resolution of ``1 ps``.
-    * ``Pulse Width`` ``(float)``: The duration of the entire waveform. Argument range is ``0`` to ``68.72`` in seconds with a resolution of ``500 ps``. An argument of ``0`` uses the known waveform length.
-    * ``Frequency`` ``(float)``: CW frequency/chirp start frequency. Argument range is ``50e6`` to ``20e9``. Default is ``1e9``.
-    * ``Phase Mode`` ``(int)``: Phase mode. Arguments are ``0`` (coherent) or ``1`` (continuous).
-    * ``Phase`` ``(int)``: Phase of carrier. Argument range is ``-360`` and ``360``.
-    * ``Maximum Power`` ``(float)``: Power in dBm. Argument range is ``-140`` to ``+23.835``.
-    * ``Power`` ``(float)``: Power in dBm. Argument range is ``-140`` to ``+23.835``. If not specified, Maximum Power is used.
-    * ``RF Off`` ``(int)``: Control to turn off RF output. Arguments are ``0`` (RF **ON**) or ``1`` (RF **OFF**).
-    * ``Markers`` ``(int)``: Marker enable. Argument is a 12 bit hex spefication where each bit represents marker state. e.g. to activate marker 5 is ``0x020``
-    * ``Marker Mask`` ``(int)``: Enables waveform markers. Argument is a 4 bit hex value where each bit represents marker state. e.g. to activate all 4 markers is ``0xF``.
-    * ``Index`` ``(int)``: Waveform index file value that associates with a previously loaded waveform segment.
-    * ``Name`` ``(str)``: Specifies the name of a waveform file to play. This field overrides the ``Index`` field if specified.
-    * ``Blank`` ``(str)``: Controls blanking between PDW transitions. Arguments are ``'None'``, which doesn't blank the output during PDW transition, or ``'Auto'``, which blanks the output during PDW transition.
-    * ``Zero/Hold`` ``(str)``: Controls behavior of arb at the end of a waveform. Arguments are ``'Zero'``, which forces the arb output to go to 0, or ``'Hold'``, which holds the last waveform value until the beginning of the next PDW.
-    * ``LO Lead`` ``(float)``: Controls how long before the next PDW the LO begins to switch frequencies. Argument range is ``0`` to ``500`` in nanoseconds.
-    * ``Width`` ``(float)``: Truncates waveform if ``Width`` is shorter than known waveform length or forces DAC to zero/hold last sample if ``Width`` is longer than known waveform length.
-    * Documentation will be updated for the following fields/values in an upcoming release.
-        * ``Rise``: Specifies rise time of the pulse waveform generated at compile time.
-        * ``Fall``: Specifies fall time of the pulse waveform generated at compile time.
-        * ``Shape``: Specifies shape of the pulse waveform generated at compile time.
-        * ``MOP``: Specifies modulation type of the pulse waveform generated at compile time.
-        * ``Par1``: Specifies modulation parameters of the pulse waveform generated at compile time.
-        * ``Par2``: Specifies modulation parameters of the pulse waveform generated at compile time.
-        * ``Waveform Time Offset``: Specifies the start time offset of the pulse waveform generated at compile time.
-
-::
-
-    fileName = 'csv_pdw_test'
-    fields = ('Operation', 'Time', 'Frequency', 'Zero/Hold', 'Markers', 'Name')
-    data = ([1, 0    , 1e9, 'Hold', '0x1', 'waveform1'],
-            [2, 10e-6, 1e9, 'Hold', '0x0', 'waveform2'])
-    VectorUXG.csv_pdw_file_download(fileName, fields, data)
-
-
-**Returns**
-
-* None
-
-**stream_play**
----------------
-::
-
-    VectorUXG.stream_play(pdwID='wfm', wIndexID=None)
-
-Assigns pdw/windex, activates RF output, modulation, and streaming mode, and triggers streaming output.
-
-**Arguments**
-
-* ``pdwID`` ``(str)``: Name of the PDW file to be loaded. Default is ``'wfm'``.
-* ``wIndexID`` ``(str)``: Name of the waveform index file to be loaded. Default is ``None``, which loads a waveform index file with the same name as the PDW file.
-
-**Returns**
-
-* None
-
-**stream_stop**
----------------
-::
-
-    VectorUXG.stream_stop()
-
-Dectivates RF output, modulation, and streaming mode.
-
-**Arguments**
-
-* None
-
-**Returns**
-
-* None
-
-
 .. _wfmBuilder:
 
 ==============
@@ -1540,7 +958,7 @@ Takes in waveform data and exports it to a csv file as plain text.
 
 **Arguments**
 
-* ``data`` ``(NumPy ndarray)``: Waveform data to be exported.
+* ``data`` ``(NumPy array)``: Waveform data to be exported.
 * ``fileName`` ``(str)``: Full absolute file name where the waveform will be saved. (should end in ``".csv"``)
 * ``vsaCompatible`` ``(bool)``: Determines VSA compatibility. If ``True``, adds the ``XDelta`` field to the beginning of the file and allows VSA to recall it as a recording.
 * ``fs`` ``(float)``: Sample rate originally used to create the waveform. Default is ``0``, so this should be entered manually.
@@ -1568,8 +986,8 @@ Imports waveform data from .mat file. Detects array data type, and accepts data 
 **Returns**
 
 * ``(dict)``:
-    * ``data`` ``(NumPy ndarray)``: Array of waveform samples.
-    * ``fs`` ``(float)``: Sample rate of imported waveform.
+    * ``data`` (NumPy ndarray): Array of waveform samples.
+    * ``fs`` (float): Sample rate of imported waveform.
     * ``wfmID`` ``(str)``: Waveform name.
     * ``wfmFormat`` ``(str)``: Waveform format (``iq`` or ``real``).
 
@@ -1591,7 +1009,7 @@ Generates a waveform filled with the value ``0``.
 
 **Returns**
 
-* ``(NumPy ndarray)``: Array containing the complex or real values of the zero waveform.
+* ``(NumPy array)``: Array containing the complex or real values of the zero waveform.
 
 
 .. _sine_generator:
@@ -1614,7 +1032,7 @@ Generates a sine wave with configurable frequency and initial phase at baseband 
 
 **Returns**
 
-* ``(NumPy ndarray)``: Array containing the complex or real values of the sine wave.
+* ``(NumPy array)``: Array containing the complex or real values of the sine wave.
 
 .. _am_generator:
 
@@ -1637,7 +1055,7 @@ Generates a linear sinusoidal AM signal of specified depth and modulation rate a
 
 **Returns**
 
-* ``(NumPy ndarray)``: Array containing the complex or real values of the AM waveform.
+* ``(NumPy array)``: Array containing the complex or real values of the AM waveform.
 
 .. _cw_pulse_generator:
 
@@ -1662,7 +1080,7 @@ Generates an unmodulated CW (continuous wave) pulse at baseband or RF.
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the CW pulse.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the CW pulse.
 
 .. _chirp_generator:
 
@@ -1687,7 +1105,7 @@ Generates a symmetrical linear chirped pulse at baseband or RF. Chirp direction 
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the chirped pulse.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the chirped pulse.
 
 .. _barker_generator:
 
@@ -1714,7 +1132,7 @@ more information on Barker coding.
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the barker pulse.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the barker pulse.
 
 .. _multitone_generator:
 
@@ -1737,7 +1155,7 @@ Generates a multitone_generator signal with given tone spacing, number of tones,
 
 **Returns**
 
-* ``iq``/``real`` ``(NumPy ndarray)``: Array containing the complex or real values of the multitone_generator signal.
+* ``iq``/``real`` ``(NumPy array)``: Array containing the complex or real values of the multitone_generator signal.
 
 .. _digmod_generator:
 
@@ -1769,7 +1187,7 @@ NOTE - The ring ratios for APSK modulations are as follows:
 
 **Returns**
 
-* ``(NumPy ndarray)``: Array containing the complex values of the digitally modulated signal.
+* ``(NumPy array)``: Array containing the complex values of the digitally modulated signal.
 
 **iq_correction**
 -----------------
@@ -1787,7 +1205,7 @@ waveform.
 
 **Arguments**
 
-* ``iq`` ``(NumPy ndarray)``: Array contianing the complex values of the signal to be corrected.
+* ``iq`` ``(NumPy array)``: Array contianing the complex values of the signal to be corrected.
 * ``inst`` ``(pyarbtools.instrument.XXX)``: Instrument class of the generator to be used in the calibration. Must already be connected and configured. ``inst.fs`` is used as the basis for the calibration and ``inst.play()`` method is used.
 * ``vsaIPAddress`` ``(str)``: IP address of the VSA instance to be used in calibration. Default is ``'127.0.0.1'``.
 * ``vsaHardware`` ``(str)``: Name of the hardware to be used by VSA. Name must be surrounded by double quotes (``"``). Default is ``'"Analyzer1"'``.
@@ -1798,7 +1216,7 @@ waveform.
 
 **Returns**
 
-* ``(NumPy ndarray)``: Array containing the complex values of corrected signal.
+* ``(NumPy array)``: Array containing the complex values of corrected signal.
 
 
 .. _vsaControl:
@@ -1851,13 +1269,7 @@ code without having to send a SCPI query to determine values::
     print(f'Modulation type is {vsa.modType}.')
     print(f'Symbol rate is {vsa.symRate} symbols/sec.')
 
-``VSA`` also supports exporting IQ data from the current measurement. The ``get_iq_data()``
-method uses the current acquisition settings and gets the raw IQ samples and
-returns them as a complex NumPy array. The ``newAcquisition`` keyword argument
-allows the user to specify if they want to take a new acquisition prior to 
-getting the iq data (this is set to ``False`` by default::
 
-    iq = vsa.get_iq_data(newAccquisition=True)
 
 =======
 **VSA**
@@ -1879,7 +1291,7 @@ the keyword arguments for the ``.configure_***()`` methods.
 * ``amp`` ``(float)``: Reference level/vertical range in dBm.
 * ``span`` ``(float)``: Analyzer span in Hz.
 * ``hw`` ``(str)``: Identifier string for acquisition hardware used by VSA.
-* ``meas`` ``(str)``: Measurement type ('vector', 'ddemod' currently supported with limited support for 'customofdm').
+* ``meas`` ``(str)``: Measurement type ('vector', 'ddemod' currently supported).
 * ``modType`` ``(str)``: String defining digital modulation format.
 * ``symRate`` ``(float)``: Symbol rate in symbols/sec.
 * ``measFilter`` ``(str)``: Sets the measurement filter type.
@@ -1982,79 +1394,6 @@ Sets and reads hardware configuration for VSA. Checks to see if selected hardwar
 
 * None
 
-.. _set_data_source:
-
-**set_data_source**
--------------------
-::
-
-    VSA.set_data_source(fromHardware=True)
-
-Sets the data source used by VSA.
-
-**Arguments**
-
-* ``fromHardware`` ``(bool)``: Tells VSA to use hardware (``True``) or recording (``False``) for its data source.
-
-**Returns**
-
-* None
-
-.. _recall_setup:
-
-**recall_setup**
-----------------
-::
-
-    VSA.recall_setup(fileName)
-
-Recalls a .setx file into VSA.
-
-**Arguments**
-
-* ``fileName`` ``(str)``: Full absolute file name of the setup file to be loaded.
-
-**Returns**
-
-* None
-
-.. _recall_recording:
-
-**recall_recording**
---------------------
-::
-
-    VSA.recall_recording(fileName, fileFormat='csv')
-
-Recalls a data file as a recording in VSA using SCPI commands.
-
-**Arguments**
-
-* ``fileName`` ``(str)``: Full absolute file name of the recording to be loaded.
-* ``fileFormat`` ``(str)``: Format of recording file. (``'CSV'``, ``'E3238S'``, ``'MAT'``, ``'MAT7'``, ``'N5110A'`, ``'N5106A'``, ``'SDF'``, ``'TEXT'``)
-
-**Returns**
-
-* None
-
-.. _get_iq:
-
-**get_iq**
-----------
-::
-
-    VSA.get_iq(newAqcuisition=False)
-
-Gets IQ data using current acquisition settings.
-
-**Arguments**
-
-* ``newAcquisition`` ``(bool)``: Determines if a new acquisition is made prior to getting IQ data.
-
-**Returns**
-
-* ``NumPy`` ``ndarray``: Array of complex IQ values.
-
 .. _set_cf:
 
 **set_cf**
@@ -2115,67 +1454,13 @@ Sets and reads span for VSA using SCPI commands.
 -------------------
 ::
 
-    VSA.set_measurement(meas)
+    VSA.set_amp(meas)
 
 Sets and reads measurement type in VSA using SCPI commands.
 
 **Arguments**
 
-* ``meas`` ``(str)``: Selects measurement type (``'vector'``, ``'ddemod'``, and ``'customofdm'`` currently supported).
-
-**Returns**
-
-* None
-
-.. _set_attenuation:
-
-**set_attenuation**
--------------------
-::
-
-    VSA.set_attenuation(atten)
-
-Sets the attenuator value used in the analyzer.
-
-**Arguments**
-
-* ``atten`` ``(int)``: Attenuator value in dB (``0`` to ``70``).
-
-**Returns**
-
-* None
-
-.. _set_if_gain:
-
-**set_if_gain**
----------------
-::
-
-    VSA.set_if_gain(ifGain)
-
-Sets the IF gain used by the analyzer.
-
-**Arguments**
-
-* ``ifGain`` ``(int)``: IF gain value in dB (``-32`` to ``32``).
-
-**Returns**
-
-* None
-
-.. _set_amplifier:
-
-**set_amplifier**
------------------
-::
-
-    VSA.set_amplifier(amplifier)
-
-Sets the amplifier setting used in the signal path of the analyzer.
-
-**Arguments**
-
-* ``amplifier`` ``(int)``: Identifier for amplifier in signal path (``0`` = none, ``1`` = preamp, ``2`` = LNA, ``3`` = LNA+preamp).
+* ``meas`` ``(srt)``: Selects measurement type ('vector', 'ddemod' currently supported).
 
 **Returns**
 
@@ -2237,89 +1522,20 @@ settings are interconnected. If you set both, the latter setting will override t
 
 * None
 
-.. _custom_ofdm_format_setup:
+.. _recall_recording:
 
-**custom_ofdm_format_setup**
-----------------------------
+**recall_recording**
+--------------------
 ::
 
-    VSA.custom_ofdm_format_setup(setupFile)
+    VSA.recall_recording(fileName, fileFormat='csv')
 
-Loads a .setx file for a Custom OFDM measurement. This **must always be done when setting up a custom OFDM measurement for the first time.**
+Recalls a data file as a recording in VSA using SCPI commands.
 
 **Arguments**
 
-* ``fileName`` ``(str)``: Full absolute file name of the .setx file that configures the frame structure and resource mapping.
-
-**Returns**
-
-* None
-
-.. _custom_ofdm_time_setup:
-
-**custom_ofdm_time_setup**
---------------------------
-::
-
-    VSA.custom_ofdm_time_setup(**kwargs)
-    # Example
-    VSA.custom_ofdm_time_setup(measInterval=128, resultLenSelect=1)
-
-Configures the settings in the Time tab unde Custom OFDM Demod Properties.
-
-**Keyword Arguments**
-
-* ``measInterval`` ``(int)``: Number of symbols to be included in the measurement.
-* ``measOffset`` ``(int)``: Number of symbols to be omitted prior to the beginning of the measurement.
-* ``resultLen`` ``(int)``: Number of symbols available for the measurement.
-* ``resultLenSelect`` ``(int)``: Determines whether to automatically limit the result length to the number of symbols contained in a single burst (``1`` = autolimit, ``0`` = no autolimit).
-* ``searchLen`` ``(float)``: Determines total amount of time VSA will acquire for analysis.
-
-**Returns**
-
-* None
-
-.. _custom_ofdm_equalizer_setup:
-
-**custom_ofdm_equalizer_setup**
--------------------------------
-::
-
-    VSA.custom_ofdm_equalizer_setup(**kwargs)
-    # Example
-    VSA.custom_ofdm_equalizer_setup(useData=False, usePilot=True)
-
-Configures the equalizer settings for Custom OFDM.
-
-**Keyword Arguments**
-
-* ``useData`` ``(bool)``: Determines if the equalizer will use Data resource blocks for training.
-* ``useDCPilot`` ``(bool)``: Determines if the equalizer will use DC Pilot for training.
-* ``usePilot`` ``(bool)``: Determines if the equalizer will use Pilot resource blocks for training.
-* ``usePreamble`` ``(bool)``: Determines if the equalizer will use Preamble resource blocks for training.
-
-**Returns**
-
-* None
-
-.. _custom_ofdm_tracking_setup:
-
-**custom_ofdm_tracking_setup**
-------------------------------
-::
-
-    VSA.custom_ofdm_tracking_setup(**kwargs)
-    # Example
-    VSA.custom_ofdm_tracking_setup(amplitude=False, phase=True, timing=False)
-
-Configures the tracking settings for Custom OFDM.
-
-**Keyword Arguments**
-
-* ``useData`` ``(bool)``: Determines if tracking includes data subcarriers.
-* ``amplitude`` ``(bool)``: Determines if tracking includes amplitude.
-* ``phase`` ``(bool)``: Determines if tracking includes phase.
-* ``timing`` ``(bool)``: Determines if tracking includes timing.
+* ``fileName`` ``(str)``: Full absolute file name of the recording to be loaded.
+* ``fileFormat`` ``(str)``: Format of recording file. ('CSV', 'E3238S', 'MAT', 'MAT7', 'N5110A', 'N5106A', 'SDF', 'TEXT')
 
 **Returns**
 
@@ -2353,7 +1569,7 @@ Prints out measurement-context-sensitive user-accessible class attributes
     pyarbtools.gui.main()
 
 
-**The PyArbTools GUI is experimental.** Please provide `feedback and feature requests <https://github.com/morgan-at-keysight/pyarbtools/issues>`_.
+The PyArbTools GUI is experimental. Please provide `feedback and feature requests <https://github.com/morgan-at-keysight/pyarbtools/issues>`_.
 
 **Quick Guide**
 

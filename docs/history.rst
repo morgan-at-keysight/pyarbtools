@@ -12,15 +12,10 @@ History
 
 * First major update. Added ``wfmBuilder.iq_correction()``, which utilizes Keysight's VSA software and a Keysight receiver (either an oscilloscope or signal analyzer) and applies a digital predistortion filter to a waveform to flatten amplitude and phase response.
 
-0.0.9 (2018-11-26)
-------------------
-
-* Fixed a problem with ``UXG.csv_pdw_file_download()`` and ``UXG.csv_windex_file_download()`` that threw an error when trying to delete a file that didn't exist.
-
 0.0.10 (2018-12-10)
 -------------------
 
-* Added ``multitone_generator`` method. Added 128-QAM and 256-QAM. Streamlined ``UXG`` instrument class, split ``play()`` into ``stream_play()`` & ``arb_play()`` and split ``stop()`` into ``stream_stop()`` & ``arb_stop()``. Updated index to include a better intro to the project.
+* Added ``multitone_generator`` method. Added 128-QAM and 256-QAM. Updated index to include a better intro to the project.
 
 0.0.11 (2019-01-23)
 -------------------
@@ -30,7 +25,7 @@ History
 0.0.12 (2019-02-20)
 -------------------
 
-* Removed ``UXG`` class and replaced it with two classes, ``AnalogUXG`` and ``VectorUXG``. Expanded ``VSG`` class to include M9381A and M9383A without changing public API.
+* Expanded ``VSG`` class to include M9381A and M9383A without changing public API.
 
 0.0.13 (2019-04-19)
 -------------------
@@ -40,7 +35,7 @@ History
 0.0.14 (2019-11-12)
 -------------------
 
-* Fixed bug in UXG classes that emitted a long CW pulse prior to starting streaming. Added ``pri`` argument to pulse creation methods.
+* Added ``pri`` argument to pulse creation methods.
 
 2020.04.0 (2020-04-29)
 ----------------------
@@ -87,11 +82,6 @@ History
 
 * Added ``import_mat()`` method to wfmBuilder.py that imports .mat files containing waveform data and optional metadata.
 
-2021.01.1 (2021-01-20)
-----------------------
-
-* Added ``analog_uxg_lan_stream_pdw_example()`` analog uxg lan streaming example
-
 2021.02.1 (2021-02-22)
 ----------------------
 
@@ -112,14 +102,6 @@ History
 
 * Fixed bug with ``ampScale`` argument in ``cw_pulse_generator()``.
 
-
-2021.05.1 (2021-05-14)
-----------------------
-
-* Added N5194A Vector UXG support for PDW format 3 rev B that was introduced in firmware A.01.30.  Updated vector uxg example names to better reflect what the examples do.
-* Refined N5193A file streaming to define size of PDW block.
-* Reformatted comments related to analog and vector PDW sections to be more easy to read.
-
 2021.06.2 (2021-06-26)
 ----------------------
 * Fixed marker generation functionality in M8190A.
@@ -128,17 +110,4 @@ History
 ----------------------
 * Fixed broken links in ReadMe
 * Fixed timeout issue with single-channel VXGs
-* Relaxed ``VXG.configure()`` type checking
-
-2022.02.1 (2022-02-01)
-----------------------
-* Added ``get_iq_data()`` method to ``VSA`` object
-* Added two new functions in ``examples.py``
-
-2022.03.2 (2022-03-23)
-----------------------
-* Added ``VMA`` class to ``vsaControl``. Currently only supports custom OFDM demod using .xml import.
-
-2022.04.1 (2022-04-19)
-----------------------
-* Cleaned up documentation for ``vsaControl``.
+* Relaxed VXG.configure() type checking

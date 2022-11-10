@@ -8,15 +8,16 @@ checks, etc. per instrument.
 Tested on M8190A, M8195A, M8196A, N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
+from socket import socket
+from typing import Protocol
 import numpy as np
 import socketscpi
+import pyvisa
 
 from pyarbtools import error
-from pyarbtools import pdwBuilder
 
 """
 TODO:
-* Bugfix: fix zero/hold behavior on VectorUXG LAN pdw streaming
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
 * DONE -- Separate out configure() into individual methods that update class attributes
@@ -50,7 +51,73 @@ def wraparound_calc(length, gran, minLen):
     return repeats
 
 
-class M8190A(socketscpi.SocketInstrument):
+class SignalGeneratorBase:
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, **kwargs):
+            """
+            Args:
+            ipAddress (string): Instrument host IP address. Argument is a string containing a valid IP address.
+            apiType (string): Chooses whether to use PyVISA or socketscpi ["pyvisa", "socketscpi"].
+            timeout (int): Timeout in seconds.
+            
+            Keyword Args:
+            protocol (string): LAN protocol used to communicate with the instrument ("vxi11", "hislip", "socket"). Note this is only usable with PyVISA.
+            port (int): Port used by the instrument to facilitate communication (socket default is 5025, vxi11 and hislip defaults are 0).
+            """
+
+            self.apiType = apiType
+
+            for key, value in kwargs.items():
+                if key == "protocol":
+                    protocol = value
+                elif key == "port":
+                    port = value
+                # No good reason to use delay behavior in an instrument control scenario
+                # elif key == "noDelay":
+                    # noDelay = value
+                else:
+                    raise KeyError(f'{key} is not a valid keyword argument.')
+
+            if self.apiType == "socketscpi":
+                try:
+                    self.instance = socketscpi.SocketInstrument(ipAddress, port=port, timeout=timeout, noDelay=True)
+                except NameError:
+                    self.instance = socketscpi.SocketInstrument(ipAddress, port=5025, timeout=timeout, noDelay=True)
+            elif self.apiType == "pyvisa":
+                if protocol.lower() == "vxi11":
+                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::inst{port}::instr")
+                elif protocol.lower() == "hislip":
+                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::hislip{port}::instr")
+                elif protocol.lower() == "socket":
+                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::{port}::socket")
+                else:
+                    raise ValueError('Invalid protocol selection. Use "vxi11", "hislip", or "socket".')
+                self.instId = self.query("*idn?")
+            else:
+                raise ValueError(f'"{self.apiType}" is not a valid apiType, use "socketscpi" or "pyvisa".')
+
+    def __getattr__(self, __name: str):
+        """This is a passthrough method that allows the base class to access attributes from the parent class.
+        See the accepted answer at
+        https://stackoverflow.com/questions/65754399/conditional-inheritance-based-on-arguments-in-python"""
+        return self.instance.__getattribute__(__name)
+        
+    def err_check(self):
+        """Prints out all errors and clears error queue. Raises InstrumentError with the info of the error encountered."""
+
+        err = []
+        cmd = 'SYST:ERR?'
+
+        # Strip out extra characters
+        temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+        # Read all errors until none are left
+        while temp != '0,"No error"':
+            # Build list of errors
+            err.append(temp)
+            temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+        if err:
+            raise error.InstrumentError(err)
+
+class M8190A(SignalGeneratorBase):
     """Generic class for controlling a Keysight M8190A AWG.
 
     Attributes:
@@ -72,12 +139,13 @@ class M8190A(socketscpi.SocketInstrument):
         Add check to ensure that the correct instrument is connected
     """
 
-    def __init__(self, host, port=5025, timeout=10, reset=False):
-        super().__init__(host, port, timeout)
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
         if reset:
             self.write("*rst")
             self.query("*opc?")
             self.write("abort")
+        
         # Query all settings from AWG and store them as class attributes
         self.res = self.query("trace1:dwidth?").strip().lower()
         self.func1 = self.query("func1:mode?").strip()
@@ -434,7 +502,7 @@ class M8190A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.binblockwrite(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm, datatype='h')
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -455,7 +523,7 @@ class M8190A(socketscpi.SocketInstrument):
     #
     #     segment = int(self.query(f'trace{ch}:catalog?').strip().split(',')[-2]) + 1
     #     self.write(f'trace{ch}:def {segment}, {length}')
-    #     self.binblockwrite(f'trace{ch}:data {segment}, 0, ', iq)
+    #     self.write_binary_values(f'trace{ch}:data {segment}, 0, ', iq)
     #     self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
     #
     #     return segment
@@ -964,7 +1032,7 @@ class M8195A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.binblockwrite(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1212,7 +1280,7 @@ class M8196A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.binblockwrite(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1281,8 +1349,8 @@ class M8196A(socketscpi.SocketInstrument):
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
-class VSG(socketscpi.SocketInstrument):
-    def __init__(self, host, port=5025, timeout=10, reset=False):
+class VSG(SignalGeneratorBase):
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
         """
         Generic class for controlling the EXG, MXG, PSG, and M938X
         family signal generators.
@@ -1301,7 +1369,7 @@ class VSG(socketscpi.SocketInstrument):
             Add check to ensure that the correct instrument is connected
         """
 
-        super().__init__(host, port, timeout)
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
         if reset:
             self.write("*rst")
             self.query("*opc?")
@@ -1569,12 +1637,12 @@ class VSG(socketscpi.SocketInstrument):
             except socketscpi.SockInstError:
                 # print('Waveform doesn\'t exist, skipping delete operation.')
                 pass
-            self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
             self.write(f'memory:copy "C:\\Temp\\{wfmID}","{wfmID}"')
 
         # EXG/MXG/PSG download procedure
         else:
-            self.binblockwrite(f'mmemory:data "WFM1:{wfmID}", ', wfm)
+            self.write_binary_values(f'mmemory:data "WFM1:{wfmID}", ', wfm)
             self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
         # Use 'wfmID' as the waveform identifier for the .play() method.
@@ -2080,16 +2148,16 @@ class VXG(socketscpi.SocketInstrument):
 
         # self.write(f'source:signal:waveform:select "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin"')
         
-        # self.binblockwrite(
+        # self.write_binary_values(
         #     f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",',
         #     wfm,
         # )
 
         # Save waveform to specified location on hard drive.
         if sim:
-            self.binblockwrite(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm)
         else:
-            self.binblockwrite(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm)
             
         return wfmID
 
@@ -2209,761 +2277,3 @@ class VXG(socketscpi.SocketInstrument):
         self.set_arbState(0, ch=ch)
         self.set_rfState(0, ch=ch)
         self.set_modState(0, ch=ch)
-
-
-# noinspection PyUnusedLocal,PyRedundantParentheses
-class AnalogUXG(socketscpi.SocketInstrument):
-    """
-    Generic class for controlling the N5193A Analog UXG agile signal generators.
-
-    Attributes:
-        rfState (int): Turns the RF output on or off. (1, 0)
-        modState (int): Turns the modulator on or off. (1, 0)
-        cf (float): Sets the generator's carrier frequency.
-        amp (int/float): Sets the generator's RF output power.
-
-    TODO
-        Add check to ensure that the correct instrument is connected
-    """
-
-    def __init__(self, host, port=5025, timeout=10, reset=False):
-        super().__init__(host, port, timeout)
-        if reset:
-            self.write("*rst")
-            self.query("*opc?")
-
-        # Check N5193A to make sure Streaming mode is selected
-        mode = self.query("inst:select?").strip()
-        if mode != "STR":
-            self.write("inst:select str")
-            self.query("*opc?")
-
-        # Query all settings from UXG and store them as class attributes
-        self.rfState = self.query("output?").strip()
-        self.modState = self.query("output:modulation?").strip()
-        self.streamState = self.query("stream:state?").strip()
-        self.cf = float(self.query("frequency?").strip())
-        self.amp = float(self.query("power?").strip())
-        self.refSrc = self.query("roscillator:source?").strip()
-        self.refFreq = 10e6
-        self.binMult = 32767
-
-        # Stream state should be turned off until streaming is needed.
-        self.write("stream:state off")
-        self.streamState = self.query("stream:state?").strip()
-
-        # Set up host address for streaming purposes
-        self.host = host
-
-        # Set up separate socket for LAN PDW streaming
-        self.lanStream = socketscpi.socket.socket(socketscpi.socket.AF_INET, socketscpi.socket.SOCK_STREAM)
-        self.lanStream.setblocking(False)
-        self.lanStream.settimeout(timeout)  # Can't connect until LAN streaming is turned on  # self.lanStream.connect((host, 5033))
-
-    # def configure(self, rfState=0, modState=0, cf=1e9, amp=-20):
-    def configure(self, **kwargs):
-        """
-        Sets the basic configuration for the UXG and populates class
-        attributes accordingly. It should be called any time these
-        settings are changed (ideally once directly after creating the
-        UXG object).
-        Keyword Args:
-            rfState (int): Turns the RF output on or off. (1, 0)
-            modState (int): Turns the modulator on or off. (1, 0)
-            cf (float): Sets the generator's carrier frequency.
-            amp (int/float): Sets the generator's RF output power.
-        """
-
-        # Check to see which keyword arguments the user sent and call the appropriate function
-        for key, value in kwargs.items():
-            if key == "rfState":
-                self.set_rfState(value)
-            elif key == "modState":
-                self.set_modState(value)
-            elif key == "cf":
-                self.set_cf(value)
-            elif key == "amp":
-                self.set_amp(value)
-            else:
-                raise KeyError(f'Invalid keyword argument: "{key}"')  # raise KeyError('Invalid keyword argument.')
-        self.err_check()
-
-    def set_rfState(self, rfState):
-        """
-        Sets and reads the state of the RF output using SCPI commands.
-        Args:
-            rfState (int): Turns the RF output on or off. (1, 0)
-        """
-
-        self.write(f"output {rfState}")
-        self.rfState = int(self.query("output?").strip())
-
-    def set_modState(self, modState):
-        """
-        Sets and reads the state of the internal baseband modulator output using SCPI commands.
-        Args:
-            modState (int): Turns the baseband modulator on or off. (1, 0)
-        """
-
-        self.write(f"output:modulation {modState}")
-        self.modState = int(self.query("output:modulation?").strip())
-
-    def set_cf(self, cf):
-        """
-        Sets and reads the center frequency of the signal generator output using SCPI commands.
-        Args:
-            cf (float): Sets the generator's carrier frequency.
-        """
-
-        if not isinstance(cf, float) or cf <= 0:
-            raise ValueError("Carrier frequency must be a positive floating point value.")
-        self.write(f"frequency {cf}")
-        self.cf = float(self.query("frequency?").strip())
-
-    def set_amp(self, amp):
-        """
-        Sets and reads the output amplitude of signal generator output using SCPI commands.
-        Args:
-            amp (int/float): Sets the generator's RF output power.
-        """
-
-        if not isinstance(amp, int):
-            raise ValueError("Amp argument must be an integer.")
-        self.write(f"power {amp}")
-        self.amp = float(self.query("power?").strip())
-
-    def sanity_check(self):
-        """Prints out user-accessible class attributes."""
-        print("RF State:", self.rfState)
-        print("Modulation State:", self.modState)
-        print("Center Frequency:", self.cf)
-        print("Output Amplitude:", self.amp)
-        print("Reference source:", self.refSrc)
-        self.err_check()
-
-    def open_lan_stream(self):
-        """Open connection to port 5033 for LAN streaming to the UXG."""
-        self.write("stream:state on")
-        self.query("*opc?")
-        self.lanStream.connect((self.host, 5033))
-        self.lanStream.settimeout(1)
-
-    def close_lan_stream(self):
-        """Close LAN streaming port."""
-        self.lanStream.shutdown(socketscpi.socket.SHUT_RDWR)
-        self.lanStream.close()
-
-    def stream_play(self, pdwID="pdw"):
-        """
-        Assigns pdw/windex, activates RF output, modulation, and
-        streaming mode, and triggers streaming output.
-        Args:
-            pdwID (str): Name of PDW file used as the source of the streaming data.
-        """
-
-        # Assign pdw file
-        self.write("stream:source file")
-        self.write(f'stream:source:file:name "{pdwID}"')
-        self.err_check()
-
-        # Activate streaming, and send trigger command.
-        self.write("output:modulation on")
-        self.modState = self.query("output:modulation?").strip()
-        self.write("source:stream:state on")
-        self.err_check()
-        self.streamState = self.query("stream:state?").strip()
-        self.err_check()
-        self.write("stream:trigger:play")
-
-    def stream_stop(self):
-        """Deactivates RF output, modulation, and streaming mode."""
-        self.write("output off")
-        self.rfState = self.query("output?").strip()
-        self.write("output:modulation off")
-        self.modState = self.query("output:modulation?").strip()
-        self.write("stream:state off")
-        self.streamState = self.query("stream:state?").strip()
-        self.err_check()
-
-    def bin_pdw_file_builder(self, pdwList):
-        """
-        Builds a binary PDW file with a padding block to ensure the
-        PDW section begins at an offset of 4096 bytes (required by UXG).
-
-        See User's Guide>Streaming Use>PDW File Format section of
-        Keysight UXG X-Series Agile Signal Generator Online Documentation
-        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa/n519xa.htm
-        Args:
-            pdwList (list): List of lists. Each inner list contains a single pulse descriptor word.
-
-        Returns:
-            (bytes): Binary data that contains a full PDW file that can be downloaded to and played out of the UXG.
-        """
-
-        pdwFile = pdwBuilder.analog_bin_pdw_file_builder(pdwList)
-
-        self.err_check()
-
-        return pdwFile
-
-    def bin_raw_pdw_block_builder(self, pdwList):
-        """
-        Builds binary raw pdw block without header or end block for lan streaming
-        Args:
-            pdwList (list): List of lists. Each inner list contains a single pulse descriptor word.
-
-        Returns:
-            (bytes): Binary data that contains a binary block of raw 28 byte
-             PDWs without headers or other information to stream directly over
-             N5193A LAN port 5033
-        """
-        # Build Raw PDW Data from list
-        rawPdws = [pdwBuilder.analog_bin_pdw_builder(*p) for p in pdwList]
-        rawPdws = b"".join(rawPdws)
-
-        return rawPdws
-
-    def download_bin_pdw_file(self, pdwFile, pdwName="wfm"):
-        """
-        Downloads binary PDW file to PDW directory in UXG.
-        Args:
-            pdwFile (bytes): Binary data containing PDW file, generally created by the bin_pdw_file_builder() method.
-            pdwName (str): Name of PDW file.
-        """
-
-        self.binblockwrite(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
-        self.err_check()
-
-
-class VectorUXG(socketscpi.SocketInstrument):
-    """
-    Generic class for controlling the N5194A + N5193A
-    (Vector + Analog) UXG agile signal generators.
-
-    Attributes:
-        rfState (int): Turns the RF output on or off. (1, 0)
-        modState (int): Turns the modulator on or off. (1, 0)
-        cf (float): Sets the generator's carrier frequency.
-        amp (int/float): Sets the generator's RF output power.
-        iqScale (int): Scales the IQ modulator. Default/safe value is 70
-
-    TODO
-        Add check to ensure that the correct instrument is connected
-    """
-
-    def __init__(self, host, port=5025, timeout=10, reset=False,
-                 clearMemory=False, errCheck=True):
-        super().__init__(host, port, timeout)
-        if reset:
-            self.write("*rst")
-            self.query("*opc?")
-
-        # Query all settings from VXG and store them as class attributes
-        self.rfState = self.query("output?").strip()
-        self.modState = self.query("output:modulation?").strip()
-        self.arbState = self.query("radio:arb:state?").strip()
-        self.streamState = self.query("stream:state?").strip()
-        self.cf = float(self.query("frequency?").strip())
-        self.amp = float(self.query("power?").strip())
-        self.iqScale = float(self.query("radio:arb:rscaling?").strip())
-        self.refSrc = self.query("roscillator:source?").strip()
-        self.refFreq = 10e6
-        self.fs = float(self.query("radio:arb:sclock:rate?").strip())
-        self.gran = int(self.query("radio:arb:information:quantum?").strip())
-        self.minLen = int(self.query("radio:arb:information:slength:minimum?").strip())
-        self.binMult = 32767
-        self.errCheck = errCheck
-
-        # Clear all waveform, pdw, and windex files
-        if clearMemory:
-            self.clear_all_wfm()
-
-        # Arb state can only be turned on after a waveform has been loaded/selected.
-        self.write("radio:arb:state off")
-        self.arbState = self.query("radio:arb:state?").strip()
-
-        # Set up host for streaming socket
-        self.host = host
-
-        # Set up separate socket for LAN PDW streaming
-        self.lanStream = socketscpi.socket.socket(socketscpi.socket.AF_INET,
-                                                  socketscpi.socket.SOCK_STREAM)
-        self.lanStream.setblocking(False)
-        self.lanStream.settimeout(timeout)
-        # Can't connect until LAN streaming is turned on
-        # self.lanStream.connect((host, 5033))
-
-
-    def configure(self, **kwargs):
-        """
-        Sets the basic configuration for the UXG and populates class
-        attributes accordingly. It should be called any time these
-        settings are changed (ideally once directly after creating the
-        UXG object).
-        Keyword Args:
-            rfState (int): Turns the RF output on or off. (1, 0)
-            modState (int): Turns the modulator on or off. (1, 0)
-            cf (float): Sets the generator's carrier frequency.
-            amp (int/float): Sets the generator's RF output power.
-            iqScale (int): Scales the IQ modulator. Default/safe value is 70
-        """
-
-        # Check to see which keyword arguments the user sent and call the appropriate function
-        for key, value in kwargs.items():
-            if key == "rfState":
-                self.set_rfState(value)
-            elif key == "modState":
-                self.set_modState(value)
-            elif key == "cf":
-                self.set_cf(value)
-            elif key == "amp":
-                self.set_amp(value)
-            elif key == "iqScale":
-                self.set_iqScale(value)
-            else:
-                raise KeyError( f'Invalid keyword argument: "{key}"')
-                # raise KeyError('Invalid keyword argument.')
-                # Arb state can only be turned on after a waveform has been loaded/selected
-                # self.write(f'radio:arb:state {arbState}')
-                # self.arbState = self.query('radio:arb:state?').strip()
-
-        self.err_check()
-
-    def set_rfState(self, rfState):
-        """
-        Sets and reads the state of the RF output using SCPI commands.
-        Args:
-            rfState (int): Turns the RF output on or off. (1, 0)
-        """
-
-        self.write(f"output {rfState}")
-        self.rfState = int(self.query("output?").strip())
-
-    def set_modState(self, modState):
-        """
-        Sets and reads the state of the internal baseband modulator
-           using SCPI commands.
-        Args:
-            modState (int): Turns the baseband modulator on or off. (1, 0)
-        """
-
-        self.write(f"output:modulation {modState}")
-        self.modState = int(self.query("output:modulation?").strip())
-
-    def set_cf(self, cf):
-        """
-        Sets and reads the center frequency of the signal generator
-           using SCPI commands.
-        Args:
-            cf (float): Sets the generator's carrier frequency.
-        """
-
-        if not isinstance(cf, float) or cf <= 0:
-            raise ValueError("Carrier frequency must be a positive"
-                             " floating point value.")
-        self.write(f"frequency {cf}")
-        self.cf = float(self.query("frequency?").strip())
-
-    def set_amp(self, amp):
-        """
-        Sets and reads the output amplitude of signal generator
-           using SCPI commands.
-        Args:
-            amp (int/float): Sets the generator's RF output power.
-        """
-
-        if not isinstance(amp, int):
-            raise ValueError("Amp argument must be an integer.")
-        self.write(f"power {amp}")
-        self.amp = float(self.query("power?").strip())
-
-    def set_iqScale(self, iqScale):
-        """
-        Sets and reads the scaling of the baseband IQ waveform
-           using SCPI commands. Should be about 70 percent to
-           avoid clipping.
-        Args:
-            iqScale (int): Scales the IQ modulator in percent.
-            Default/safe value is 70, range is 0 to 100.
-        """
-
-        if not isinstance(iqScale, int) or iqScale <= 0 or iqScale > 100:
-            raise ValueError("iqScale argument must be an integer between 1 and 100.")
-
-        self.write(f"radio:arb:rscaling {iqScale}")
-        self.iqScale = float(self.query("radio:arb:rscaling?").strip())
-
-    def stream_configure(
-        self,
-        source="file",
-        trigState=True,
-        trigSource="bus",
-        trigInPort=None,
-        trigPeriod=1e-3,
-        trigOutPort=None,
-    ):
-        """
-        WORK IN PROGRESS
-        Configures streaming on the UXG.
-        Args:
-            source (str): Selects the streaming source. ('file', 'lan')
-            trigState (bool): Configures trigger state. (True, False)
-            trigSource (str): Selects trigger source. ('key', 'bus',
-                                                       'external', 'timer')
-            trigInPort (int): Selects trigger input port. (1-10)
-            trigPeriod (float): Sets period for timer trigger.
-            trigOutPort (int): Selects trigger output port. (1-10)
-        """
-
-        if source.lower() not in ["file", "lan"]:
-            raise error.UXGError('Invalid stream source selected.'
-                                 ' Use "file" or "lan"')
-
-        self.write(f"stream:source {source}")
-
-        if trigState:
-            if trigSource.lower() not in ["key", "bus", "external", "timer"]:
-                raise error.UXGError('Invalid trigger source selected.'
-                                     ' Use "key", "bus", "external", or "timer"')
-            if trigInPort == trigOutPort and trigInPort and trigOutPort:
-                raise error.UXGError("Conflicting trigger ports. trigInPort and"
-                                     " trigOutPort must be unique.")
-            self.write("stream:trigger:play:file:type:continuous:type trigger")
-            self.write(f"stream:trigger:play:source {trigSource}")
-
-            if trigSource.lower() == "external":
-                if trigInPort:
-                    if trigInPort < 1 or trigInPort > 10:
-                        raise error.UXGError("trigInPort must be an integer"
-                                             " between 1 and 10.")
-                    self.write(f"trigger:play:external:source trigger{trigInPort}")
-            elif trigSource.lower() == "timer":
-                if trigPeriod < 48e-9 or trigPeriod > 34:
-                    raise error.UXGError("Invalid trigPeriod")
-                self.write(f"trigger:timer {trigPeriod}")
-
-        if trigOutPort:
-            if trigOutPort < 1 or trigOutPort > 10:
-                raise error.UXGError("trigOutPort must be an integer between 1 and 10.")
-            self.write("stream:markers:pdw1:mode stime")
-            self.write(f"rout:trigger{trigOutPort}:output pmarker1")
-
-    def sanity_check(self):
-        """Prints out initialized values."""
-        print("RF State:", self.rfState)
-        print("Modulation State:", self.modState)
-        print("Center Frequency:", self.cf)
-        print("Output Amplitude:", self.amp)
-        print("Reference source:", self.refSrc)
-        print("Internal Arb Sample Rate:", self.fs)
-        print("IQ Scaling:", self.iqScale)
-        if self.errCheck:
-            self.err_check()
-
-    def open_lan_stream(self):
-        """Open connection to port 5033 for LAN streaming to the UXG."""
-        self.write("stream:state on")
-        self.query("*opc?")
-        self.lanStream.connect((self.host, 5033))
-
-    def close_lan_stream(self):
-        """Close LAN streaming port."""
-        self.lanStream.shutdown(socketscpi.socket.SHUT_RDWR)
-        self.lanStream.close()
-
-    def bin_pdw_file_builder(self, pdwList):
-        """
-        Builds a binary PDW file with a padding block to ensure the
-        PDW section begins at an offset of 4096 bytes (required by UXG).
-
-        See User's Guide>Streaming Use>PDW Definitions section of
-        Keysight UXG X-Series Agile Vector Adapter Online Documentation
-        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm
-        Args:
-            pdwList (list): List of lists. Each inner list contains a single
-        pulse descriptor word.
-
-        Returns:
-            (bytes): Binary data that contains a full PDW file that can
-                be downloaded to and played out of the UXG.
-        """
-        pdwFile = pdwBuilder.vector_bin_pdw_file_builder(pdwList)
-        self.err_check()
-        return pdwFile
-
-
-    def build_raw_pdw_block(self, pdwList):
-        """
-        Builds a raw binary PDW block without a header
-
-        See User's Guide>Streaming Use>PDW Definitions section of
-        Keysight UXG X-Series Agile Vector Adapter Online Documentation
-        http://rfmw.em.keysight.com/wireless/helpfiles/n519xa-vector/n519xa-vector.htm
-        Args:
-            pdwList (list): List of lists. Each inner list contains a single
-        pulse descriptor word.
-
-        Returns:
-            (bytes): Binary data that contains a raw PDWs that can be
-                     streamed to UXG without a header
-        """
-        pdwBlock = pdwBuilder.vector_build_raw_pdw_block_rev3B(pdwList)
-
-        self.err_check()
-        return pdwBlock
-
-    # noinspection PyDefaultArgument,PyDefaultArgument
-    def csv_pdw_file_download(self, fileName, fields=["Operation", "Time"],
-                              data=[[1, 0], [2, 100e-6]]):
-        """
-        Builds a CSV PDW file, sends it into the UXG, then the UXG will
-            convert it to a binary PDW file.
-        Args:
-            fileName (str): Name of the csv file to be downloaded.
-            fields (tuple(str)): Names of the fields contained in PDWs.
-            data (tuple(tuple)): Tuple of tuples. The inner tuples each contain
-                                 the values for the fields for a single PDW.
-        """
-
-        # Write header fields separated by commas and terminated with \n
-        pdwCsv = ",".join(fields) + "\n"
-        for row in data:
-            """Write subsequent rows with data values separated by commas
-               and terminated with \n. The .join() function requires a list
-               of strings, so convert numbers in row to strings
-            """
-            rowString = ",".join([f"{r}" for r in row]) + "\n"
-            pdwCsv += rowString
-
-        # Delete pdw csv file if already exists, continue script if it doesn't
-        try:
-            self.write("stream:state off")
-            self.write(f'memory:delete "{fileName}.csv"')
-            if self.errCheck:
-                self.err_check()
-        except socketscpi.SockInstError:
-            pass
-        self.binblockwrite(f'memory:data "{fileName}.csv", ', pdwCsv.encode("utf-8"))
-
-        """Note: memory:import:stream imports/converts csv to pdw AND
-        assigns the resulting pdw and waveform index files as the stream
-        source. There is no need to send the stream:source:file or
-        stream:source:file:name commands because they are sent
-        implicitly by memory:import:stream."""
-
-        self.write(f'memory:import:stream "{fileName}.csv", "{fileName}"')
-        self.query("*opc?")
-        if self.errCheck:
-            self.err_check()
-
-    def csv_windex_file_download(self, windex):
-        """
-        Writes a waveform index file to be used by a PDW file to select
-        waveforms.
-        Args:
-            windex (dict): {'fileName': '<fileName>',
-                            'wfmNames': ['<name0>', '<name1>',... '<nameN>']}
-        """
-
-        windexCsv = "Id,Filename\n"
-        for i in range(len(windex["wfmNames"])):
-            windexCsv += f'{i},{windex["wfmNames"][i]}\n'
-
-        self.binblockwrite(f'memory:data "{windex["fileName"]}.csv",'
-                           f' ', windexCsv.encode("utf-8"))
-
-        """Note: memory:import:windex imports/converts csv to waveform
-        index file AND assigns the resulting file as the waveform index
-        manager. There is no need to send the stream:windex:select
-        command because it is sent implicitly by memory:import:windex."""
-        self.write(f'memory:import:windex "{windex["fileName"]}.csv",'
-                   f' "{windex["fileName"]}"')
-        self.query("*opc?")
-        if self.errCheck:
-            self.err_check()
-
-    def download_wfm(self, wfmData, wfmID="wfm"):
-        """
-        Defines and downloads a waveform into the waveform memory.
-        Returns useful waveform identifier.
-        Args:
-            wfmData (NumPy array): Complex waveform values.
-            wfmID (str): Waveform name.
-
-        Returns:
-            (str): Useful waveform identifier/name.
-        """
-
-        if wfmData.dtype != np.complex:
-            raise TypeError("Invalid wfm type. IQ waveforms must be"
-                            " an array of complex values.")
-        else:
-            i = self.check_wfm(np.real(wfmData))
-            q = self.check_wfm(np.imag(wfmData))
-
-            wfm = self.iq_wfm_combiner(i, q)
-        self.write("radio:arb:state off")
-
-        self.arbState = self.query("radio:arb:state?").strip()
-        self.binblockwrite(f'memory:data "WFM1:{wfmID}", ', wfm)
-
-        return wfmID
-
-    def upload_bin_pdw_file(self, pdwFile, pdwName="wfm"):
-        """
-        Uploads binary PDW file to PDW directory in UXG.
-        Args:
-            pdwFile (bytes): Binary data containing PDW file, generally
-                             created by the bin_pdw_file_builder() method.
-            pdwName (str): Name of PDW file.
-        """
-
-        self.binblockwrite(f'memory:data "/USER/PDW/{pdwName}",', pdwFile)
-        self.err_check()
-
-    @staticmethod
-    def iq_wfm_combiner(i, q):
-        """
-        Combines i and q wfms into a single interleaved wfm
-           for upload to generator.
-        Args:
-            i (NumPy array): Array of real waveform samples.
-            q (NumPy array): Array of imaginary waveform samples.
-
-        Returns:
-            (NumPy array): Array of interleaved IQ values.
-        """
-        iq = np.empty(2 * len(i), dtype=np.uint16)
-        iq[0::2] = i
-        iq[1::2] = q
-        return iq
-
-    def check_wfm(self, wfm, bigEndian=True):
-        """
-        HELPER FUNCTION
-        Checks minimum size and granularity and returns waveform with
-        appropriate binary formatting. Note that sig gens expect big endian
-        byte order.
-
-        See pages 205-256 in Keysight X-Series Signal Generators Programming
-        Guide (November 2014 Edition) for more info.
-        Args:
-            wfm (NumPy array): Unscaled/unformatted waveform data.
-            bigEndian (bool): Determines whether waveform is big endian.
-
-        Returns:
-            (NumPy array): Waveform data that has been scaled and
-                formatted appropriately for download to AWG
-        """
-
-        # If waveform length doesn't meet granularity or minimum
-        # length requirements, repeat the waveform until it does
-        repeats = wraparound_calc(len(wfm), self.gran, self.minLen)
-        wfm = np.tile(wfm, repeats)
-        rl = len(wfm)
-
-        if rl < self.minLen:
-            raise error.VSGError(f"Waveform length: {rl},"
-                                 f" must be at least {self.minLen}.")
-        if rl % self.gran != 0:
-            raise error.GranularityError(f"Waveform must have a "
-                                         f"granularity of {self.gran}.")
-
-        if bigEndian:
-            return np.array(self.binMult * wfm, dtype=np.uint16).byteswap()
-        else:
-            return np.array(self.binMult * wfm, dtype=np.uint16)
-
-    def delete_wfm(self, wfmID):
-        """
-        Stops output and deletes specified waveform.
-        Args:
-            wfmID (str): Name of waveform to be deleted.
-        """
-
-        self.stop()
-        self.write(f'mmemory:delete "{wfmID}", "WFM1:"')
-        if self.errCheck:
-            self.err_check()
-
-    def clear_all_wfm(self):
-        """Clears all waveform, pdw, and windex files. This function
-        MUST be called prior to downloading waveforms and making
-        changes to an existing pdw file."""
-
-        self.write("stream:state off")
-        self.write("radio:arb:state off")
-        self.write("memory:delete:binary")
-        self.write("mmemory:delete:wfm")
-        self.query("*opc?")
-        if self.errCheck:
-            self.err_check()
-
-    def play(self, wfmID="wfm"):
-        """
-        Selects waveform and activates arb mode, RF output, and modulation.
-        Args:
-            wfmID (str): Waveform identifier, used to select waveform to be played.
-        """
-
-        self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
-        self.write("radio:arb:state on")
-        self.arbState = self.query("radio:arb:state?").strip()
-        self.write("output on")
-        self.rfState = self.query("output?").strip()
-        self.write("output:modulation on")
-        self.modState = self.query("output:modulation?").strip()
-        if self.errCheck:
-            self.err_check()
-
-    def stop(self):
-        """Dectivates RF output, modulation, and arb mode."""
-        self.write("output off")
-        self.rfState = self.query("output?").strip()
-        self.write("output:modulation off")
-        self.modState = self.query("output:modulation?").strip()
-        self.write("radio:arb:state off")
-        self.arbState = self.query("radio:arb:state?").strip()
-        if self.errCheck:
-            self.err_check()
-
-    def stream_play(self, pdwID="pdw", wIndexID=None):
-        """
-        Assigns pdw/windex, activates RF output, modulation, and
-        streaming mode, and triggers streaming output.
-        Args:
-            pdwID (str): Name of the PDW file to be loaded.
-            wIndexID (str): Name of the waveform index file to be loaded.
-                Default argument of None will load a waveform index file
-                with the same name as the PDW file.
-        """
-
-        # Set up pdw streaming file
-        self.write("stream:source file")
-        self.write(f'stream:source:file:name "{pdwID}"')
-
-        # If wIndexID is unspecified, use the same name as the pdw file.
-        if wIndexID is None:
-            self.write(f'stream:windex:select "{pdwID}"')
-        else:
-            self.write(f'stream:windex:select "{wIndexID}"')
-
-        # Activate streaming, and send trigger command.
-        self.write("output:modulation on")
-        self.modState = self.query("output:modulation?").strip()
-        self.write("stream:state on")
-        self.streamState = self.query("stream:state?").strip()
-        self.write("stream:trigger:play:immediate")
-        if self.errCheck:
-            self.err_check()
-
-    def stream_stop(self):
-        """Deactivates RF output, modulation, and streaming mode."""
-        self.write("output off")
-        self.rfState = self.query("output?").strip()
-        self.write("output:modulation off")
-        self.modState = self.query("output:modulation?").strip()
-        self.write("stream:state off")
-        self.streamState = self.query("stream:state?").strip()
-        if self.errCheck:
-            self.err_check()
