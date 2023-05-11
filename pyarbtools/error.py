@@ -30,13 +30,13 @@ class VXGError(Exception):
     pass
 
 
-class UXGError(Exception):
-    """UXG Exception class"""
+class VSAError(Exception):
+    """VSA Exception class"""
     pass
 
 
-class VSAError(Exception):
-    """VSA Exception class"""
+class InstrumentError(Exception):
+    """General Instrument Exception class"""
     pass
 
 

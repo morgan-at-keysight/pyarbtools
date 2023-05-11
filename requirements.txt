@@ -2,3 +2,4 @@ numpy
 scipy
 socketscpi
 matplotlib
+pyvisa

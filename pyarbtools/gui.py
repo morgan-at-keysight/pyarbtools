@@ -33,9 +33,7 @@ class PyarbtoolsGUI:
         self.instClasses = {'M8190A': pyarbtools.instruments.M8190A,
                             'M8195A': pyarbtools.instruments.M8195A,
                             'M8196A': pyarbtools.instruments.M8196A,
-                            'VSG': pyarbtools.instruments.VSG,
-                            # 'AnalogUXG': pyarbtools.instruments.AnalogUXG,
-                            'VectorUXG': pyarbtools.instruments.VectorUXG}
+                            'VSG': pyarbtools.instruments.VSG}
 
         # Variables
         self.ipAddress = '127.0.0.1'
@@ -653,7 +651,7 @@ class PyarbtoolsGUI:
                 self.statusBar.configure(text=f'"{wfmTarget["name"]}" downloaded to instrument at segment {segment}.', bg='white')
             else:  # 'iq' format
                 if wfmTarget['format'].lower() == 'real':
-                    self.statusBar.configure(text='Invalid waveform format for VSG/UXG. Select a waveform with "IQ" format.', bg='red')
+                    self.statusBar.configure(text='Invalid waveform format for VSG. Select a waveform with "IQ" format.', bg='red')
                 else:
                     self.inst.download_wfm(wfmTarget['wfmData'], wfmTarget['name'])
                     self.update_wfm_dl(index, True)
@@ -699,7 +697,7 @@ class PyarbtoolsGUI:
         """Deletes selected waveform from the waveform list."""
         index = self.lbWfmList.curselection()[0]
         try:
-            if self.instKey in ['VSG', 'VectorUXG']:
+            if self.instKey in ['VSG']:
                 self.inst.delete_wfm(self.wfmList[index]['name'])
             elif 'M819' in self.instKey:
                 self.inst.delete_segment(self.wfmList[index]['segment'], int(self.cbChannel.get()))
@@ -891,18 +889,6 @@ class PyarbtoolsGUI:
                               'iqScale': int(self.eIqScale.get()),
                               'refSrc': self.refSrcArgs[self.cbRefSrc.get()],
                               'fs': float(self.eFs.get())}
-            # elif self.instKey == 'AnalogUXG':
-            #     configArgs = {'rfState': self.rfStateArgs[self.cbRfState.get()],
-            #                   'modState': self.modStateArgs[self.cbModState.get()],
-            #                   'cf': float(self.eCf.get()),
-            #                   'amp': int(self.eAmp.get()),
-            #                   'mode': self.modeArgs[self.cbMode.get()]}
-            elif self.instKey == 'VectorUXG':
-                configArgs = {'rfState': self.rfStateArgs[self.cbRfState.get()],
-                              'modState': self.modStateArgs[self.cbModState.get()],
-                              'cf': float(self.eCf.get()),
-                              'amp': int(self.eAmp.get()),
-                              'iqScale': int(self.eIqScale.get())}
             else:
                 raise ValueError('Invalid instrument selected. This should never happen.')
             self.inst.configure(**configArgs)
@@ -1253,105 +1239,6 @@ class PyarbtoolsGUI:
 
             # Special
             self.cbChannel.configure(state=DISABLED)
-
-        elif self.instKey == 'VectorUXG':
-            rfStateLabel = Label(self.configFrame, text='RF State')
-            self.rfStateArgs = {'On': 1, 'Off': 0}
-            self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()), width=self.cbWidth)
-            self.cbRfState.current(0)
-
-            modStateLabel = Label(self.configFrame, text='Modulation State')
-            self.modStateArgs = {'On': 1, 'Off': 0}
-            self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()), width=self.cbWidth)
-            self.cbModState.current(0)
-
-            cfLabel = Label(self.configFrame, text='Carrier Frequency')
-            cfVar = StringVar()
-            self.eCf = Entry(self.configFrame, textvariable=cfVar)
-            cfVar.set('1e9')
-
-            ampLabel = Label(self.configFrame, text='Amplitude (dBm)')
-            ampVar = StringVar()
-            self.eAmp = Entry(self.configFrame, textvariable=ampVar)
-            ampVar.set(-20)
-
-            iqScaleLabel = Label(self.configFrame, text='IQ Scale (%)')
-            iqScaleVar = StringVar()
-            self.eIqScale = Entry(self.configFrame, textvariable=iqScaleVar)
-            iqScaleVar.set(70)
-
-            # Layout
-            r = 0
-            rfStateLabel.grid(row=r, column=0, sticky=E)
-            self.cbRfState.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            modStateLabel.grid(row=r, column=0, sticky=E)
-            self.cbModState.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            cfLabel.grid(row=r, column=0, sticky=E)
-            self.eCf.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            ampLabel.grid(row=r, column=0, sticky=E)
-            self.eAmp.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            iqScaleLabel.grid(row=r, column=0, sticky=E)
-            self.eIqScale.grid(row=r, column=1, sticky=W)
-            r += 1
-
-            # Special
-            self.cbChannel.configure(state=DISABLED)
-        # elif self.instKey == 'AnalogUXG':
-        #     rfStateLabel = Label(self.configFrame, text='RF State')
-        #     self.rfStateArgs = {'On': 1, 'Off': 0}
-        #     self.cbRfState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.rfStateArgs.keys()), width=self.cbWidth)
-        #     self.cbRfState.current(0)
-        #
-        #     modStateLabel = Label(self.configFrame, text='Modulation State')
-        #     self.modStateArgs = {'On': 1, 'Off': 0}
-        #     self.cbModState = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modStateArgs.keys()), width=self.cbWidth)
-        #     self.cbModState.current(0)
-        #
-        #     cfLabel = Label(self.configFrame, text='Carrier Frequency')
-        #     cfVar = StringVar()
-        #     self.eCf = Entry(self.configFrame, textvariable=cfVar)
-        #     cfVar.set('1e9')
-        #
-        #     ampLabel = Label(self.configFrame, text='Amplitude (dBm)')
-        #     ampVar = StringVar()
-        #     self.eAmp = Entry(self.configFrame, textvariable=ampVar)
-        #     ampVar.set(-130)
-        #
-        #     modeLabel = Label(self.configFrame, text='Instrument Mode')
-        #     self.modeArgs = {'Streaming': 'streaming', 'Normal': 'normal', 'List': 'list',
-        #                      'Fast CW Switching': 'fcwswitching'}
-        #     self.cbMode = ttk.Combobox(self.configFrame, state='readonly', values=list(self.modeArgs.keys()), width=self.cbWidth)
-        #     self.cbMode.current(0)
-        #
-        #     # Layout
-        #     r = 0
-        #     rfStateLabel.grid(row=r, column=0, sticky=E)
-        #     self.cbRfState.grid(row=r, column=1, sticky=W)
-        #     r += 1
-        #
-        #     modStateLabel.grid(row=r, column=0, sticky=E)
-        #     self.cbModState.grid(row=r, column=1, sticky=W)
-        #     r += 1
-        #
-        #     cfLabel.grid(row=r, column=0, sticky=E)
-        #     self.eCf.grid(row=r, column=1, sticky=W)
-        #     r += 1
-        #
-        #     ampLabel.grid(row=r, column=0, sticky=E)
-        #     self.eAmp.grid(row=r, column=1, sticky=W)
-        #     r += 1
-        #
-        #     modeLabel.grid(row=r, column=0, sticky=E)
-        #     self.cbMode.grid(row=r, column=1, sticky=W)
-        #     r += 1
         else:
             raise ValueError('You got an argument that was not in the instrument select combobox. This should never happen.')
 
