@@ -16,10 +16,10 @@ from pyarbtools import error
 
 """
 TODO:
+* PyVISA Socket doesn't work
+* Check M9381/3A error class in VSG.download_wfm()
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
-* DONE -- Separate out configure() into individual methods that update class attributes
-* Add a check for PDW length (600k limit?)
 * Add a multi-binblockwrite feature for download_wfm in the case of
     waveform size > 1 GB
 """
@@ -59,7 +59,7 @@ class SignalGeneratorBase:
             
             Keyword Args:
             protocol (string): LAN protocol used to communicate with the instrument ("vxi11", "hislip", "socket"). Note this is only usable with PyVISA.
-            port (int): Port used by the instrument to facilitate communication (socket default is 5025, vxi11 and hislip defaults are 0).
+            port (int): Port used by the instrument to facilitate communication (socket default is 5025, vxi11 defaultand hislip defaults are 0).
             """
 
             self.apiType = apiType
@@ -86,12 +86,14 @@ class SignalGeneratorBase:
                 elif protocol.lower() == "hislip":
                     self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::hislip{port}::instr")
                 elif protocol.lower() == "socket":
-                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::{port}::socket")
+                    raise error.InstrumentError(f'socket protocol in PyVISA is not currently working, use "hislip" or "vxi11"')
+                    # self.instance = pyvisa.ResourceManager().open_resource(f"tcpip0::{ipAddress}::{port}::socket")
                 else:
                     raise ValueError('Invalid protocol selection. Use "vxi11", "hislip", or "socket".')
-                self.instId = self.query("*idn?")
             else:
                 raise ValueError(f'"{self.apiType}" is not a valid apiType, use "socketscpi" or "pyvisa".')
+            
+            self.instId = self.instance.query("*idn?")
 
     def __getattr__(self, __name: str):
         """This is a passthrough method that allows the base class to access attributes from the parent class.
@@ -106,12 +108,15 @@ class SignalGeneratorBase:
         cmd = 'SYST:ERR?'
 
         # Strip out extra characters
-        temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+        temp = self.query(cmd)
+        temp = temp.strip().replace('+', '').replace('-', '')
         # Read all errors until none are left
         while temp != '0,"No error"':
             # Build list of errors
+            print(temp)
             err.append(temp)
-            temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+            temp = self.query(cmd)
+            temp = temp.strip().replace('+', '').replace('-', '')
         if err:
             raise error.InstrumentError(err)
 
@@ -1032,7 +1037,7 @@ class M8195A(SignalGeneratorBase):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm, datatype='b')
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1044,8 +1049,8 @@ class M8195A(SignalGeneratorBase):
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting.
 
-        See pages 273-274 in Keysight M8195A User's Guide (Edition 13.0,
-        October 2017) for more info.
+        See page 253 in Keysight M8195A User's Guide Rev 2 (Edition 7.0,
+        March 2019) for more info.
         Args:
             wfmData (NumPy array): Unscaled/unformatted waveform data.
 
@@ -1282,7 +1287,7 @@ class M8196A(SignalGeneratorBase):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm, datatype='b')
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1609,7 +1614,7 @@ class VSG(SignalGeneratorBase):
         self.set_modState(0)
         self.set_arbState(0)
 
-        # Adjust endianness for M9381/3A
+        # # Adjust endianness for M9381/3A
         if "M938" in self.instId:
             bigEndian = False
         else:
@@ -1639,12 +1644,12 @@ class VSG(SignalGeneratorBase):
             except socketscpi.SockInstError:
                 # print('Waveform doesn\'t exist, skipping delete operation.')
                 pass
-            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm, datatype='h')
             self.write(f'memory:copy "C:\\Temp\\{wfmID}","{wfmID}"')
 
         # EXG/MXG/PSG download procedure
         else:
-            self.write_binary_values(f'mmemory:data "WFM1:{wfmID}", ', wfm)
+            self.write_binary_values(f'mmemory:data "WFM1:{wfmID}",', wfm, datatype='h')
             self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
         # Use 'wfmID' as the waveform identifier for the .play() method.
@@ -1751,8 +1756,10 @@ class VSG(SignalGeneratorBase):
 
 
 # noinspection PyAttributeOutsideInit,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
-class VXG(socketscpi.SocketInstrument):
-    def __init__(self, host, port=5025, timeout=10, reset=False):
+class VXG(SignalGeneratorBase):
+    # def __init__(self, host, port=5025, timeout=10, reset=False):
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
+
         """
         Generic class for controlling the M9384B VXG signal generator.
 
@@ -1770,7 +1777,8 @@ class VXG(socketscpi.SocketInstrument):
             Add check to ensure that the correct instrument is connected
         """
 
-        super().__init__(host, port, timeout)
+        # super().__init__(host, port, timeout)
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
         if reset:
             self.write("*rst")
             self.query("*opc?")
@@ -1822,7 +1830,7 @@ class VXG(socketscpi.SocketInstrument):
     # def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
     def configure(self, **kwargs):
         """
-        Sets basic configuration for VSG and populates class attributes accordingly.
+        Sets basic configuration for VXG and populates class attributes accordingly.
         Keyword Arguments:
             rfState1|2 (int): Turns the RF output on or off. (1, 0)
             modState1|2 (int): Turns the baseband modulator on or off. (1, 0)
@@ -2157,9 +2165,9 @@ class VXG(socketscpi.SocketInstrument):
 
         # Save waveform to specified location on hard drive.
         if sim:
-            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm, datatype='h')
         else:
-            self.write_binary_values(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm, datatype='h')
             
         return wfmID
 
