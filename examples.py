@@ -13,7 +13,8 @@ def vsg_chirp_example(ipAddress):
     a generic VSG."""
 
     # Create VSG object
-    vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
 
     # Signal generator configuration variables
     amplitude = -5
@@ -39,7 +40,7 @@ def vsg_chirp_example(ipAddress):
 
     # Check for erros and gracefully disconnect
     vsg.err_check()
-    vsg.disconnect()
+    vsg.close()
 
 
 def vsg_dig_mod_example(ipAddress):
@@ -47,7 +48,8 @@ def vsg_dig_mod_example(ipAddress):
     @ 1 GHz CF with a generic VSG."""
 
     # Create VSG object
-    vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
 
     # Signal generator configuration variables
     amplitude = -5
@@ -55,7 +57,7 @@ def vsg_dig_mod_example(ipAddress):
     freq = 1e9
 
     # Configure signal generator
-    vsg.configure(amp=amplitude, fs=sampleRate, cf=freq)
+    vsg.configure(amp=amplitude, fs=sampleRate, cf=freq, iqScale=70)
     vsg.sanity_check()
     vsg.err_check()
 
@@ -71,16 +73,17 @@ def vsg_dig_mod_example(ipAddress):
     vsg.download_wfm(iq, wfmID=name)
     vsg.play(name)
 
-    # Check for erros and gracefully disconnect
+    # Check for errors and gracefully disconnect
     vsg.err_check()
-    vsg.disconnect()
+    vsg.close()
 
 
 def vsg_am_example(ipAddress):
     """Generates an AM tone with the IQ modulator in a generic VSG."""
 
     # Create VSG object
-    vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
 
     # Signal generator configuration variables
     amplitude = -5
@@ -106,13 +109,14 @@ def vsg_am_example(ipAddress):
 
     # Check for errors and gracefully disconnect
     vsg.err_check()
-    vsg.disconnect()
+    vsg.close()
 
 
 def vsg_mtone_example(ipAddress):
     """Generates a mutlitone signal on a generic VSG."""
 
-    vsg = pyarbtools.instruments.VSG(ipAddress, reset=True)
+    vsg = pyarbtools.instruments.VSG(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # vsg = pyarbtools.instruments.VSG(ipAddress, port=5025, timeout=15, reset=True)
 
     # Signal generator configuration variables
     amplitude = -5
@@ -138,7 +142,7 @@ def vsg_mtone_example(ipAddress):
 
     # Check for errors and gracefully disconnect
     vsg.err_check()
-    vsg.disconnect()
+    vsg.close()
 
 
 def m8190a_simple_wfm_example(ipAddress):
@@ -152,7 +156,8 @@ def m8190a_simple_wfm_example(ipAddress):
     cf = 1e9
     wfmName = "sine"
 
-    awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, timeout=15, reset=True)
     awg.configure(res=res, fs=fs, out1=output, amp1=amp)
 
     # Create simple sinusoidal waveform
@@ -166,7 +171,7 @@ def m8190a_simple_wfm_example(ipAddress):
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
-    awg.disconnect()
+    awg.close()
 
 
 def m8190a_duc_dig_mod_example(ipAddress):
@@ -180,7 +185,8 @@ def m8190a_duc_dig_mod_example(ipAddress):
     symRate = 10e6
     wfmName = "10MHz_16QAM"
 
-    awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, timeout=15, reset=True)
     awg.configure(res=res, cf1=cf, out1=output)
 
     # Create 16 QAM signal.
@@ -192,7 +198,7 @@ def m8190a_duc_dig_mod_example(ipAddress):
     # Assign segment to channel 1 and start playback
     awg.play(wfmID=segment, ch=1)
     awg.err_check()
-    awg.disconnect()
+    awg.close()
 
 
 def m8190a_duc_chirp_example(ipAddress):
@@ -208,7 +214,9 @@ def m8190a_duc_chirp_example(ipAddress):
     pri = 100e-6
     bw = 40e6
 
-    awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, timeout=15, reset=True)
+    
     awg.configure(res=res, fs=fs, out1=output, cf1=cf)
 
     # Create chirp waveform.
@@ -222,7 +230,7 @@ def m8190a_duc_chirp_example(ipAddress):
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
-    awg.disconnect()
+    awg.close()
 
 
 def m8195a_simple_wfm_example(ipAddress):
@@ -230,7 +238,8 @@ def m8195a_simple_wfm_example(ipAddress):
     out a simple sine waveform from the AC output port."""
 
     # Create M8195A object
-    awg = pyarbtools.instruments.M8195A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8195A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # awg = pyarbtools.instruments.M8195A(ipAddress, port=5025, timeout=15, reset=True)
 
     # AWG configuration variables
     dacMode = "dual"
@@ -252,7 +261,7 @@ def m8195a_simple_wfm_example(ipAddress):
 
     # Check for errors and gracefully disconnect.
     awg.err_check()
-    awg.disconnect()
+    awg.close()
 
 
 def m8190a_sequence_example(ipAddress):
@@ -270,7 +279,9 @@ def m8190a_sequence_example(ipAddress):
     pulseOffTime = 1e-6
 
     # Connect to AWG and configure settings.
-    awg = pyarbtools.instruments.M8190A(ipAddress, reset=True)
+    awg = pyarbtools.instruments.M8190A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=3, reset=True)
+    # awg = pyarbtools.instruments.M8190A(ipAddress, port=5025, timeout=15, reset=True)
+
     awg.configure(res=res, fs=fs, out1=out1, amp1=amp1, func1=func1)
 
     # Create a simple sine wave at our desired carrier frequency.
@@ -293,7 +304,7 @@ def m8190a_sequence_example(ipAddress):
     # Play the sequence
     awg.play_sequence()
 
-    awg.disconnect()
+    awg.close()
 
 
 def wfm_to_vsa_example(ipAddress):
@@ -359,7 +370,7 @@ def wfm_to_vsa_example(ipAddress):
 
     # Check for errors and gracefully disconnect
     vsa.err_check()
-    vsa.disconnect()
+    vsa.close()
 
 
 def vsa_vector_example(ipAddress):
@@ -379,7 +390,7 @@ def vsa_vector_example(ipAddress):
 
     # Check for errors and gracefully disconnect
     vsa.err_check()
-    vsa.disconnect()
+    vsa.close()
 
 
 def vxg_mat_import_example(ipAddress, fileName):
@@ -402,7 +413,8 @@ def vxg_mat_import_example(ipAddress, fileName):
     wfmDict = pyarbtools.wfmBuilder.import_mat(fileName, targetVariable="iqdata")
 
     # Create VXG object
-    vxg = pyarbtools.instruments.VXG(ipAddress)
+    vxg = pyarbtools.instruments.VXG(ipAddress, apiType='pyvisa', protocol='hislip', port=1, timeout=3, reset=True)
+    # vxg = pyarbtools.instruments.VXG(ipAddress, port=5025, timeout=15, reset=True)
 
     # Configure vxg based on variables imported from the .mat file
     vxg.configure(cf2=1e9, fs2=wfmDict["fs"], rfState2=1, amp2=0)
@@ -413,7 +425,42 @@ def vxg_mat_import_example(ipAddress, fileName):
     # Play out the waveform by referencing the waveform name from the dict
     vxg.play(wfmID=wfmDict["wfmID"], ch=2)
 
-    vxg.disconnect()
+    vxg.close()
+
+
+def vxg_dig_mod_example(ipAddress):
+    """Generates and plays 1 MHz 16 QAM signal with 0.35 alpha RRC filter
+    @ 1 GHz CF with a generic VSG."""
+
+    # Create VSG object
+    vxg = pyarbtools.instruments.VXG(ipAddress, apiType='pyvisa', protocol='hislip', port=1, timeout=3, reset=True)
+    # vxg = pyarbtools.instruments.VXG(ipAddress, port=5025, timeout=15, reset=True)
+
+    # Signal generator configuration variables
+    amplitude = -5
+    sampleRate = 200e6
+    freq = 1e9
+
+    # Configure signal generator
+    vxg.configure(amp1=amplitude, fs1=sampleRate, cf1=freq, iqScale1=70)
+    vxg.sanity_check()
+    vxg.err_check()
+
+    # Waveform definition variables
+    name = "100MHZ_16QAM"
+    symRate = 100e6
+    modType = "qam16"
+
+    # Create waveform
+    iq = pyarbtools.wfmBuilder.digmod_generator(fs=vxg.fs1, modType=modType, symRate=symRate, filt="rootraisedcosine")
+
+    # Download and play waveform
+    vxg.download_wfm(iq, wfmID=name)
+    vxg.play(name)
+
+    # Check for errors and gracefully disconnect
+    vxg.err_check()
+    vxg.close()
 
 
 def gui_example():
@@ -425,7 +472,7 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
-    ipAddress = "10.0.0.47"
+    ipAddress = "192.168.4.68"
     matFilePath = "<insert path to .mat file here>"
 
     # m8190a_simple_wfm_example(ipAddress)
@@ -440,8 +487,9 @@ def main():
     # wfm_to_vsa_example(ipAddress)
     # vsa_vector_example(ipAddress)
     # vxg_mat_import_example(ipAddress, fileName=matFilePath)
+    vxg_dig_mod_example(ipAddress)
     # m8190a_sequence_example(ipAddress)
-    gui_example()
+    # gui_example()
 
 
 if __name__ == "__main__":

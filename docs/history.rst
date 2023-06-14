@@ -132,3 +132,7 @@ History
 2022.11.2 (2022-11-10)
 ----------------------
 * Fixed issues with documentation.
+
+2023.06.1 (2023-06-13)
+----------------------
+* Implemented ``SignalGeneratorBase`` class to support either ``socketscpi`` or ``pyvisa`` for instrument communications.
