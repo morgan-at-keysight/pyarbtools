@@ -59,7 +59,7 @@ class SignalGeneratorBase:
             
             Keyword Args:
             protocol (string): LAN protocol used to communicate with the instrument ("vxi11", "hislip", "socket"). Note this is only usable with PyVISA.
-            port (int): Port used by the instrument to facilitate communication (socket default is 5025, vxi11 defaultand hislip defaults are 0).
+            port (int): Port used by the instrument to facilitate communication (socket default is 5025, vxi11 and hislip defaults are 0).
             """
 
             self.apiType = apiType

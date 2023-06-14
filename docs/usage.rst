@@ -63,40 +63,48 @@ Supported VSA control functions include:
 To use/control a signal generator, create a class of the signal
 generator's instrument type and enter the instrument's IP address
 as the first argument. There are additional keyword arguments you
-can add to set things like ``port``, ``timeout``, and ``reset``::
+can add to set things like ``apiType``, ``protocol``, ``port``, ``timeout``, and ``reset``::
 
     # Example
     awg = pyarbtools.instruments.M8910A('192.168.1.12')
     vsg = pyarbtools.instruments.VSG('192.168.1.13', port=5025, timeout=10, reset=True)
+    vxg = pyarbtools.instruments.VXG('192.168.1.14', apiType='pyvisa', protocol='hislip', port=1)
 
-Every class is built on a robust socket connection that allows the user
-to send SCPI commands/queries, send/receive data using IEEE 488.2
-binary block format, check for errors, and gracefully disconnect
-from the instrument. Methods were named so that those coming from
-using a VISA interface would be familiar with syntax. This
-architectural decision to include an open SCPI interface was
-made to provide additional flexibility for users who need to
-use specific setup commands *not* covered by built-in functions::
+Every class is built on either ``'socketscpi'`` or ``'pyvisa'`` and 
+allows the user to send SCPI commands/queries, send/receive data
+using IEEE 488.2 binary block format, check for errors, and 
+gracefully disconnect from the instrument. This architectural 
+decision to include an open SCPI interface was made to provide
+additional flexibility for users who need to use specific setup
+commands *not* covered by built-in functions::
 
     # Example
     awg.write('*RST')
     instID = awg.query('*IDN?')
-    awg.binblockwrite('trace:data 1, 0, ', data)
+    awg.write_binary_values('trace:data 1, 0, ', data, datatype='h')
     awg.disconnect()
 
 
-When an instance of an instrument is created, PyArbTools connects to
-the instrument at the IP address given by the user and sends a few
-queries. Each class constructor has a ``reset`` keyword argument that
+As of version 2023.06.0, when an instance of an instrument is created, 
+users can choose to use either ``'socketscpi'`` (a lightweight and fast 
+raw socket connection) or ``'pyvisa'`` (full-featured industry standard)
+as the underlying instrument communications platform. This can be done
+using the ``apiType`` keyword argument. If ``'pyvisa'`` is chosen, the 
+``protocol`` and ``port`` must also be chosen. If ``'socketscpi'`` is 
+chosen, only port must be specified. When an instrument class
+is created, PyArbTools connects to the instrument at the IP address 
+given by the user and sends a few queries to populate some class attributes. 
+
+Each class constructor has a ``reset`` keyword argument that
 causes the instrument to perform a default setup prior to running the
 rest of the code. It's set to ``False`` by default to prevent unwanted
 settings changes.
 
 Each instrument class includes a ``.download_wfm()`` method, which takes
-care of the binary formatting, minimum length, and granularity requirements
-for you. It also makes a reasonable effort to correct for length/granularity
-violations and raises a descriptive exception if any requirements aren't
-met by the waveform::
+care of the instrument's binary formatting, minimum length, and granularity
+requirements for you. It also makes a reasonable effort to correct for 
+length/granularity violations and raises a descriptive exception if any
+requirements aren't met by the waveform::
 
     # Example
     iq = pyarbtools.wfmBuilder.multitone_generator(fs=100e6, spacing=1e6, num=11, wfmFormat='iq')
@@ -127,7 +135,22 @@ having to send a SCPI query to determine values::
 
 ::
 
-    awg = pyarbtools.instruments.M8190A(host, port=5025, timeout=10, reset=False)
+    awg = pyarbtools.instruments.M8190A(ipAddress, apiType='socketspi', port=5025, timeout=10, reset=False)
+    awg = pyarbtools.instruments.M8190A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=10, reset=False)
+
+**Arguments**
+
+* ``ipAddress`` ``(str)``: IP address of the instrument.
+
+**Keyword Arguments**
+
+* ``apiType`` ``(str)``: API type to use. ``'socketscpi'`` or ``'pyvisa'``, default is ``'socketscpi'``.
+* ``protocol`` ``(str)``: Only used when ``apiType='pyvisa'``. Chooses which VISA protocol to use. ``'hislip'`` or ``'vxi11'``.
+* ``port`` ``(int)``: Selects socket port when ``apiType='socketscpi'``. Selects protocol port when ``apiType='pyvisa'``. 
+* ``timeout`` ``(int)``: Sets the instrument timeout in seconds. Default is ``10``.
+* ``reset`` ``(bool)``: Determines if the instrument will be preset when object is created. ``True`` or ``False``, default is ``False``
+
+
 
 **attributes**
 --------------
@@ -341,7 +364,22 @@ Inserts an idle segment into a specific index in the sequence.
 
 ::
 
-    awg = pyarbtools.instruments.M8195A(host, port=5025, timeout=10, reset=False)
+    awg = pyarbtools.instruments.M8195A(ipAddress, port=5025, timeout=10, reset=False)
+    awg = pyarbtools.instruments.M8195A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=10, reset=False)
+
+
+**Arguments**
+
+* ``ipAddress`` ``(str)``: IP address of the instrument.
+
+**Keyword Arguments**
+
+* ``apiType`` ``(str)``: API type to use. ``'socketscpi'`` or ``'pyvisa'``, default is ``'socketscpi'``.
+* ``protocol`` ``(str)``: Only used when ``apiType='pyvisa'``. Chooses which VISA protocol to use. ``'hislip'`` or ``'vxi11'``.
+* ``port`` ``(int)``: Selects socket port when ``apiType='socketscpi'``. Selects protocol port when ``apiType='pyvisa'``. 
+* ``timeout`` ``(int)``: Sets the instrument timeout in seconds. Default is ``10``.
+* ``reset`` ``(bool)``: Determines if the instrument will be preset when object is created. ``True`` or ``False``, default is ``False``
+
 
 **attributes**
 --------------
@@ -483,7 +521,22 @@ Turns off analog output and stops playback.
 
 ::
 
-    awg = pyarbtools.instruments.M8196A(host, port=5025, timeout=10, reset=False)
+    awg = pyarbtools.instruments.M8196A(ipAddress port=5025, timeout=10, reset=False)
+    awg = pyarbtools.instruments.M8196A(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=10, reset=False)
+
+
+**Arguments**
+
+* ``ipAddress`` ``(str)``: IP address of the instrument.
+
+**Keyword Arguments**
+
+* ``apiType`` ``(str)``: API type to use. ``'socketscpi'`` or ``'pyvisa'``, default is ``'socketscpi'``.
+* ``protocol`` ``(str)``: Only used when ``apiType='pyvisa'``. Chooses which VISA protocol to use. ``'hislip'`` or ``'vxi11'``.
+* ``port`` ``(int)``: Selects socket port when ``apiType='socketscpi'``. Selects protocol port when ``apiType='pyvisa'``. 
+* ``timeout`` ``(int)``: Sets the instrument timeout in seconds. Default is ``10``.
+* ``reset`` ``(bool)``: Determines if the instrument will be preset when object is created. ``True`` or ``False``, default is ``False``
+
 
 **attributes**
 --------------
@@ -618,7 +671,21 @@ Turns off analog output and stops playback.
 
 ::
 
-    vsg = pyarbtools.instruments.VSG(host, port=5025, timeout=10, reset=False)
+    vsg = pyarbtools.instruments.VSG(ipAddress port=5025, timeout=10, reset=False)
+    vsg = pyarbtools.instruments.VXG(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=10, reset=False)
+
+
+**Arguments**
+
+* ``ipAddress`` ``(str)``: IP address of the instrument.
+
+**Keyword Arguments**
+
+* ``apiType`` ``(str)``: API type to use. ``'socketscpi'`` or ``'pyvisa'``, default is ``'socketscpi'``.
+* ``protocol`` ``(str)``: Only used when ``apiType='pyvisa'``. Chooses which VISA protocol to use. ``'hislip'`` or ``'vxi11'``.
+* ``port`` ``(int)``: Selects socket port when ``apiType='socketscpi'``. Selects protocol port when ``apiType='pyvisa'``. 
+* ``timeout`` ``(int)``: Sets the instrument timeout in seconds. Default is ``10``.
+* ``reset`` ``(bool)``: Determines if the instrument will be preset when object is created. ``True`` or ``False``, default is ``False``
 
 **attributes**
 --------------
@@ -776,7 +843,21 @@ Deactivates arb mode, RF output, and modulation.
 
 ::
 
-    vxg = pyarbtools.instruments.VXG(host, port=5025, timeout=10, reset=False)
+    vxg = pyarbtools.instruments.VXG(ipAddress port=5025, timeout=10, reset=False)
+    vxg = pyarbtools.instruments.VXG(ipAddress, apiType='pyvisa', protocol='hislip', port=0, timeout=10, reset=False)
+
+
+**Arguments**
+
+* ``ipAddress`` ``(str)``: IP address of the instrument.
+
+**Keyword Arguments**
+
+* ``apiType`` ``(str)``: API type to use. ``'socketscpi'`` or ``'pyvisa'``, default is ``'socketscpi'``.
+* ``protocol`` ``(str)``: Only used when ``apiType='pyvisa'``. Chooses which VISA protocol to use. ``'hislip'`` or ``'vxi11'``.
+* ``port`` ``(int)``: Selects socket port when ``apiType='socketscpi'``. Selects protocol port when ``apiType='pyvisa'``. 
+* ``timeout`` ``(int)``: Sets the instrument timeout in seconds. Default is ``10``.
+* ``reset`` ``(bool)``: Determines if the instrument will be preset when object is created. ``True`` or ``False``, default is ``False``
 
 **attributes**
 --------------
@@ -798,7 +879,7 @@ speaking, they are also the keyword arguments for ``.configure()``.
 
 ::
 
-    print(f'VXG Sample Rate: {vxg.fs1} samples/sec.')
+    print(f'VXG Ch 1 Sample Rate: {vxg.fs1} samples/sec.')
     >>> VXG Ch 1 Sample Rate: 200000000 samples/sec.
 
 
@@ -1276,7 +1357,7 @@ code without having to send a SCPI query to determine values::
 =======
 ::
 
-    pyarbtools.vsaControl.VSA(host, port=5025, timeout=10, reset=False, vsaHardware=None)
+    pyarbtools.vsaControl.VSA(ipAddress port=5025, timeout=10, reset=False, vsaHardware=None)
 
 **attributes**
 --------------

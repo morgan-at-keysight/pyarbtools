@@ -433,7 +433,7 @@ def vxg_dig_mod_example(ipAddress):
     @ 1 GHz CF with a generic VSG."""
 
     # Create VSG object
-    vxg = pyarbtools.instruments.VXG(ipAddress, apiType='pyvisa', protocol='socket', port=5025, timeout=3, reset=True)
+    vxg = pyarbtools.instruments.VXG(ipAddress, apiType='pyvisa', protocol='hislip', port=1, timeout=3, reset=True)
     # vxg = pyarbtools.instruments.VXG(ipAddress, port=5025, timeout=15, reset=True)
 
     # Signal generator configuration variables
