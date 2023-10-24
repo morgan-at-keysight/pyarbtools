@@ -90,6 +90,8 @@ class SignalGeneratorBase:
                     # self.instance = pyvisa.ResourceManager().open_resource(f"tcpip0::{ipAddress}::{port}::socket")
                 else:
                     raise ValueError('Invalid protocol selection. Use "vxi11", "hislip", or "socket".')
+                # PyVISA's open_resource() method doesn't have a timeout argument, so use a separate method to set it.
+                self.instance.timeout = timeout * 1000
             else:
                 raise ValueError(f'"{self.apiType}" is not a valid apiType, use "socketscpi" or "pyvisa".')
             

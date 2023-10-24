@@ -136,3 +136,8 @@ History
 2023.06.1 (2023-06-13)
 ----------------------
 * Implemented ``SignalGeneratorBase`` class to support either ``socketscpi`` or ``pyvisa`` for instrument communications.
+
+2023.10.1 (2023-10-24)
+----------------------
+* Added timeout setting for ``pyvisa`` apiType. Changed ``tkinter`` imports in ``gui.py`` to explicit. Changed favicon.ico to favicon.png to better support cross-platform usage.
+
