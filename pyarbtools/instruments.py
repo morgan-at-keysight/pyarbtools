@@ -8,7 +8,6 @@ checks, etc. per instrument.
 Tested on M8190A, M8195A, M8196A, N5182B, E8257D, M9383A, N5193A, N5194A
 """
 
-from socket import socket
 import numpy as np
 import socketscpi
 import pyvisa
@@ -17,10 +16,10 @@ from pyarbtools import error
 
 """
 TODO:
+* PyVISA Socket doesn't work
+* Check M9381/3A error class in VSG.download_wfm()
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
-* DONE -- Separate out configure() into individual methods that update class attributes
-* Add a check for PDW length (600k limit?)
 * Add a multi-binblockwrite feature for download_wfm in the case of
     waveform size > 1 GB
 """
@@ -87,12 +86,16 @@ class SignalGeneratorBase:
                 elif protocol.lower() == "hislip":
                     self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::hislip{port}::instr")
                 elif protocol.lower() == "socket":
-                    self.instance = pyvisa.ResourceManager().open_resource(f"tcpip::{ipAddress}::{port}::socket")
+                    raise error.InstrumentError(f'socket protocol in PyVISA is not currently working, use "hislip" or "vxi11"')
+                    # self.instance = pyvisa.ResourceManager().open_resource(f"tcpip0::{ipAddress}::{port}::socket")
                 else:
                     raise ValueError('Invalid protocol selection. Use "vxi11", "hislip", or "socket".')
-                self.instId = self.query("*idn?")
+                # PyVISA's open_resource() method doesn't have a timeout argument, so use a separate method to set it.
+                self.instance.timeout = timeout * 1000
             else:
                 raise ValueError(f'"{self.apiType}" is not a valid apiType, use "socketscpi" or "pyvisa".')
+            
+            self.instId = self.instance.query("*idn?")
 
     def __getattr__(self, __name: str):
         """This is a passthrough method that allows the base class to access attributes from the parent class.
@@ -107,12 +110,15 @@ class SignalGeneratorBase:
         cmd = 'SYST:ERR?'
 
         # Strip out extra characters
-        temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+        temp = self.query(cmd)
+        temp = temp.strip().replace('+', '').replace('-', '')
         # Read all errors until none are left
         while temp != '0,"No error"':
             # Build list of errors
+            print(temp)
             err.append(temp)
-            temp = self.query(cmd).strip().replace('+', '').replace('-', '')
+            temp = self.query(cmd)
+            temp = temp.strip().replace('+', '').replace('-', '')
         if err:
             raise error.InstrumentError(err)
 
@@ -339,7 +345,7 @@ class M8190A(SignalGeneratorBase):
         if not isinstance(ch, int) or ch < 1 or ch > 2:
             raise ValueError("'ch' must be 1 or 2.")
         if not isinstance(cf, float) or cf <= 0:
-            raise socketscpi.SockInstError("Carrier frequency must be a positive floating point value.")
+            raise ValueError("Carrier frequency must be a positive floating point value.")
         self.write(f"carrier{ch}:freq {cf}")
         if ch == 1:
             self.cf1 = float(self.query(f"carrier{ch}:freq?").strip().split(",")[0])
@@ -496,7 +502,7 @@ class M8190A(SignalGeneratorBase):
             markerData = sampleMkrData + syncMkrData
             wfm += markerData
         else:
-            raise socketscpi.SockInstError('Invalid wfmFormat chosen. Use "iq" or "real".')
+            raise ValueError('Invalid wfmFormat chosen. Use "iq" or "real".')
 
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
@@ -568,7 +574,7 @@ class M8190A(SignalGeneratorBase):
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.AWGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
+            raise error.InstrumentError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         rem = rl % self.gran
         if rem != 0:
             raise error.GranularityError(f"Waveform must have a granularity of {self.gran}. Extra samples: {rem}")
@@ -586,9 +592,9 @@ class M8190A(SignalGeneratorBase):
 
         # Argument checking
         if type(wfmID) != int or wfmID < 1:
-            raise socketscpi.SockInstError("Segment ID must be a positive integer.")
+            raise error.InstrumentError("Segment ID must be a positive integer.")
         if ch not in [1, 2]:
-            raise socketscpi.SockInstError("Channel must be 1 or 2.")
+            raise error.InstrumentError("Channel must be 1 or 2.")
         self.write("abort")
         self.write(f"trace{ch}:delete {wfmID}")
 
@@ -815,7 +821,7 @@ class M8190A(SignalGeneratorBase):
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
-class M8195A(socketscpi.SocketInstrument):
+class M8195A(SignalGeneratorBase):
     """
     Generic class for controlling Keysight M8195A AWG.
 
@@ -832,11 +838,13 @@ class M8195A(socketscpi.SocketInstrument):
         Add check to ensure that the correct instrument is connected
     """
 
-    def __init__(self, host, port=5025, timeout=10, reset=False):
-        super().__init__(host, port, timeout)
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
+        
         if reset:
             self.write("*rst")
             self.query("*opc?")
+            self.write("abort")
 
         # Query all settings from AWG and store them as class attributes
         self.dacMode = self.query("inst:dacm?").strip()
@@ -984,11 +992,11 @@ class M8195A(socketscpi.SocketInstrument):
             channel (int): Channel to change. (1, 2, 3, or 4).
         """
         if channel not in [1, 2, 3, 4]:
-            raise error.AWGError("'channel' must be 1, 2, 3, or 4.")
+            raise error.InstrumentError("'channel' must be 1, 2, 3, or 4.")
         if not isinstance(amplitude, float) and not isinstance(amplitude, int):
-            raise error.AWGError("'amplitude' must be a floating point value.")
+            raise error.InstrumentError("'amplitude' must be a floating point value.")
         if amplitude < 75e-3 or amplitude > 1:
-            raise error.AWGError("'amplitude' must be between 75 mV and 1 V.")
+            raise error.InstrumentError("'amplitude' must be between 75 mV and 1 V.")
 
         self.write(f"voltage{channel} {amplitude}")
         # This is a neat use of Python's exec() function, which takes a "program" in as a string and executes it
@@ -1031,7 +1039,7 @@ class M8195A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = int(self.query(f"trace{ch}:catalog?").strip().split(",")[-2]) + 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm, datatype='b')
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1043,8 +1051,8 @@ class M8195A(socketscpi.SocketInstrument):
         Checks minimum size and granularity and returns waveform with
         appropriate binary formatting.
 
-        See pages 273-274 in Keysight M8195A User's Guide (Edition 13.0,
-        October 2017) for more info.
+        See page 253 in Keysight M8195A User's Guide Rev 2 (Edition 7.0,
+        March 2019) for more info.
         Args:
             wfmData (NumPy array): Unscaled/unformatted waveform data.
 
@@ -1058,7 +1066,7 @@ class M8195A(socketscpi.SocketInstrument):
         wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.AWGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
+            raise error.InstrumentError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl % self.gran != 0:
             raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
@@ -1075,9 +1083,9 @@ class M8195A(socketscpi.SocketInstrument):
 
         # Argument checking
         if type(wfmID) != int or wfmID < 1:
-            raise socketscpi.SockInstError("Segment ID must be a positive integer.")
+            raise ValueError("Segment ID must be a positive integer.")
         if ch not in [1, 2, 3, 4]:
-            raise socketscpi.SockInstError("Channel must be 1, 2, 3, or 4.")
+            raise ValueError("Channel must be 1, 2, 3, or 4.")
         self.write("abort")
         self.write(f"trace{ch}:del {wfmID}")
 
@@ -1112,7 +1120,7 @@ class M8195A(socketscpi.SocketInstrument):
 
 
 # noinspection PyUnusedLocal,PyUnusedLocal
-class M8196A(socketscpi.SocketInstrument):
+class M8196A(SignalGeneratorBase):
     """
     Generic class for controlling Keysight M8196A AWG.
 
@@ -1126,11 +1134,13 @@ class M8196A(socketscpi.SocketInstrument):
         Add check to ensure that the correct instrument is connected
     """
 
-    def __init__(self, host, port=5025, timeout=10, reset=False):
-        super().__init__(host, port, timeout)
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
+        
         if reset:
             self.write("*rst")
             self.query("*opc?")
+            self.write("abort")
 
         # Query all settings from AWG and store them as class attributes
         self.dacMode = self.query("inst:dacm?").strip()
@@ -1221,14 +1231,14 @@ class M8196A(socketscpi.SocketInstrument):
 
         # Check for valid refSrc arguments and assign
         if self.refSrc.lower() not in ["int", "ext", "axi"]:
-            raise error.AWGError("Invalid reference source selection.")
+            raise error.InstrumentError("Invalid reference source selection.")
         self.write(f"roscillator:source {self.refSrc}")
         self.refSrc = self.query("roscillator:source?").strip().lower()
 
         # Check for presence of external ref signal
         srcAvailable = self.query(f"roscillator:source:check? {self.refSrc}").strip()
         if not srcAvailable:
-            raise error.AWGError("No signal at selected reference source.")
+            raise error.InstrumentError("No signal at selected reference source.")
 
         # Only set ref frequency if using ext ref, int/axi is always 100 MHz
         if self.refSrc == "ext":
@@ -1243,7 +1253,7 @@ class M8196A(socketscpi.SocketInstrument):
             elif 162e6 <= refFreq <= 17e9:
                 self.write("roscillator:range rang2")
             else:
-                raise error.AWGError("Selected reference clock frequency outside allowable range.")
+                raise error.InstrumentError("Selected reference clock frequency outside allowable range.")
             self.write(f"roscillator:frequency {refFreq}")
         self.refFreq = float(self.query("roscillator:frequency?").strip())
 
@@ -1279,7 +1289,7 @@ class M8196A(socketscpi.SocketInstrument):
         # Initialize waveform segment, populate it with data, and provide a name
         segment = 1
         self.write(f"trace{ch}:def {segment}, {length}")
-        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm)
+        self.write_binary_values(f"trace{ch}:data {segment}, 0, ", wfm, datatype='b')
         self.write(f'trace{ch}:name {segment},"{name}_{segment}"')
 
         # Use 'segment' as the waveform identifier for the .play() method.
@@ -1306,9 +1316,9 @@ class M8196A(socketscpi.SocketInstrument):
         wfm = np.tile(wfmData, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.AWGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
+            raise error.InstrumentError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl > self.maxLen:
-            raise error.AWGError(f"Waveform length: {rl}, must be shorter than {self.maxLen}.")
+            raise error.InstrumentError(f"Waveform length: {rl}, must be shorter than {self.maxLen}.")
         if rl % self.gran != 0:
             raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
@@ -1390,9 +1400,9 @@ class VSG(SignalGeneratorBase):
             if "M938" not in self.instId:
                 self.refFreq = float(self.query("roscillator:frequency:bbg?").strip())
             else:
-                raise error.VSGError("Invalid reference source chosen, select 'int' or 'ext'.")
+                raise error.InstrumentError("Invalid reference source chosen, select 'int' or 'ext'.")
         else:
-            raise error.VSGError("Unknown refSrc selected.")
+            raise error.InstrumentError("Unknown refSrc selected.")
 
         # Initialize waveform format constants and populate them with check_resolution()
         self.minLen = 60
@@ -1575,7 +1585,7 @@ class VSG(SignalGeneratorBase):
         elif "bbg" in self.refSrc.lower():
             self.refFreq = float(self.query("roscillator:frequency:bbg?").strip())
         else:
-            raise error.VSGError("Unknown refSrc selected.")
+            raise error.InstrumentError("Unknown refSrc selected.")
 
     def sanity_check(self):
         """Prints out user-accessible class attributes."""
@@ -1606,7 +1616,7 @@ class VSG(SignalGeneratorBase):
         self.set_modState(0)
         self.set_arbState(0)
 
-        # Adjust endianness for M9381/3A
+        # # Adjust endianness for M9381/3A
         if "M938" in self.instId:
             bigEndian = False
         else:
@@ -1636,12 +1646,12 @@ class VSG(SignalGeneratorBase):
             except socketscpi.SockInstError:
                 # print('Waveform doesn\'t exist, skipping delete operation.')
                 pass
-            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}",', wfm, datatype='h')
             self.write(f'memory:copy "C:\\Temp\\{wfmID}","{wfmID}"')
 
         # EXG/MXG/PSG download procedure
         else:
-            self.write_binary_values(f'mmemory:data "WFM1:{wfmID}", ', wfm)
+            self.write_binary_values(f'mmemory:data "WFM1:{wfmID}",', wfm, datatype='h')
             self.write(f'radio:arb:waveform "WFM1:{wfmID}"')
 
         # Use 'wfmID' as the waveform identifier for the .play() method.
@@ -1688,7 +1698,7 @@ class VSG(SignalGeneratorBase):
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.VSGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
+            raise error.InstrumentError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl % self.gran != 0:
             raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
@@ -1748,8 +1758,10 @@ class VSG(SignalGeneratorBase):
 
 
 # noinspection PyAttributeOutsideInit,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
-class VXG(socketscpi.SocketInstrument):
-    def __init__(self, host, port=5025, timeout=10, reset=False):
+class VXG(SignalGeneratorBase):
+    # def __init__(self, host, port=5025, timeout=10, reset=False):
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
+
         """
         Generic class for controlling the M9384B VXG signal generator.
 
@@ -1767,7 +1779,8 @@ class VXG(socketscpi.SocketInstrument):
             Add check to ensure that the correct instrument is connected
         """
 
-        super().__init__(host, port, timeout)
+        # super().__init__(host, port, timeout)
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
         if reset:
             self.write("*rst")
             self.query("*opc?")
@@ -1809,7 +1822,7 @@ class VXG(socketscpi.SocketInstrument):
         elif "ext" in self.refSrc.lower():
             self.refFreq = float(self.query("roscillator:frequency:external?").strip())
         else:
-            raise error.VXGError("Unknown refSrc selected.")
+            raise error.InstrumentError("Unknown refSrc selected.")
 
         # Initialize waveform format constants and populate them with check_resolution()
         self.minLen = 512
@@ -1819,7 +1832,7 @@ class VXG(socketscpi.SocketInstrument):
     # def configure(self, rfState=1, modState=1, cf=1e9, amp=-20, alcState=0, iqScale=70, refSrc='int', fs=200e6):
     def configure(self, **kwargs):
         """
-        Sets basic configuration for VSG and populates class attributes accordingly.
+        Sets basic configuration for VXG and populates class attributes accordingly.
         Keyword Arguments:
             rfState1|2 (int): Turns the RF output on or off. (1, 0)
             modState1|2 (int): Turns the baseband modulator on or off. (1, 0)
@@ -2082,7 +2095,7 @@ class VXG(socketscpi.SocketInstrument):
         elif "bbg" in self.refSrc.lower():
             self.refFreq = float(self.query("roscillator:frequency:bbg?").strip())
         else:
-            raise error.VSGError("Unknown refSrc selected.")
+            raise error.InstrumentError("Unknown refSrc selected.")
 
     def sanity_check(self):
         """Prints out initialized values."""
@@ -2154,9 +2167,9 @@ class VXG(socketscpi.SocketInstrument):
 
         # Save waveform to specified location on hard drive.
         if sim:
-            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "C:\\Temp\\{wfmID}.bin",', wfm, datatype='h')
         else:
-            self.write_binary_values(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm)
+            self.write_binary_values(f'mmemory:data "D:\\Users\\Instrument\\Documents\\Keysight\\PathWave\\SignalGenerator\\Waveforms\\{wfmID}.bin",', wfm, datatype='h')
             
         return wfmID
 
@@ -2199,7 +2212,7 @@ class VXG(socketscpi.SocketInstrument):
         wfm = np.tile(wfm, repeats)
         rl = len(wfm)
         if rl < self.minLen:
-            raise error.VSGError(f"Waveform length: {rl}, must be at least {self.minLen}.")
+            raise error.InstrumentError(f"Waveform length: {rl}, must be at least {self.minLen}.")
         if rl % self.gran != 0:
             raise error.GranularityError(f"Waveform must have a granularity of {self.gran}.")
 
