@@ -1278,9 +1278,6 @@ def main():
     root = tkinter.Tk()
     root.resizable(False, False)
     root.title('Keysight PyArbTools')
-    basePath = path.dirname(__file__)
-    iconPath = path.abspath(path.join(basePath, '..', 'pyarbtools', 'favicon.png'))
-    root.iconbitmap(iconPath)
 
     PyarbtoolsGUI(root)
     root.mainloop()

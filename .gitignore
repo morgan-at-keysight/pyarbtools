@@ -115,3 +115,4 @@ pyarbtools/playground.py
 testing.py
 Tests/
 pyarbtools-venv/
+pypi_publish.bat

@@ -472,7 +472,7 @@ def main():
     """Uncomment the example you'd like to run. For each example,
     replace the IP address with one that is appropriate for your
     instrument(s)."""
-    ipAddress = "192.168.4.68"
+    ipAddress = "141.184.2.107"
     matFilePath = "<insert path to .mat file here>"
 
     # m8190a_simple_wfm_example(ipAddress)

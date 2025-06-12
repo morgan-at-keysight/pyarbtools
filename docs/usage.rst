@@ -25,6 +25,7 @@ Supported instruments include:
     * N5172B EXG
     * M9381A/M9383A
 * :ref:`VXG`
+* :ref:`N5186A`
 
 Supported waveform building functions include:
 
@@ -1000,6 +1001,169 @@ Deactivates arb mode, RF output, and modulation.
 
 * None
 
+.. _N5186A:
+
+=======
+**N5186A**
+=======
+
+::
+
+    mxg = pyarbtools.instruments.N5186A(ipAddress port=5025, timeout=10, reset=False)
+    mxg = pyarbtools.instruments.N5186A(ipAddress, apiType='pyvisa', protocol='hislip', port=1, timeout=10, reset=False)
+
+
+**Arguments**
+
+* ``ipAddress`` ``(str)``: IP address of the instrument.
+
+**Keyword Arguments**
+
+* ``apiType`` ``(str)``: API type to use. ``'socketscpi'`` or ``'pyvisa'``, default is ``'socketscpi'``.
+* ``protocol`` ``(str)``: Only used when ``apiType='pyvisa'``. Chooses which VISA protocol to use. ``'hislip'`` or ``'vxi11'``.
+* ``port`` ``(int)``: Selects socket port when ``apiType='socketscpi'``. Selects protocol port when ``apiType='pyvisa'``. 
+* ``timeout`` ``(int)``: Sets the instrument timeout in seconds. Default is ``10``.
+* ``reset`` ``(bool)``: Determines if the instrument will be preset when object is created. ``True`` or ``False``, default is ``False``
+
+**attributes**
+--------------
+
+These attributes are automatically populated when connecting to the
+instrument and when calling the ``.configure()`` method. Generally
+speaking, they are also the keyword arguments for ``.configure()``.
+
+* ``instId`` ``(str)``: Instrument identifier. Contains instrument model, serial number, and firmware revision.
+* ``rfState1 | rfState2`` ``(int)``: RF output state per channel. Values are ``0`` (default) or ``1``.
+* ``modState1 | modState2`` ``(int)``: Modulation state per channel. Values are ``0`` (default) or ``1``.
+* ``arbState1 | arbState2`` ``(int)``: Internal arb state per channel. Values are ``0`` (default) or ``1``.
+* ``cf1 | cf2`` ``(float)``: Output carrier frequency in Hz per channel. Values are ``9e3`` to ``8.5e9``. Default is ``1e9``.
+* ``amp1 | amp2`` ``(float)``: Output power in dBm. Values are ``-110`` to ``+25``. Default is ``-100``.
+* ``alcState1 | alcState2`` ``(int)``: ALC (automatic level control) state per channel. Values are ``1`` or ``0`` (default).
+* ``iqScale1 | iqScale2`` ``(int)``: IQ scale factor in % per channel. Values range from ``1`` to ``100``. Default is ``70``.
+* ``fs1 | fs2`` ``(float)``: Sample rate in Hz per channel. Values ``1`` to ``1.2e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Values are ``'int'`` (default), or ``'ext'``.
+
+::
+
+    print(f'N5186A Ch 1 Sample Rate: {mxg.fs1} samples/sec.')
+    >>> N5186A Ch 1 Sample Rate: 200000000 samples/sec.
+
+
+**configure**
+-------------
+::
+
+    N5186A.configure(**kwargs)
+    # Example
+    N5186A.configure(rfState1=1, cf1=1e9, amp1=-20)
+
+Sets the basic configuration for the N5186A and populates class attributes
+accordingly. It *only* changes the setting(s) for the
+keyword argument(s) sent by the user.
+
+**Arguments**
+
+* ``rfState1 | rfState2`` ``(int)``: Turns the RF output state on or off per channel. Arguments are ``0`` (default) or ``1``.
+* ``modState1 | modState2`` ``(int)``: Turns the modulation state on or off per channel. Arguments are ``0`` (default) or ``1``.
+* ``arbState1 | arbState2`` ``(int)``: Turns the internal arb on or off per channel. Arguments are ``0`` (default) or ``1``.
+* ``cf1 | cf2`` ``(float)``: Output carrier frequency in Hz per channel. Arguments are ``9e3`` to ``8.5e9``. Default is ``1e9``.
+* ``amp1 | amp2`` ``(float)``: Output power in dBm per channel. Arguments are ``-110`` to ``+25``. Default is ``-100``.
+* ``alcState1 | alcState2`` ``(int)``: Turns the ALC (automatic level control) on or off per channel. Arguments are ``1`` or ``0`` (default).
+* ``iqScale1 | iqScale2`` ``(int)``: IQ scale factor in % per channel. Argument range is ``1`` to ``100``. Default is ``70``.
+* ``fs1 | fs2`` ``(float)``: Sample rate in Hz per channel. Arguments are ``1`` to ``1.2e9``.
+* ``refSrc`` ``(str)``: Reference clock source. Arguments are ``'int'`` (default), or ``'ext'``.
+
+**Returns**
+
+* None
+
+**download_wfm**
+----------------
+::
+
+    N5186A.download_wfm(wfmData, wfmID='wfm')
+
+Defines and downloads a waveform to the N5186A's internal memory
+and checks that the waveform meets minimum waveform length and
+granularity requirements. Returns useful waveform identifier.
+
+**Arguments**
+
+* ``wfmData`` ``(NumPy array)``: Array of values containing the complex sample pairs in an IQ waveform.
+* ``wfmID`` ``(str)``: Name of the waveform to be downloaded. Default is ``'wfm'``.
+
+**Returns**
+
+* ``wfmID`` (string): Useful waveform name or identifier. Use this as the waveform identifier for ``.play()``.
+
+**delete_wfm**
+--------------
+::
+
+    N5186A.delete_wfm(wfmID)
+
+Deletes a waveform from the waveform memory.
+
+**Arguments**
+
+* ``wfmID`` ``(str)``: Name of the waveform to be deleted.
+
+**Returns**
+
+* None
+
+**clear_all_wfm**
+-----------------
+::
+
+    N5186A.clear_all_wfm()
+
+Stops playback and deletes all waveforms from the waveform memory.
+
+**Arguments**
+
+* None
+
+**Returns**
+
+* None
+
+**play**
+--------
+::
+
+    N5186A.play(wfmID='wfm', ch=1, *args, **kwargs)
+
+Selects waveform and activates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* ``wfmID`` ``(str)``: Name of the waveform to be loaded. The return value from ``.download_wfm()`` should be used. Default is ``'wfm'``.
+* ``ch`` ``(int)``: Channel out of which the waveform will be played. Default is ``1``.
+
+**Keyword Arguments**
+
+* ``rms`` ``(float)``: Waveform RMS power calculation. The N5186A will offset RF power to ensure measured RMS power matches the user-specified RF power. Set to ``1.0`` for pulses with multiple power levels in a single waveform. This causes the peak power level to match the RF output power setting.
+
+**Returns**
+
+* None
+
+**stop**
+--------
+::
+
+    N5186A.stop(ch=1)
+
+Deactivates arb mode, RF output, and modulation.
+
+**Arguments**
+
+* ``ch`` ``(int)``: Channel for which playback will be stopped. Default is ``1``.
+
+**Returns**
+
+* None
 
 .. _wfmBuilder:
 
