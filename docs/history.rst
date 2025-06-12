@@ -141,3 +141,7 @@ History
 ----------------------
 * Added timeout setting for ``pyvisa`` apiType. Changed ``tkinter`` imports in ``gui.py`` to explicit. Changed favicon.ico to favicon.png to better support cross-platform usage.
 
+2025.06.1 (2025-06-12)
+----------------------
+* Removed Keysight icon in the GUI window because it was causing too many problems. 
+* Added support for N5186A Vector MXG

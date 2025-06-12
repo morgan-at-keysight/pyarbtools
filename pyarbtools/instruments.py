@@ -16,8 +16,6 @@ from pyarbtools import error
 
 """
 TODO:
-* PyVISA Socket doesn't work
-* Check M9381/3A error class in VSG.download_wfm()
 * Add a function for IQ adjustments in VSG class
 * Add multithreading for waveform download and wfmBuilder
 * Add a multi-binblockwrite feature for download_wfm in the case of
@@ -1388,7 +1386,7 @@ class VSG(SignalGeneratorBase):
         self.modState = self.query("output:modulation?").strip()
         self.cf = float(self.query("frequency?").strip())
         self.amp = float(self.query("power?").strip())
-        self.alcState = self.query("power:alc?")
+        self.alcState = self.query("power:alc?".strip())
         self.refSrc = self.query("roscillator:source?").strip()
         self.arbState = self.query("radio:arb:state?").strip()
         self.fs = float(self.query("radio:arb:sclock:rate?").strip())
@@ -2289,3 +2287,72 @@ class VXG(SignalGeneratorBase):
         self.set_arbState(0, ch=ch)
         self.set_rfState(0, ch=ch)
         self.set_modState(0, ch=ch)
+
+
+class   N5186A(VXG):
+    def __init__(self, ipAddress, apiType="socketscpi", timeout=10, reset=False, **kwargs):
+        """
+        Generic class for controlling the N5186A Vector MXG signal generator.
+
+        Attributes:
+            rf1State (int): Turns the RF output on or off. (1, 0)
+            modState (int): Turns the baseband modulator on or off. (1, 0)
+            cf (float): Sets the generator's carrier frequency.
+            amp (int/float): Sets the generator's RF output power.
+            alcState (int): Turns the ALC (automatic level control) on or off. (1, 0)
+            iqScale (int): Scales the IQ modulator. Default/safe value is 70
+            refSrc (str): Sets the reference clock source. ('int', 'ext', 'bbg')
+            fs (float): Sets the sample rate of the baseband generator.
+
+        TODO
+            Add check to ensure that the correct instrument is connected
+        """
+
+        # super().__init__(host, port, timeout)
+        super().__init__(ipAddress, apiType=apiType, timeout=timeout, **kwargs)
+        if reset:
+            self.write("*rst")
+            self.query("*opc?")
+        
+        # Set the byte order to big endian
+        self.write(':SYSTem:WAVeform:BFILe:FORMat:DEFault I16Big')
+
+        # query the options on the MXG to see how many channels it has
+        self.numCh = 0
+        for ch in range(1,5):
+            optionString = self.query(f'system:rf{ch}:opt?').strip()
+            if optionString != '""':
+                self.numCh += 1
+        print(f'Number of channels: {self.numCh}')
+
+        for ch in range(1, self.numCh + 1):
+            print(ch)
+            exec(f'self.rfState{ch} = self.query("rf{ch}:output?").strip()')
+            exec(f'self.modState{ch} = self.query("rf{ch}:output:modulation?").strip()')
+            exec(f'self.cf{ch} = float(self.query("source:rf{ch}:frequency?").strip())')
+            exec(f'self.amp{ch} = float(self.query("rf{ch}:power?").strip())')
+            exec(f'self.arbState{ch} = self.query("source:group{ch}:signal:state?").strip()')
+            exec(f'self.alcState{ch} = self.query("rf{ch}:power:alc?")')
+            exec(f'self.iqScale{ch} = float(self.query("source:group{ch}:signal:waveform:scale?").strip())')
+            exec(f'self.rms{ch} = float(self.query("source:group{ch}:signal:waveform:rms?").strip())')
+            exec(f'self.fs{ch} = float(self.query("source:group{ch}:signal:waveform:sclock:rate?").strip())')
+        
+    def delete_wfm(self, wfmID):
+        """
+        Stops output and deletes specified waveform.
+        Args:
+            wfmID (str): Name of waveform to be deleted.
+        """
+
+        self.stop()
+        if "M938" in self.instId:
+            self.write(f'memory:delete "{wfmID}"')
+        else:
+            self.write(f'memory:delete "WFM1:{wfmID}"')
+        self.err_check()
+
+    def clear_all_wfm(self):
+        """Stops output and deletes all iq waveforms."""
+        self.stop()
+        self.write("mmemory:delete:wfm")
+        self.err_check()
