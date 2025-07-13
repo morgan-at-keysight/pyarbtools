@@ -670,6 +670,7 @@ class M8190A(SignalGeneratorBase):
         seqEnd=False,
         markerEnable=False,
         segAdvance="auto",
+        seqAdvance="auto",
         loopCount=1,
         startOffset=0,
         endOffset=0xFFFFFFFF,
@@ -731,6 +732,14 @@ class M8190A(SignalGeneratorBase):
         ]:
             raise ValueError("segAdvance must be 'auto', 'conditional', 'repeat', or 'single'.")
 
+        if not isinstance(seqAdvance, str) or seqAdvance.lower() not in [
+            "auto",
+            "conditional",
+            "repeat",
+            "single",
+        ]:
+            raise ValueError("seqAdvance must be 'auto', 'conditional', 'repeat', or 'single'.")
+
         if not isinstance(loopCount, int) or loopCount < 1 or loopCount > (4 * 2 ** 30 - 1):
             raise ValueError("loopCount must be an integer between 1 and 4294967295.")
 
@@ -750,6 +759,15 @@ class M8190A(SignalGeneratorBase):
         elif segAdvance.lower() == "single":
             segAdvanceBin = 3 << 16
 
+        if seqAdvance.lower() == "auto":
+            seqAdvanceBin = 0 << 20
+        elif seqAdvance.lower() == "conditional":
+            seqAdvanceBin = 1 << 20
+        elif seqAdvance.lower() == "repeat":
+            seqAdvanceBin = 2 << 20
+        elif seqAdvance.lower() == "single":
+            seqAdvanceBin = 3 << 20
+
         if seqStart:
             seqStartBin = 1 << 28
         else:
@@ -763,7 +781,7 @@ class M8190A(SignalGeneratorBase):
         if markerEnable:
             markerEnableBin = 1 << 24
         else:
-            markerEnableBin = 1 << 24
+            markerEnableBin = 0 << 24
 
         # Combine all individual members of control_entry and convert to integer
         controlEntry = int(segAdvanceBin | seqStartBin | seqEndBin | markerEnableBin)
